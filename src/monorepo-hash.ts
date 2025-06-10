@@ -625,7 +625,7 @@ export async function hash(): Promise<void> {
       true,
     )
 
-    if (debug) {
+    if (debug && mode === "generate") {
       await writeDebugFile(dir, perFileMap)
     }
 
