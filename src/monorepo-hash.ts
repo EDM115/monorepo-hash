@@ -636,8 +636,8 @@ export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCach
   const checkResults = await Promise.all(toCheck.map(async ([ pkgName, info ]) => {
     const newHash = finalCache[pkgName]
     const posixRel = info.relDir.split(path.sep).join("/")
-    const oldHash = oldHashMap[pkgName]
-    const existsHash = typeof oldHash === "string"
+    const oldHash = pkgName in oldHashMap ? oldHashMap[pkgName] : undefined
+    const existsHash = oldHash !== undefined && typeof oldHash === "string"
 
     if (!existsHash) {
       return {
