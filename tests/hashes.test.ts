@@ -110,39 +110,99 @@ packages:
   it("generates all hashes and matches snapshot", async () => {
     await execa(cli, [ cliScript, "--generate" ], { cwd: demoDir })
 
-    const rootHashPath = path.join(demoDir, ".hash")
-    const hashes = JSON.parse(await readFile(rootHashPath, "utf8")) as Record<string, string>
+    const hashPromises = pkgs.map(async (rel) => {
+      const hash = (await readFile(path.join(demoDir, rel, ".hash"), "utf8")).trim()
+
+      return [ rel, hash ] as const
+    })
+
+    const hashEntries = await Promise.all(hashPromises)
+    const normalizedEntries = hashEntries.map(([ rel, hash ]) => {
+      const posixRel = rel.split(path.sep).join("/")
+
+      return [ posixRel, hash ] as const
+    })
+
+    const hashes: Record<string, string> = Object.fromEntries(normalizedEntries)
 
     expect(hashes).toMatchSnapshot()
   })
 
   it("generates hash for a single workspace", async () => {
-    // clean up any existing .hash file
-    const rootHashPath = path.join(demoDir, ".hash")
-    if (await pathExists(rootHashPath)) {
-      await remove(rootHashPath)
-    }
+    // clean up any existing .hash files
+    const cleanupPromises = pkgs.map(async (rel) => {
+      const p = path.join(demoDir, rel, ".hash")
+
+      if (await pathExists(p)) {
+        await remove(p)
+      }
+    })
+
+    await Promise.all(cleanupPromises)
     await execa(cli, [ cliScript, "--generate", "--target=packages/cli-tools" ], { cwd: demoDir })
 
-    const hashes = JSON.parse(await readFile(rootHashPath, "utf8")) as Record<string, string>
-    expect(Object.keys(hashes)).toEqual(["packages/cli-tools"]) 
+    const existsPromises = pkgs.map(async (rel) => {
+      const exists = await pathExists(path.join(demoDir, rel, ".hash"))
+
+      return [ rel, exists ] as const
+    })
+
+    const existsResults = await Promise.all(existsPromises)
+
+    for (const [ rel, exists ] of existsResults) {
+      if (rel === path.join("packages", "cli-tools")) {
+        expect(exists).toBe(true)
+      } else {
+        expect(exists).toBe(false)
+      }
+    }
   })
 
   it("produces the same hash for a workspace with transitive deps as in full generate", async () => {
     // full generate
     await execa(cli, [ cliScript, "--generate" ], { cwd: demoDir })
-    const fullMap = JSON.parse(await readFile(path.join(demoDir, ".hash"), "utf8")) as Record<string, string>
-    const full = fullMap["services/backend"]
+    const full = (await readFile(path.join(demoDir, "services", "backend", ".hash"), "utf8")).trim()
 
-    // remove root .hash
-    await remove(path.join(demoDir, ".hash"))
+    // remove all .hash
+    const cleanPromises = pkgs.map(async (rel) => {
+      const p = path.join(demoDir, rel, ".hash")
+
+      if (await pathExists(p)) {
+        await remove(p)
+      }
+    })
+
+    await Promise.all(cleanPromises)
 
     // partial generate
     await execa(cli, [ cliScript, "--generate", "--target=services/backend" ], { cwd: demoDir })
-    const partialMap = JSON.parse(await readFile(path.join(demoDir, ".hash"), "utf8")) as Record<string, string>
-    const partial = partialMap["services/backend"]
+    const partial = (await readFile(path.join(demoDir, "services", "backend", ".hash"), "utf8")).trim()
 
-    expect(Object.keys(partialMap)).toEqual(["services/backend"])
+    const existsPromises = pkgs.map(async (rel) => {
+      const exists = await pathExists(path.join(demoDir, rel, ".hash"))
+
+      return [ rel, exists ] as const
+    })
+
+    const existsResults = await Promise.all(existsPromises)
+
+    for (const [ rel, exists ] of existsResults) {
+      if (rel === path.join("services", "backend")) {
+        expect(exists).toBe(true)
+      } else {
+        expect(exists).toBe(false)
+      }
+    }
+
     expect(partial).toBe(full)
+  })
+
+  it("writes a root .hash when unified flag is used", async () => {
+    await execa(cli, [ cliScript, "--generate", "--unified" ], { cwd: demoDir })
+    const rootPath = path.join(demoDir, ".hash")
+    const exists = await pathExists(rootPath)
+    expect(exists).toBe(true)
+    const content = JSON.parse(await readFile(rootPath, "utf8")) as Record<string, string>
+    expect(Object.keys(content).length).toBe(5)
   })
 })

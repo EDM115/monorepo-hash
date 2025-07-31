@@ -44,6 +44,7 @@ let mode: string | null = null
 let targets: string[] | null = null
 let silent = false
 let debug = false
+let unified = false
 
 for (const arg of argv) {
   if (arg === "--generate" || arg === "-g") {
@@ -68,6 +69,8 @@ for (const arg of argv) {
     silent = true
   } else if (arg === "--debug" || arg === "-d") {
     debug = true
+  } else if (arg === "--unified" || arg === "-u") {
+    unified = true
   } else if (arg === "--help" || arg === "-h") {
     console.log(`
 A simple script to generate or compare .hash files for pnpm workspaces.
@@ -79,6 +82,7 @@ Arguments :
   --target="<path>" (-t)   Specify one or more targets to generate/compare (comma-separated).
   --silent (-s)            Suppress output messages.
   --debug (-d)             Enable debug mode (per-file hashes).
+  --unified (-u)           Use a single root .hash file instead of per-workspace files.
   --help (-h)              Show this help message.
 `)
 
@@ -300,6 +304,34 @@ export async function loadRootHashFile(rootDir: string): Promise<Record<string, 
 }
 
 /**
+ * Write a JSON-serialized debug map to `.debug-hash` in `dir`
+ */
+export async function writeDebugFile(
+  dir: string,
+  debugMap: Record<string, string>,
+): Promise<void> {
+  const debugPath = path.join(dir, ".debug-hash")
+
+  await fs.writeFile(debugPath, JSON.stringify(debugMap, null, 2), "utf8")
+}
+
+/**
+ * Load the existing `.debug-hash` JSON from `dir`, if present.
+ * Otherwise returns null.
+ */
+export async function loadDebugFile(dir: string): Promise<Record<string, string> | null> {
+  const debugPath = path.join(dir, ".debug-hash")
+
+  if (!(await exists(debugPath))) {
+    return null
+  }
+
+  const text = await fs.readFile(debugPath, "utf8")
+
+  return JSON.parse(text) as Record<string, string>
+}
+
+/**
  * Write all per-file hashes to the root `.debug-hash` file
  */
 export async function writeRootDebugFile(
@@ -353,6 +385,9 @@ if (!mode) {
   if (debug) {
     log("ℹ️  Debug mode enabled\n")
   }
+  if (unified) {
+    log("ℹ️  Unified mode enabled\n")
+  }
 }
 
 // Load pnpm-workspace.yaml
@@ -390,10 +425,13 @@ if (await exists(rootGit)) {
   rootIgnore.add("**/.debug-hash")
 }
 
-export function generateDebug(
+export async function generateDebug(
   info: PackageInfo,
-  oldDebug: Record<string, string> | null,
-): void {
+  oldDebug?: Record<string, string> | null,
+): Promise<void> {
+  if (oldDebug === undefined) {
+    oldDebug = await loadDebugFile(info.dir)
+  }
   if (oldDebug) {
     // We already have info.perFileHashes from the generate pass
     const newDebug = info.perFileHashes!
@@ -426,43 +464,69 @@ export async function generateHashes(
 ): Promise<void> {
   const entries = Object.entries(pkgs)
     .filter(([ _, { relDir }]) => !targets || targets.includes(relDir))
-    .map(([ name, { relDir }]) => {
-      const hash = finalCache[name]
+
+  if (unified) {
+    const map: Record<string, string> = {}
+    for (const [ name, { relDir } ] of entries) {
       const posixRel = relDir.split(path.sep).join("/")
+      map[posixRel] = finalCache[name]
+    }
 
-      return [ posixRel, hash ] as const
+    await writeRootHashFile(repoRoot, map)
+
+    Object.entries(map)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .forEach(([ rel, hash ]) => {
+        log(`✅ ${rel} (${hash}) written to .hash`)
+      })
+  } else {
+    const writes = entries.map(async ([ name, { dir, relDir }]) => {
+      const current = finalCache[name]
+      const hashPath = path.join(dir, ".hash")
+
+      await fs.writeFile(hashPath, current)
+
+      return { relDir, hash: current }
     })
+    const results = await Promise.all(writes)
 
-  const map: Record<string, string> = {}
-
-  for (const [ rel, hash ] of entries) {
-    map[rel] = hash
+    results
+      .sort((a, b) => a.relDir.localeCompare(b.relDir))
+      .forEach(({ relDir, hash }) => {
+        log(`✅ ${relDir} (${hash}) written to .hash`)
+      })
   }
-
-  await writeRootHashFile(repoRoot, map)
-
-  entries
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .forEach(([ rel, hash ]) => {
-      log(`✅ ${rel} (${hash}) written to .hash`)
-    })
 }
 
 export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCache: Record<string, string>): Promise<void> {
-  const rootHashes = await loadRootHashFile(repoRoot)
-  const rootDebug = debug ? await loadRootDebugFile(repoRoot) : null
+  const rootHashes = unified ? await loadRootHashFile(repoRoot) : null
+  const rootDebug = debug && unified ? await loadRootDebugFile(repoRoot) : null
 
   // 1) figure out exactly which workspaces have changed without filtering by targets
   const changeChecks = await Promise.all(Object.entries(pkgs).map(async ([ pkgName, info ]) => {
     const currentHex = finalCache[pkgName]
-    const posixRel = info.relDir.split(path.sep).join("/")
-    const oldHex = rootHashes ? rootHashes[posixRel] : undefined
 
-    if (!oldHex) {
-      return { pkgName, missing: true }
+    if (unified) {
+      const posixRel = info.relDir.split(path.sep).join("/")
+      const oldHex = rootHashes ? rootHashes[posixRel] : undefined
+
+      if (!oldHex) {
+        return { pkgName, missing: true }
+      }
+
+      return { pkgName, missing: false, changed: oldHex !== currentHex }
+    } else {
+      const hashPath = path.join(info.dir, ".hash")
+      const existsHash = await exists(hashPath)
+
+      if (!existsHash) {
+        return { pkgName, missing: true }
+      }
+
+      const oldHex = (await fs.readFile(hashPath, "utf8")).trim()
+
+      return { pkgName, missing: false, changed: oldHex !== currentHex }
     }
-
-    return { pkgName, missing: false, changed: oldHex !== currentHex }
   }))
 
   /* const allMissing = new Set(changeChecks
@@ -525,16 +589,27 @@ export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCach
   const missingTargets: Array<{ name: string; newHash: string }> = []
 
   // We need a map pkgName to oldHash so we can report old when it changed
-  const oldMapEntries = Object.entries(pkgs).map(([ pkgName, info ]) => {
-    const posixRel = info.relDir.split(path.sep).join("/")
-    const oldHex = rootHashes ? rootHashes[posixRel] : undefined
+  const oldMapEntries = await Promise.all(Object.entries(pkgs).map(async ([ pkgName, info ]) => {
+    if (unified) {
+      const posixRel = info.relDir.split(path.sep).join("/")
+      const oldHex = rootHashes ? rootHashes[posixRel] : undefined
 
-    if (!oldHex) {
-      return null
+      if (!oldHex) {
+        return null
+      }
+
+      return [ pkgName, oldHex ] as [string, string]
+    } else {
+      const hashPath = path.join(info.dir, ".hash")
+
+      if (!(await exists(hashPath))) {
+        return null
+      }
+      const oldHex = (await fs.readFile(hashPath, "utf8")).trim()
+
+      return [ pkgName, oldHex ] as [string, string]
     }
-
-    return [ pkgName, oldHex ] as [string, string]
-  })
+  }))
   const oldHashMap: Record<string, string> = {}
 
   oldMapEntries.forEach((entry) => {
@@ -567,9 +642,13 @@ export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCach
     }
 
     // If debug AND there's an existing .debug-hash, compare per-file maps
-    if (debug && rootDebug) {
-      const oldDebug = rootDebug[posixRel] || null
-      generateDebug(info, oldDebug)
+    if (debug) {
+      if (unified && rootDebug) {
+        const oldDebug = rootDebug[posixRel] || null
+        await generateDebug(info, oldDebug)
+      } else if (!unified && existsHash) {
+        await generateDebug(info)
+      }
     }
     const transitiveDeps = getTransitiveDeps(pkgName)
     const depsChanged = Array.from(transitiveDeps).filter((d) => allChanged.has(d))
@@ -748,8 +827,12 @@ export async function hash(): Promise<void> {
       log(`\r🔄 Computing hashes (${zeroPad(count, pad)}/${total}) • ${relDir}`, true)
 
       if (debug && mode === "generate") {
-        const posixRel = relDir.split(path.sep).join("/")
-        debugOutput[posixRel] = perFileMap
+        if (unified) {
+          const posixRel = relDir.split(path.sep).join("/")
+          debugOutput[posixRel] = perFileMap
+        } else {
+          await writeDebugFile(dir, perFileMap)
+        }
       }
 
       return [
@@ -783,7 +866,9 @@ export async function hash(): Promise<void> {
   }
 
   if (mode === "generate" && debug) {
-    await writeRootDebugFile(repoRoot, debugOutput)
+    if (unified) {
+      await writeRootDebugFile(repoRoot, debugOutput)
+    }
   }
 
   // 5) perform generate or compare
