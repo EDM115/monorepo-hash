@@ -1,5 +1,6 @@
 declare global {
-  let tmpRoot: string
+  // oxlint-disable-next-line no-var
+  var tmpRoot: string
 }
 
 export {}
