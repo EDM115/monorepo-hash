@@ -43,7 +43,7 @@ pnpm add -D monorepo-hash
 > [!TIP]  
 > Make sure that the `packages` field in your `pnpm-workspace.yaml` file is set up correctly, as `monorepo-hash` will use it to find your workspaces. Globs are supported.  
 > `monorepo-hash` will also use the `workspace:` field in your `package.json` files to detect transitive dependencies.  
-> Finally, it will generate `.hash` files for each workspace that you can keep in your VCS so subsequent runs are faster. Use `--unified` if you prefer a single root `.hash` file instead.
+> Finally, it will generate `.hash` files for each workspace that you would need to keep in your VCS in order for it to be efficient (ex : to be reused in your CI). If you don't like having extra files or you have hundred of packages, use the `--unified` mode to obtain a single root `.hash` file instead.
 
 ### Get help
 ```bash
@@ -91,7 +91,7 @@ pnpm monorepo-hash --generate --debug
 # later on...
 pnpm monorepo-hash --compare --debug
 ```
-Don't forget to delete this file afterwards !
+Don't forget to delete these files afterwards !
 
 ### Exit codes
 - `0` : No changes detected (or you wanted to get help)

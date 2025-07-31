@@ -201,8 +201,15 @@ packages:
     await execa(cli, [ cliScript, "--generate", "--unified" ], { cwd: demoDir })
     const rootPath = path.join(demoDir, ".hash")
     const exists = await pathExists(rootPath)
+
     expect(exists).toBe(true)
     const content = JSON.parse(await readFile(rootPath, "utf8")) as Record<string, string>
+
     expect(Object.keys(content).length).toBe(5)
+
+    const cliToolsHashPath = path.join(demoDir, "packages", "cli-tools", ".hash")
+    const cliToolsExists = await pathExists(cliToolsHashPath)
+
+    expect(cliToolsExists).toBe(false)
   })
 })
