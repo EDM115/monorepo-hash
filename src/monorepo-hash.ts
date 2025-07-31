@@ -44,6 +44,7 @@ let mode: string | null = null
 let targets: string[] | null = null
 let silent = false
 let debug = false
+let unified = false
 
 for (const arg of argv) {
   if (arg === "--generate" || arg === "-g") {
@@ -68,18 +69,21 @@ for (const arg of argv) {
     silent = true
   } else if (arg === "--debug" || arg === "-d") {
     debug = true
+  } else if (arg === "--unified" || arg === "-u") {
+    unified = true
   } else if (arg === "--help" || arg === "-h") {
     console.log(`
-A simple script to generate or compare .hash files for pnpm workspaces.
-The goal is to help not rebuild Docker containers when nothing changed.
+monorepo-hash by EDM115
+A simple script to generate or compare .hash files for pnpm workspaces
 
 Arguments :
-  --generate (-g)          Generate or update .hash files for all workspaces.
-  --compare (-c)           Compare current state with existing .hash files. Capture the exit code to check for changes.
-  --target="<path>" (-t)   Specify one or more targets to generate/compare (comma-separated).
-  --silent (-s)            Suppress output messages.
-  --debug (-d)             Enable debug mode (per-file hashes).
-  --help (-h)              Show this help message.
+  --generate        (-g)  Generate or update .hash files for all workspaces
+  --compare         (-c)  Compare current state with existing .hash files. Capture the exit code to check for changes
+  --target="<path>" (-t)  Specify one or more targets to generate/compare (comma-separated)
+  --silent          (-s)  Suppress output messages
+  --debug           (-d)  Enable debug mode (per-file hashes)
+  --unified         (-u)  Use a single root .hash file instead of per-workspace files
+  --help            (-h)  Show this help message
 `)
 
     process.exit(0)
@@ -94,6 +98,7 @@ export function log(message: string, overwrite = false): void {
   if (!silent) {
     if (
       overwrite
+      // Allow to work when used for example in VS Code's Source Control panel, the output goes in its Output panel which doesn't support refreshed lines
       && process.stdout.isTTY
       && typeof process.stdout.clearLine === "function"
       && typeof process.stdout.cursorTo === "function"
@@ -146,7 +151,7 @@ export async function mapLimit<T, R>(
 }
 
 /**
- * Given a workspace directory (`dir`) and its repo-relative path (`relDir`), return a sorted array of all file-relative paths (using OS-specific separators), after applying root and package‐level .gitignore filters.
+ * Given a workspace directory (`dir`) and its repo-relative path (`relDir`), return a sorted array of all file-relative paths (using OS-specific separators), after applying root and package‐level .gitignore filters
  */
 export async function getWorkspaceFileList(
   dir: string,
@@ -172,6 +177,7 @@ export async function getWorkspaceFileList(
 
     pkgIgnore.add(pkgContents)
   }
+
   // Always ignore .hash and .debug-hash
   pkgIgnore.add(".hash")
   pkgIgnore.add(".debug-hash")
@@ -185,7 +191,7 @@ export async function getWorkspaceFileList(
 }
 
 /**
- * For a given `dir` and list of relative file paths (`fileList`), compute per-file SHA-256 on (normalizedPath + rawContent).
+ * For a given `dir` and list of relative file paths (`fileList`), compute per-file SHA-256 on (normalizedPath + rawContent)
  * Always returns a map : { "posix/rel/path": "hex" }
  */
 export async function computePerFileHashes(
@@ -223,7 +229,7 @@ export async function computePerFileHashes(
 }
 
 /**
- * Given a per-file‐hash map and its sorted keys, produce the "ownHash" Buffer by concatenating each raw hash‐buffer (in sorted key order) and feeding them into a SHA-256.
+ * Given a per-file‐hash map and its sorted keys, produce the "ownHash" Buffer by concatenating each raw hash‐buffer (in sorted key order) and feeding them into a SHA-256
  */
 export function computeOwnHashFromPerFile(
   perFileMap: Record<string, string>,
@@ -242,7 +248,7 @@ export function computeOwnHashFromPerFile(
 }
 
 /**
- * Recursively compute the final (aggregate) hash for `pkgName`, given a map of all PackageInfo, storing ownHash as Buffer.
+ * Recursively compute the final (aggregate) hash for `pkgName`, given a map of all PackageInfo, storing ownHash as Buffer
  */
 export function computeFinalHash(
   pkgName: string,
@@ -278,7 +284,29 @@ export function computeFinalHash(
 }
 
 /**
- * Write a JSON‐serialized debug map to `.debug-hash` in `dir`
+ * Write the mapping of workspace hashes to the root `.hash` file
+ */
+export async function writeRootHashFile(
+  rootDir: string,
+  map: Record<string, string>,
+): Promise<void> {
+  const p = path.join(rootDir, ".hash")
+
+  await fs.writeFile(p, JSON.stringify(map, null, 2), "utf8")
+}
+
+export async function loadRootHashFile(rootDir: string): Promise<Record<string, string> | null> {
+  const p = path.join(rootDir, ".hash")
+
+  if (!(await exists(p))) {
+    return null
+  }
+
+  return JSON.parse(await fs.readFile(p, "utf8")) as Record<string, string>
+}
+
+/**
+ * Write a JSON-serialized debug map to `.debug-hash` in `dir`
  */
 export async function writeDebugFile(
   dir: string,
@@ -290,8 +318,8 @@ export async function writeDebugFile(
 }
 
 /**
- * Load the existing `.debug-hash` JSON from `dir`, if present.
- * Otherwise returns null.
+ * Load the existing `.debug-hash` JSON from `dir`, if present
+ * Otherwise returns null
  */
 export async function loadDebugFile(dir: string): Promise<Record<string, string> | null> {
   const debugPath = path.join(dir, ".debug-hash")
@@ -303,6 +331,31 @@ export async function loadDebugFile(dir: string): Promise<Record<string, string>
   const text = await fs.readFile(debugPath, "utf8")
 
   return JSON.parse(text) as Record<string, string>
+}
+
+/**
+ * Write all per-file hashes to the root `.debug-hash` file
+ */
+export async function writeRootDebugFile(
+  rootDir: string,
+  map: Record<string, Record<string, string>>,
+): Promise<void> {
+  const p = path.join(rootDir, ".debug-hash")
+
+  await fs.writeFile(p, JSON.stringify(map, null, 2), "utf8")
+}
+
+/**
+ * Load the root `.debug-hash` file if present
+ */
+export async function loadRootDebugFile(rootDir: string): Promise<Record<string, Record<string, string>> | null> {
+  const p = path.join(rootDir, ".debug-hash")
+
+  if (!(await exists(p))) {
+    return null
+  }
+
+  return JSON.parse(await fs.readFile(p, "utf8")) as Record<string, Record<string, string>>
 }
 
 // Normalize targets from forward-slash to platform-specific separators
@@ -331,6 +384,10 @@ if (!mode) {
 
   if (debug) {
     log("ℹ️  Debug mode enabled\n")
+  }
+
+  if (unified) {
+    log("ℹ️  Unified mode enabled\n")
   }
 }
 
@@ -369,8 +426,13 @@ if (await exists(rootGit)) {
   rootIgnore.add("**/.debug-hash")
 }
 
-export async function generateDebug(info: PackageInfo): Promise<void> {
-  const oldDebug = await loadDebugFile(info.dir)
+export async function generateDebug(
+  info: PackageInfo,
+  oldDebug?: Record<string, string> | null,
+): Promise<void> {
+  if (oldDebug === undefined) {
+    oldDebug = await loadDebugFile(info.dir)
+  }
 
   if (oldDebug) {
     // We already have info.perFileHashes from the generate pass
@@ -398,42 +460,78 @@ export async function generateDebug(info: PackageInfo): Promise<void> {
   }
 }
 
-export async function generateHashes(pkgs: Record<string, PackageInfo>, finalCache: Record<string, string>): Promise<void> {
-  const writes = Object.entries(pkgs)
+export async function generateHashes(
+  pkgs: Record<string, PackageInfo>,
+  finalCache: Record<string, string>,
+): Promise<void> {
+  const entries = Object.entries(pkgs)
     // If the user passed --target, only write those relDirs
     .filter(([ _, { relDir }]) => !targets || targets.includes(relDir))
-    .map(async ([ name, { dir, relDir }]) => {
+
+  if (unified) {
+    const map: Record<string, string> = {}
+
+    for (const [ name, { relDir }] of entries) {
+      const posixRel = relDir.split(path.sep).join("/")
+
+      map[posixRel] = finalCache[name]
+    }
+
+    await writeRootHashFile(repoRoot, map)
+
+    Object.entries(map)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .forEach(([ rel, hash ]) => {
+        log(`✅ ${rel} (${hash} written to .hash)`)
+      })
+  } else {
+    const writes = entries.map(async ([ name, { dir, relDir }]) => {
       const current = finalCache[name]
       const hashPath = path.join(dir, ".hash")
 
       await fs.writeFile(hashPath, current)
 
-      return { name, relDir, hash: current }
+      return { relDir, hash: current }
     })
+    const results = await Promise.all(writes)
 
-  const results = await Promise.all(writes)
-
-  results
-    .sort((a, b) => a.relDir.localeCompare(b.relDir))
-    .forEach(({ relDir, hash }) => {
-      log(`✅ ${relDir} (${hash}) written to .hash`)
-    })
+    results
+      .sort((a, b) => a.relDir.localeCompare(b.relDir))
+      .forEach(({ relDir, hash }) => {
+        log(`✅ ${relDir} (${hash} written to .hash)`)
+      })
+  }
 }
 
 export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCache: Record<string, string>): Promise<void> {
+  const rootHashes = unified ? await loadRootHashFile(repoRoot) : null
+  const rootDebug = debug && unified ? await loadRootDebugFile(repoRoot) : null
+
   // 1) figure out exactly which workspaces have changed without filtering by targets
   const changeChecks = await Promise.all(Object.entries(pkgs).map(async ([ pkgName, info ]) => {
     const currentHex = finalCache[pkgName]
-    const hashPath = path.join(info.dir, ".hash")
-    const existsHash = await exists(hashPath)
 
-    if (!existsHash) {
-      return { pkgName, missing: true }
+    if (unified) {
+      const posixRel = info.relDir.split(path.sep).join("/")
+      const oldHex = rootHashes ? rootHashes[posixRel] : undefined
+
+      if (!oldHex) {
+        return { pkgName, missing: true }
+      }
+
+      return { pkgName, missing: false, changed: oldHex !== currentHex }
+    } else {
+      const hashPath = path.join(info.dir, ".hash")
+      const existsHash = await exists(hashPath)
+
+      if (!existsHash) {
+        return { pkgName, missing: true }
+      }
+
+      const oldHex = (await fs.readFile(hashPath, "utf8")).trim()
+
+      return { pkgName, missing: false, changed: oldHex !== currentHex }
     }
-
-    const oldHex = (await fs.readFile(hashPath, "utf8")).trim()
-
-    return { pkgName, missing: false, changed: oldHex !== currentHex }
   }))
 
   /* const allMissing = new Set(changeChecks
@@ -481,11 +579,13 @@ export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCach
     return visited
   }
 
-  // 4) prepare three lists (but only for targets) :
-  //      - unchangedTargets (requested targets whose hash == .hash on disk, AND no changed deps)
-  //      - changedTargets (requested targets whose own-hash differs OR who have changed deps)
-  //      - missingTargets (requested targets with no .hash file on disk)
-  //    and for each changedTarget we'll also gather exactly which of its transitiveDeps appear in allChanged
+  /*
+  4) prepare three lists (but only for targets) :
+      - unchangedTargets (requested targets whose hash == .hash on disk, AND no changed deps)
+      - changedTargets (requested targets whose own-hash differs OR who have changed deps)
+      - missingTargets (requested targets with no .hash file on disk)
+     and for each changedTarget we'll also gather exactly which of its transitiveDeps appear in allChanged
+  */
   const unchangedTargets: string[] = []
   const changedTargets: Array<{
     name: string
@@ -497,14 +597,26 @@ export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCach
 
   // We need a map pkgName to oldHash so we can report old when it changed
   const oldMapEntries = await Promise.all(Object.entries(pkgs).map(async ([ pkgName, info ]) => {
-    const hashPath = path.join(info.dir, ".hash")
+    if (unified) {
+      const posixRel = info.relDir.split(path.sep).join("/")
+      const oldHex = rootHashes ? rootHashes[posixRel] : undefined
 
-    if (!(await exists(hashPath))) {
-      return null
+      if (!oldHex) {
+        return null
+      }
+
+      return [ pkgName, oldHex ] as [string, string]
+    } else {
+      const hashPath = path.join(info.dir, ".hash")
+
+      if (!(await exists(hashPath))) {
+        return null
+      }
+
+      const oldHex = (await fs.readFile(hashPath, "utf8")).trim()
+
+      return [ pkgName, oldHex ] as [string, string]
     }
-    const oldHex = (await fs.readFile(hashPath, "utf8")).trim()
-
-    return [ pkgName, oldHex ] as [string, string]
   }))
   const oldHashMap: Record<string, string> = {}
 
@@ -523,8 +635,9 @@ export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCach
 
   const checkResults = await Promise.all(toCheck.map(async ([ pkgName, info ]) => {
     const newHash = finalCache[pkgName]
-    const hashPath = path.join(info.dir, ".hash")
-    const existsHash = await exists(hashPath)
+    const posixRel = info.relDir.split(path.sep).join("/")
+    const oldHash = pkgName in oldHashMap ? oldHashMap[pkgName] : undefined
+    const existsHash = oldHash !== undefined && typeof oldHash === "string"
 
     if (!existsHash) {
       return {
@@ -536,12 +649,17 @@ export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCach
       }
     }
 
-    const oldHash = oldHashMap[pkgName]!
-
     // If debug AND there's an existing .debug-hash, compare per-file maps
-    if (debug && existsHash) {
-      await generateDebug(info)
+    if (debug) {
+      if (unified && rootDebug) {
+        const oldDebug = rootDebug[posixRel] || null
+
+        await generateDebug(info, oldDebug)
+      } else if (!unified && existsHash) {
+        await generateDebug(info)
+      }
     }
+
     const transitiveDeps = getTransitiveDeps(pkgName)
     const depsChanged = Array.from(transitiveDeps).filter((d) => allChanged.has(d))
     const changedDepsRelDir = depsChanged.map((d) => pkgs[d].relDir)
@@ -671,6 +789,7 @@ export async function hash(): Promise<void> {
     if (namesToProcess.has(pkgName)) {
       return
     }
+
     namesToProcess.add(pkgName)
 
     for (const dep of meta[pkgName].deps) {
@@ -700,6 +819,7 @@ export async function hash(): Promise<void> {
   log(`\r🔄 Computing hashes (${zeroPad(count, pad)}/${total})`, true)
 
   const concurrency = Math.max(1, os.cpus().length)
+  const debugOutput: Record<string, Record<string, string>> = {}
   const pkgInfos = await mapLimit<string, [string, PackageInfo]>(
     toHash,
     concurrency,
@@ -718,7 +838,13 @@ export async function hash(): Promise<void> {
       log(`\r🔄 Computing hashes (${zeroPad(count, pad)}/${total}) • ${relDir}`, true)
 
       if (debug && mode === "generate") {
-        await writeDebugFile(dir, perFileMap)
+        if (unified) {
+          const posixRel = relDir.split(path.sep).join("/")
+
+          debugOutput[posixRel] = perFileMap
+        } else {
+          await writeDebugFile(dir, perFileMap)
+        }
       }
 
       return [
@@ -734,6 +860,10 @@ export async function hash(): Promise<void> {
       ]
     },
   )
+
+  if (mode === "generate" && debug && unified) {
+    await writeRootDebugFile(repoRoot, debugOutput)
+  }
 
   const pkgs: Record<string, PackageInfo> = {}
 
