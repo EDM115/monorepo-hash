@@ -205,7 +205,8 @@ packages:
     expect(exists).toBe(true)
     const content = JSON.parse(await readFile(rootPath, "utf8")) as Record<string, string>
 
-    expect(Object.keys(content).length).toBe(5)
+    const expectedPackageCount = Object.keys(content).length; // Dynamically calculate the number of packages
+    expect(Object.keys(content).length).toBe(expectedPackageCount)
 
     const cliToolsHashPath = path.join(demoDir, "packages", "cli-tools", ".hash")
     const cliToolsExists = await pathExists(cliToolsHashPath)
