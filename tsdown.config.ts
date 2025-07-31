@@ -1,6 +1,9 @@
 import { defineConfig } from "tsdown"
 
 export default defineConfig({
+  banner: {
+    js: "#!/usr/bin/env node"
+  },
   dts: true,
   entry: {
     "monorepo-hash": "./src/monorepo-hash.ts",

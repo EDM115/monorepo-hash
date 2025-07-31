@@ -65,7 +65,7 @@
   "main": "./dist/monorepo-hash.js",
   "module": "./dist/monorepo-hash.js",
   "name": "monorepo-hash",
-  "packageManager": "pnpm@10.12.1",
+  "packageManager": "pnpm@10.13.1",
   "publishConfig": {
     "access": "public"
   },

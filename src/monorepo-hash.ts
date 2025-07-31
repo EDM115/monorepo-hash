@@ -1,14 +1,19 @@
-#!/usr/bin/env node
-
 import type { PathLike } from "node:fs"
 
-import crypto from "node:crypto"
-import fs from "node:fs/promises"
-import os from "node:os"
-import path from "node:path"
+import { createHash } from "node:crypto"
+import { access, readFile, writeFile } from "node:fs/promises"
+import { cpus } from "node:os"
+import {
+  dirname,
+  join,
+  posix,
+  relative,
+  resolve,
+  sep,
+} from "node:path"
 
 import fg from "fast-glob"
-import ignore from "ignore"
+import ignore, { type Ignore } from "ignore"
 
 import { findUp } from "find-up"
 import { load } from "js-yaml"
@@ -114,7 +119,7 @@ export function log(message: string, overwrite = false): void {
 
 export async function exists(f: PathLike): Promise<boolean> {
   try {
-    await fs.stat(f)
+    await access(f)
 
     return true
   } catch {
@@ -156,24 +161,24 @@ export async function mapLimit<T, R>(
 export async function getWorkspaceFileList(
   dir: string,
   relDir: string,
-  rootIgnore: ignore.Ignore,
+  rootIgnore: Ignore,
 ): Promise<string[]> {
   // Gather all files under `dir`
   const rawFiles = await fg("**/*", { cwd: dir, onlyFiles: true, dot: true })
 
   // Convert to POSIX paths for consistent processing
-  const posixFiles = rawFiles.map((f) => f.split(path.sep).join("/"))
-  const repoPaths = posixFiles.map((f) => path.posix.join(relDir, f))
+  const posixFiles = rawFiles.map((f) => f.split(sep).join("/"))
+  const repoPaths = posixFiles.map((f) => posix.join(relDir, f))
 
   // 1) Apply root .gitignore
   const rootFiltered = rootIgnore.filter(repoPaths)
 
   // 2) Apply package‐level .gitignore if present
   const pkgIgnore = ignore()
-  const pkgGit = path.join(dir, ".gitignore")
+  const pkgGit = join(dir, ".gitignore")
 
   if (await exists(pkgGit)) {
-    const pkgContents = await fs.readFile(pkgGit, "utf8")
+    const pkgContents = await readFile(pkgGit, "utf8")
 
     pkgIgnore.add(pkgContents)
   }
@@ -183,11 +188,11 @@ export async function getWorkspaceFileList(
   pkgIgnore.add(".debug-hash")
 
   // Convert back to package‐relative POSIX paths
-  const pkgRelativePOSIX = rootFiltered.map((rp) => path.posix.relative(relDir, rp))
+  const pkgRelativePOSIX = rootFiltered.map((rp) => posix.relative(relDir, rp))
   const pkgFilteredPOSIX = pkgIgnore.filter(pkgRelativePOSIX)
 
   // Convert to OS‐specific separators and sort
-  return pkgFilteredPOSIX.map((f) => f.split("/").join(path.sep)).sort()
+  return pkgFilteredPOSIX.map((f) => f.split("/").join(sep)).sort()
 }
 
 /**
@@ -202,17 +207,16 @@ export async function computePerFileHashes(
   const CONCURRENCY = 100
 
   // Pre-normalize paths to avoid repeated split/join
-  const normalized = fileList.map((rel) => [ rel, rel.split(path.sep).join("/") ])
+  const normalized = fileList.map((rel) => [ rel, rel.split(sep).join("/") ])
 
   for (let i = 0; i < normalized.length; i += CONCURRENCY) {
     const batch = normalized.slice(i, i + CONCURRENCY)
 
     // oxlint-disable-next-line no-await-in-loop : Needed to not blow up memory with too many concurrent reads
     const partial = await Promise.all(batch.map(async ([ rel, norm ]) => {
-      const fullPath = path.join(dir, rel)
-      const content = await fs.readFile(fullPath)
-      const fileHash = crypto
-        .createHash("sha256")
+      const fullPath = join(dir, rel)
+      const content = await readFile(fullPath)
+      const fileHash = createHash("sha256")
         .update(norm)
         .update(content)
         .digest("hex")
@@ -235,7 +239,7 @@ export function computeOwnHashFromPerFile(
   perFileMap: Record<string, string>,
   sortedKeys: string[],
 ): Buffer {
-  const h = crypto.createHash("sha256")
+  const h = createHash("sha256")
 
   for (const key of sortedKeys) {
     // Each entry in perFileMap[key] is a hex string, convert to Buffer
@@ -266,7 +270,7 @@ export function computeFinalHash(
   }
 
   // Start the chain
-  let chain = crypto.createHash("sha256").update(pkg.ownHash)
+  let chain = createHash("sha256").update(pkg.ownHash)
 
   // Then incorporate each dependency's final hash (as Buffer)
   for (const dep of pkg.deps) {
@@ -290,19 +294,19 @@ export async function writeRootHashFile(
   rootDir: string,
   map: Record<string, string>,
 ): Promise<void> {
-  const p = path.join(rootDir, ".hash")
+  const p = join(rootDir, ".hash")
 
-  await fs.writeFile(p, JSON.stringify(map, null, 2), "utf8")
+  await writeFile(p, JSON.stringify(map, null, 2), "utf8")
 }
 
 export async function loadRootHashFile(rootDir: string): Promise<Record<string, string> | null> {
-  const p = path.join(rootDir, ".hash")
+  const p = join(rootDir, ".hash")
 
   if (!(await exists(p))) {
     return null
   }
 
-  return JSON.parse(await fs.readFile(p, "utf8")) as Record<string, string>
+  return JSON.parse(await readFile(p, "utf8")) as Record<string, string>
 }
 
 /**
@@ -312,9 +316,9 @@ export async function writeDebugFile(
   dir: string,
   debugMap: Record<string, string>,
 ): Promise<void> {
-  const debugPath = path.join(dir, ".debug-hash")
+  const debugPath = join(dir, ".debug-hash")
 
-  await fs.writeFile(debugPath, JSON.stringify(debugMap, null, 2), "utf8")
+  await writeFile(debugPath, JSON.stringify(debugMap, null, 2), "utf8")
 }
 
 /**
@@ -322,13 +326,13 @@ export async function writeDebugFile(
  * Otherwise returns null
  */
 export async function loadDebugFile(dir: string): Promise<Record<string, string> | null> {
-  const debugPath = path.join(dir, ".debug-hash")
+  const debugPath = join(dir, ".debug-hash")
 
   if (!(await exists(debugPath))) {
     return null
   }
 
-  const text = await fs.readFile(debugPath, "utf8")
+  const text = await readFile(debugPath, "utf8")
 
   return JSON.parse(text) as Record<string, string>
 }
@@ -340,27 +344,27 @@ export async function writeRootDebugFile(
   rootDir: string,
   map: Record<string, Record<string, string>>,
 ): Promise<void> {
-  const p = path.join(rootDir, ".debug-hash")
+  const p = join(rootDir, ".debug-hash")
 
-  await fs.writeFile(p, JSON.stringify(map, null, 2), "utf8")
+  await writeFile(p, JSON.stringify(map, null, 2), "utf8")
 }
 
 /**
  * Load the root `.debug-hash` file if present
  */
 export async function loadRootDebugFile(rootDir: string): Promise<Record<string, Record<string, string>> | null> {
-  const p = path.join(rootDir, ".debug-hash")
+  const p = join(rootDir, ".debug-hash")
 
   if (!(await exists(p))) {
     return null
   }
 
-  return JSON.parse(await fs.readFile(p, "utf8")) as Record<string, Record<string, string>>
+  return JSON.parse(await readFile(p, "utf8")) as Record<string, Record<string, string>>
 }
 
 // Normalize targets from forward-slash to platform-specific separators
 if (targets) {
-  targets = targets.map((t) => t.replace(/\/+$/, "").split("/").join(path.sep))
+  targets = targets.map((t) => t.replace(/\/+$/, "").split("/").join(sep))
 }
 
 if (!mode) {
@@ -400,9 +404,9 @@ if (!wsYaml || !(await exists(wsYaml))) {
   process.exit(4)
 }
 
-const repoRoot: string = path.dirname(wsYaml)
+const repoRoot: string = dirname(wsYaml)
 
-const wsConfig: PnpmWorkspaceConfig = load(await fs.readFile(wsYaml, "utf8")) as PnpmWorkspaceConfig
+const wsConfig: PnpmWorkspaceConfig = load(await readFile(wsYaml, "utf8")) as PnpmWorkspaceConfig
 const workspaceGlobs: string[] = Array.isArray(wsConfig.packages)
   ? wsConfig.packages
   : []
@@ -415,10 +419,10 @@ if (workspaceGlobs.length === 0) {
 
 // Compile root .gitignore
 let rootIgnore = ignore()
-const rootGit: string = path.join(repoRoot, ".gitignore")
+const rootGit: string = join(repoRoot, ".gitignore")
 
 if (await exists(rootGit)) {
-  const rootGitContents = await fs.readFile(rootGit, "utf8")
+  const rootGitContents = await readFile(rootGit, "utf8")
 
   rootIgnore = ignore().add(rootGitContents)
   // Ignore hashes
@@ -472,7 +476,7 @@ export async function generateHashes(
     const map: Record<string, string> = {}
 
     for (const [ name, { relDir }] of entries) {
-      const posixRel = relDir.split(path.sep).join("/")
+      const posixRel = relDir.split(sep).join("/")
 
       map[posixRel] = finalCache[name]
     }
@@ -487,9 +491,9 @@ export async function generateHashes(
   } else {
     const writes = entries.map(async ([ name, { dir, relDir }]) => {
       const current = finalCache[name]
-      const hashPath = path.join(dir, ".hash")
+      const hashPath = join(dir, ".hash")
 
-      await fs.writeFile(hashPath, current)
+      await writeFile(hashPath, current)
 
       return { relDir, hash: current }
     })
@@ -512,7 +516,7 @@ export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCach
     const currentHex = finalCache[pkgName]
 
     if (unified) {
-      const posixRel = info.relDir.split(path.sep).join("/")
+      const posixRel = info.relDir.split(sep).join("/")
       const oldHex = rootHashes ? rootHashes[posixRel] : undefined
 
       if (!oldHex) {
@@ -521,14 +525,14 @@ export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCach
 
       return { pkgName, missing: false, changed: oldHex !== currentHex }
     } else {
-      const hashPath = path.join(info.dir, ".hash")
+      const hashPath = join(info.dir, ".hash")
       const existsHash = await exists(hashPath)
 
       if (!existsHash) {
         return { pkgName, missing: true }
       }
 
-      const oldHex = (await fs.readFile(hashPath, "utf8")).trim()
+      const oldHex = (await readFile(hashPath, "utf8")).trim()
 
       return { pkgName, missing: false, changed: oldHex !== currentHex }
     }
@@ -598,7 +602,7 @@ export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCach
   // We need a map pkgName to oldHash so we can report old when it changed
   const oldMapEntries = await Promise.all(Object.entries(pkgs).map(async ([ pkgName, info ]) => {
     if (unified) {
-      const posixRel = info.relDir.split(path.sep).join("/")
+      const posixRel = info.relDir.split(sep).join("/")
       const oldHex = rootHashes ? rootHashes[posixRel] : undefined
 
       if (!oldHex) {
@@ -607,13 +611,13 @@ export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCach
 
       return [ pkgName, oldHex ] as [string, string]
     } else {
-      const hashPath = path.join(info.dir, ".hash")
+      const hashPath = join(info.dir, ".hash")
 
       if (!(await exists(hashPath))) {
         return null
       }
 
-      const oldHex = (await fs.readFile(hashPath, "utf8")).trim()
+      const oldHex = (await readFile(hashPath, "utf8")).trim()
 
       return [ pkgName, oldHex ] as [string, string]
     }
@@ -635,7 +639,7 @@ export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCach
 
   const checkResults = await Promise.all(toCheck.map(async ([ pkgName, info ]) => {
     const newHash = finalCache[pkgName]
-    const posixRel = info.relDir.split(path.sep).join("/")
+    const posixRel = info.relDir.split(sep).join("/")
     const oldHash = pkgName in oldHashMap ? oldHashMap[pkgName] : undefined
     const existsHash = oldHash !== undefined && typeof oldHash === "string"
 
@@ -747,7 +751,7 @@ export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCach
 export async function hash(): Promise<void> {
   // 1) find every workspace's package.json
   const pkgJsonPaths = await fg(
-    workspaceGlobs.map((glob) => path.posix.join(glob, "package.json")),
+    workspaceGlobs.map((glob) => posix.join(glob, "package.json")),
     { onlyFiles: true, dot: true },
   )
 
@@ -757,11 +761,11 @@ export async function hash(): Promise<void> {
   const relToName: Record<string, string> = {}
 
   await Promise.all(pkgJsonPaths.map(async (pkgJson) => {
-    const absJson = path.resolve(repoRoot, pkgJson)
-    const dir = path.dirname(absJson)
-    const relDir = path.relative(repoRoot, dir)
+    const absJson = resolve(repoRoot, pkgJson)
+    const dir = dirname(absJson)
+    const relDir = relative(repoRoot, dir)
 
-    const pkgData = JSON.parse(await fs.readFile(absJson, "utf8")) as PackageManifest
+    const pkgData = JSON.parse(await readFile(absJson, "utf8")) as PackageManifest
     const pkgName: string = pkgData.name
 
     meta[pkgName] = { dir, relDir, manifest: pkgData, deps: [] }
@@ -818,7 +822,7 @@ export async function hash(): Promise<void> {
 
   log(`\r🔄 Computing hashes (${zeroPad(count, pad)}/${total})`, true)
 
-  const concurrency = Math.max(1, os.cpus().length)
+  const concurrency = Math.max(1, cpus().length)
   const debugOutput: Record<string, Record<string, string>> = {}
   const pkgInfos = await mapLimit<string, [string, PackageInfo]>(
     toHash,
@@ -839,7 +843,7 @@ export async function hash(): Promise<void> {
 
       if (debug && mode === "generate") {
         if (unified) {
-          const posixRel = relDir.split(path.sep).join("/")
+          const posixRel = relDir.split(sep).join("/")
 
           debugOutput[posixRel] = perFileMap
         } else {
