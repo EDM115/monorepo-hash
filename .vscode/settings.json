@@ -2,12 +2,6 @@
   "[json]": {
     "editor.defaultFormatter": "vscode.json-language-features"
   },
-  "[jsonc]": {
-    "editor.defaultFormatter": "vscode.json-language-features"
-  },
-  "[markdown]": {
-    "editor.defaultFormatter": "yzhang.markdown-all-in-one"
-  },
   "[typescript]": {
     "editor.defaultFormatter": "vscode.typescript-language-features"
   },
@@ -22,19 +16,6 @@
   "importCost.smallPackageLightColor": "#50FA7B",
   "javascript.inlayHints.functionLikeReturnTypes.enabled": true,
   "javascript.inlayHints.parameterNames.enabled": "all",
-  "markdown-preview-enhanced.codeBlockTheme": "darcula.css",
-  "markdown-preview-enhanced.enableExtendedTableSyntax": true,
-  "markdown-preview-enhanced.enableHTML5Embed": true,
-  "markdown-preview-enhanced.enableScriptExecution": true,
-  "markdown-preview-enhanced.enableTypographer": true,
-  "markdown-preview-enhanced.mermaidTheme": "dark",
-  "markdown-preview-enhanced.previewTheme": "github-dark.css",
-  "markdown-preview-enhanced.revealjsTheme": "solarized.css",
-  "markdown.extension.print.absoluteImgPath": false,
-  "markdown.extension.print.theme": "dark",
-  "markdown.extension.theming.decoration.renderHardLineBreak": true,
-  "markdown.extension.theming.decoration.renderLink": true,
-  "markdown.extension.theming.decoration.renderTrailingSpace": true,
   "markdown.extension.toc.updateOnSave": false,
   "markdown.validate.enabled": true,
   "togglequotes.chars": [
@@ -43,11 +24,8 @@
     "`"
   ],
   "turboConsoleLog.logMessageSuffix": " :",
-  "typescript.experimental.expandableHover": true,
   "typescript.inlayHints.enumMemberValues.enabled": true,
   "typescript.inlayHints.functionLikeReturnTypes.enabled": true,
   "typescript.inlayHints.parameterNames.enabled": "all",
-  "typescript.inlayHints.propertyDeclarationTypes.enabled": true,
-  "yaml.extension.recommendations": false,
-  "yaml.maxItemsComputed": 100000
+  "typescript.inlayHints.propertyDeclarationTypes.enabled": true
 }

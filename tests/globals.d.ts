@@ -1,5 +1,5 @@
 declare global {
-  var tmpRoot: string
+  let tmpRoot: string
 }
 
 export {}

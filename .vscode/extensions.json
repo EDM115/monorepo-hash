@@ -2,16 +2,10 @@
   "recommendations": [
     "aaron-bond.better-comments",
     "britesnow.vscode-toggle-quotes",
-    "chakrounanas.turbo-console-log",
-    "github.vscode-github-actions",
-    "ibm.output-colorizer",
     "nhoizey.gremlins",
     "oxc.oxc-vscode",
     "pflannery.vscode-versionlens",
-    "shd101wyy.markdown-preview-enhanced",
-    "visualstudioexptteam.vscodeintellicode",
     "wix.vscode-import-cost",
-    "yoavbls.pretty-ts-errors",
-    "yzhang.markdown-all-in-one"
+    "yoavbls.pretty-ts-errors"
   ]
 }
