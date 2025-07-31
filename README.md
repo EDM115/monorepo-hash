@@ -40,8 +40,8 @@ You can install `monorepo-hash` globally, but it's best to add it as a dev depen
 ```bash
 pnpm add -D monorepo-hash
 ```
-> [!TIP]  
-> Make sure that the `packages` field in your `pnpm-workspace.yaml` file is set up correctly, as `monorepo-hash` will use it to find your workspaces. Globs are supported.  
+> [!TIP]
+> Make sure that your workspace configuration is set up correctly (`pnpm-workspace.yaml`, `package.json` workspaces or `deno.json` workspace) as `monorepo-hash` will use it to find your workspaces. Globs are supported.
 > `monorepo-hash` will also use the `workspace:` field in your `package.json` files to detect transitive dependencies.  
 > Finally, it will generate `.hash` files for each workspace that you would need to keep in your VCS in order for it to be efficient (ex : to be reused in your CI). If you don't like having extra files or you have hundred of packages, use the `--unified` mode to obtain a single root `.hash` file instead.
 
@@ -98,8 +98,9 @@ Don't forget to delete these files afterwards !
 - `1` : Changes detected in the hashes
 - `2` : Error with the arguments (either `--generate` or `--compare` is missing, or both were provided)
 - `3` : Unknown arguments provided
-- `4` : No workspaces found, either the `pnpm-workspace.yaml` file is missing or the `packages` field is not set up correctly
-- `5` : An unexpected error occurred, please open an issue with the logs
+- `4` : No workspaces found or unsupported package manager
+- `5` : Package manager forced with `--packagemanager` not present in the repo
+- `99` : An unexpected error occurred, please open an issue with the logs
 
 ## :test_tube: Examples
 ### Outputs

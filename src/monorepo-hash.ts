@@ -50,6 +50,7 @@ let targets: string[] | null = null
 let silent = false
 let debug = false
 let unified = false
+let pmOption: string | null = null
 
 for (const arg of argv) {
   if (arg === "--generate" || arg === "-g") {
@@ -76,10 +77,13 @@ for (const arg of argv) {
     debug = true
   } else if (arg === "--unified" || arg === "-u") {
     unified = true
+  } else if (arg.startsWith("--packagemanager=") || arg.startsWith("-pm=")) {
+    const [, val] = arg.split("=")
+    pmOption = val
   } else if (arg === "--help" || arg === "-h") {
     console.log(`
 monorepo-hash by EDM115
-A simple script to generate or compare .hash files for pnpm workspaces
+A simple script to generate or compare .hash files for various package managers
 
 Arguments :
   --generate        (-g)  Generate or update .hash files for all workspaces
@@ -88,6 +92,7 @@ Arguments :
   --silent          (-s)  Suppress output messages
   --debug           (-d)  Enable debug mode (per-file hashes)
   --unified         (-u)  Use a single root .hash file instead of per-workspace files
+  --packagemanager  (-pm) Force the package manager (pnpm, npm, yarn, bun, deno)
   --help            (-h)  Show this help message
 `)
 
@@ -395,27 +400,125 @@ if (!mode) {
   }
 }
 
-// Load pnpm-workspace.yaml
-const wsYaml: string | undefined = await findUp("pnpm-workspace.yaml")
+type PackageManager = "pnpm" | "npm" | "yarn" | "bun" | "deno"
 
-if (!wsYaml || !(await exists(wsYaml))) {
-  console.error("❌ pnpm-workspace.yaml not found")
+async function detectPNPM(): Promise<{ pm: PackageManager; root: string; globs: string[] } | null> {
+  const wsYaml = await findUp("pnpm-workspace.yaml")
 
+  if (!wsYaml || !(await exists(wsYaml))) {
+    return null
+  }
+
+  const root = dirname(wsYaml)
+  const config = load(await readFile(wsYaml, "utf8")) as PnpmWorkspaceConfig
+  const globs: string[] = Array.isArray(config.packages) ? config.packages : []
+
+  if (globs.length === 0) {
+    return null
+  }
+
+  return { pm: "pnpm", root, globs }
+}
+
+async function detectDeno(): Promise<{ pm: PackageManager; root: string; globs: string[] } | null> {
+  const denoPath = await findUp("deno.json")
+
+  if (!denoPath || !(await exists(denoPath))) {
+    return null
+  }
+
+  const root = dirname(denoPath)
+  const config = JSON.parse(await readFile(denoPath, "utf8")) as { workspace?: string[] }
+  const globs: string[] = Array.isArray(config.workspace) ? config.workspace : []
+
+  if (globs.length === 0) {
+    return null
+  }
+
+  return { pm: "deno", root, globs }
+}
+
+async function detectPkgJson(): Promise<{ pm: PackageManager; root: string; globs: string[] } | null> {
+  const pkgPath = await findUp(async (dir) => {
+    const p = join(dir, "package.json")
+
+    if (await exists(p)) {
+      const data = JSON.parse(await readFile(p, "utf8")) as { workspaces?: unknown }
+
+      if (data.workspaces) {
+        return p
+      }
+    }
+
+    return undefined
+  })
+
+  if (!pkgPath) {
+    return null
+  }
+
+  const root = dirname(pkgPath)
+  const pkg = JSON.parse(await readFile(pkgPath, "utf8")) as { workspaces?: string[] | { packages?: string[] } }
+  let globs: string[] = []
+
+  if (Array.isArray(pkg.workspaces)) {
+    globs = pkg.workspaces
+  } else if (pkg.workspaces && Array.isArray((pkg.workspaces as { packages?: string[] }).packages)) {
+    globs = (pkg.workspaces as { packages?: string[] }).packages as string[]
+  }
+
+  if (globs.length === 0) {
+    return null
+  }
+
+  if (await exists(join(root, "bun.lock"))) {
+    return { pm: "bun", root, globs }
+  }
+
+  if (await exists(join(root, "yarn.lock"))) {
+    return { pm: "yarn", root, globs }
+  }
+
+  return { pm: "npm", root, globs }
+}
+
+async function autoDetect(): Promise<{ pm: PackageManager; root: string; globs: string[] } | null> {
+  return (await detectPNPM())
+    ?? (await detectDeno())
+    ?? (await detectPkgJson())
+}
+
+async function detectSpecified(pm: PackageManager): Promise<{ pm: PackageManager; root: string; globs: string[] } | null> {
+  if (pm === "pnpm") return detectPNPM()
+  if (pm === "deno") return detectDeno()
+  return detectPkgJson().then((res) => {
+    if (!res) return null
+    if (res.pm === pm) return res
+    return null
+  })
+}
+
+const detected = pmOption ? await detectSpecified(pmOption as PackageManager) : await autoDetect()
+
+if (!detected) {
+  if (pmOption) {
+    const auto = await autoDetect()
+
+    if (auto) {
+      console.error(`❌ ${pmOption} workspaces not found. Did you mean --packagemanager=${auto.pm}?`)
+    } else {
+      console.error("❌ Specified package manager not found and no supported package manager detected")
+    }
+    process.exit(5)
+  }
+
+  console.error("❌ No workspaces found or unsupported package manager")
   process.exit(4)
 }
 
-const repoRoot: string = dirname(wsYaml)
+const { pm: packageManager, root: repoRoot, globs: workspaceGlobs } = detected
 
-const wsConfig: PnpmWorkspaceConfig = load(await readFile(wsYaml, "utf8")) as PnpmWorkspaceConfig
-const workspaceGlobs: string[] = Array.isArray(wsConfig.packages)
-  ? wsConfig.packages
-  : []
-
-if (workspaceGlobs.length === 0) {
-  console.error("❌ No \"packages:\" entries in pnpm-workspace.yaml")
-
-  process.exit(4)
-}
+log(`ℹ️  Using ${packageManager} workspaces from ${repoRoot}\n`)
 
 // Compile root .gitignore
 let rootIgnore = ignore()
@@ -898,5 +1001,5 @@ try {
 } catch (err) {
   console.error("❌ Unexpected error :")
   console.error(err instanceof Error ? err.message : String(err))
-  process.exit(5)
+  process.exit(99)
 }
