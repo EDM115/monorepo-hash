@@ -45,21 +45,27 @@ packages:
     const db = path.join(demoDir, "database")
 
     await mkdirp(db)
-    await writeJson(path.join(db, "package.json"), { name: "database", version: "0.1.0", type: "module" }, { spaces: 2 })
+    await writeJson(path.join(db, "package.json"), {
+      name: "database", version: "0.1.0", type: "module",
+    }, { spaces: 2 })
     await writeFile(path.join(db, "index.js"), "export const foo = \"db\"\n")
 
     // packages/linter
     const lint = path.join(demoDir, "packages", "linter")
 
     await mkdirp(lint)
-    await writeJson(path.join(lint, "package.json"), { name: "linter", version: "0.1.0", type: "module" }, { spaces: 2 })
+    await writeJson(path.join(lint, "package.json"), {
+      name: "linter", version: "0.1.0", type: "module",
+    }, { spaces: 2 })
     await writeFile(path.join(lint, "index.js"), "export const lint = () => true\n")
 
     // packages/cli-tools
     const cliTools = path.join(demoDir, "packages", "cli-tools")
 
     await mkdirp(cliTools)
-    await writeJson(path.join(cliTools, "package.json"), { name: "cli-tools", version: "0.1.0", type: "module" }, { spaces: 2 })
+    await writeJson(path.join(cliTools, "package.json"), {
+      name: "cli-tools", version: "0.1.0", type: "module",
+    }, { spaces: 2 })
     await writeFile(path.join(cliTools, "index.js"), "export const run = () => {}\n")
 
     // services/backend depends on database, linter, cli-tools
@@ -118,14 +124,16 @@ packages:
 
     const hashEntries = await Promise.all(hashPromises)
     const normalizedEntries = hashEntries.map(([ rel, hash ]) => {
-      const posixRel = rel.split(path.sep).join("/")
+      const posixRel = rel.split(path.sep)
+        .join("/")
 
       return [ posixRel, hash ] as const
     })
 
     const hashes: Record<string, string> = Object.fromEntries(normalizedEntries)
 
-    expect(hashes).toMatchSnapshot()
+    expect(hashes)
+      .toMatchSnapshot()
   })
 
   it("generates hash for a single workspace", async () => {
@@ -151,9 +159,11 @@ packages:
 
     for (const [ rel, exists ] of existsResults) {
       if (rel === path.join("packages", "cli-tools")) {
-        expect(exists).toBe(true)
+        expect(exists)
+          .toBe(true)
       } else {
-        expect(exists).toBe(false)
+        expect(exists)
+          .toBe(false)
       }
     }
   })
@@ -188,13 +198,16 @@ packages:
 
     for (const [ rel, exists ] of existsResults) {
       if (rel === path.join("services", "backend")) {
-        expect(exists).toBe(true)
+        expect(exists)
+          .toBe(true)
       } else {
-        expect(exists).toBe(false)
+        expect(exists)
+          .toBe(false)
       }
     }
 
-    expect(partial).toBe(full)
+    expect(partial)
+      .toBe(full)
   })
 
   it("writes a root .hash when unified flag is used", async () => {
@@ -202,16 +215,19 @@ packages:
     const rootPath = path.join(demoDir, ".hash")
     const exists = await pathExists(rootPath)
 
-    expect(exists).toBe(true)
+    expect(exists)
+      .toBe(true)
     const content = JSON.parse(await readFile(rootPath, "utf8")) as Record<string, string>
 
     const expectedPackageCount = Object.keys(content).length
 
-    expect(Object.keys(content).length).toBe(expectedPackageCount)
+    expect(Object.keys(content).length)
+      .toBe(expectedPackageCount)
 
     const cliToolsHashPath = path.join(demoDir, "packages", "cli-tools", ".hash")
     const cliToolsExists = await pathExists(cliToolsHashPath)
 
-    expect(cliToolsExists).toBe(false)
+    expect(cliToolsExists)
+      .toBe(false)
   })
 })

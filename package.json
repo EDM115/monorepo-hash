@@ -10,24 +10,25 @@
   "description": "A CLI tool to generate hashes for the workspaces of your monorepo",
   "dependencies": {
     "fast-glob": "~3.3.3",
-    "find-up": "~7.0.0",
+    "find-up": "~8.0.0",
     "ignore": "~7.0.5",
     "js-yaml": "~4.1.0"
   },
   "devDependencies": {
-    "@stylistic/eslint-plugin": "~5.2.2",
+    "@stylistic/eslint-plugin": "~5.4.0",
     "@types/fs-extra": "~11.0.4",
     "@types/js-yaml": "~4.0.9",
     "@types/node": "latest",
-    "@typescript-eslint/parser": "~8.38.0",
-    "eslint": "~9.32.0",
+    "@typescript-eslint/parser": "~8.44.1",
+    "eslint": "~9.36.0",
     "execa": "~9.6.0",
-    "fs-extra": "~11.3.0",
-    "globals": "~16.3.0",
-    "oxlint": "~1.9.0",
-    "tsdown": "~0.13.0",
-    "typescript": "~5.8.3",
-    "unplugin-unused": "~0.5.1",
+    "fs-extra": "~11.3.2",
+    "globals": "~16.4.0",
+    "oxlint": "~1.16.0",
+    "oxlint-tsgolint": "~0.2.0",
+    "tsdown": "~0.15.4",
+    "typescript": "~5.9.2",
+    "unplugin-unused": "~0.5.3",
     "vitest": "~3.2.4"
   },
   "exports": {
@@ -65,7 +66,7 @@
   "main": "./dist/monorepo-hash.js",
   "module": "./dist/monorepo-hash.js",
   "name": "monorepo-hash",
-  "packageManager": "pnpm@10.13.1",
+  "packageManager": "pnpm@10.17.1",
   "publishConfig": {
     "access": "public"
   },
@@ -75,9 +76,9 @@
   },
   "scripts": {
     "build": "tsdown",
-    "lint": "oxlint . --ignore-path .gitignore",
-    "lint:fix": "oxlint . --fix --ignore-path .gitignore",
-    "format": "eslint -c eslint.stylistic.config.ts --fix .",
+    "lint": "oxlint --type-aware .",
+    "lint:fix": "oxlint --fix --type-aware .",
+    "format": "eslint -c eslint.stylistic.config.ts --concurrency=auto --fix .",
     "prepublishOnly": "pnpm build",
     "release": "pnpm publish",
     "test": "pnpm build && vitest",

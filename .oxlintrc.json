@@ -10,7 +10,7 @@
     "suspicious": "warn"
   },
   "env": {
-    "es2023": true,
+    "es2025": true,
     "node": true
   },
   "ignorePatterns": [
@@ -20,15 +20,23 @@
   ],
   "plugins": [
     "import",
-    "typescript",
     "oxc",
+    "regex",
+    "typescript",
     "unicorn"
   ],
   "rules": {
-    "curly": "off",
+    "capitalized-comments": "off",
+    "curly": [
+      "error",
+      "all"
+    ],
+    "id-length": "off",
     "import/no-duplicates": "error",
     "import/no-named-as-default": "warn",
     "import/no-named-as-default-member": "warn",
+    "import/no-unresolved": [ "error", { "ignore": [ "^~icons/", "\\.svg\\?.*$" ] }],
+    "max-statements": "off",
     "no-array-constructor": "error",
     "no-await-in-loop": "error",
     "no-case-declarations": "error",
@@ -40,7 +48,12 @@
     "no-unexpected-multiline": "off",
     "no-unused-expressions": "error",
     "no-useless-call": "error",
+    "no-underscore-dangle": "off",
+    "no-useless-assignment": "off",
     "no-var": "error",
+    "one-var": "off",
+    "prefer-named-capture-group": "off",
+    "require-unicode-regexp": "off",
     "oxc/no-accumulating-spread": "error",
     "prefer-rest-params": "error",
     "prefer-spread": "error",
@@ -62,6 +75,7 @@
       }
     ],
     "typescript/prefer-as-const": "error",
+    "typescript/triple-slash-reference": "off",
     "unicorn/consistent-function-scoping": "off",
     "unicorn/no-empty-file": "off",
     "unicorn/prefer-array-find": "error",

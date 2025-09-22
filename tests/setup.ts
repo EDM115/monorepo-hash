@@ -53,7 +53,9 @@ await writeFile(
 
 await writeJson(
   path.join(pkgBDir, "package.json"),
-  { name: "pkg-b", version: "0.1.0", type: "module" },
+  {
+    name: "pkg-b", version: "0.1.0", type: "module",
+  },
   { spaces: 2 },
 )
 await writeFile(
@@ -63,7 +65,9 @@ await writeFile(
 
 await writeJson(
   path.join(pkgCDir, "package.json"),
-  { name: "pkg-c", version: "0.1.0", type: "module" },
+  {
+    name: "pkg-c", version: "0.1.0", type: "module",
+  },
   { spaces: 2 },
 )
 await writeFile(

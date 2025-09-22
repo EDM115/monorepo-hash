@@ -24,27 +24,39 @@ describe("exit codes", () => {
   })
 
   it("returns 0 for --help", async () => {
-    const result = await execa(cli, [ cliScript, "--help" ], { cwd, reject: false })
+    const result = await execa(cli, [ cliScript, "--help" ], {
+      cwd, reject: false,
+    })
 
-    expect(result.exitCode).toBe(0)
+    expect(result.exitCode)
+      .toBe(0)
   })
 
   it("returns 2 when no mode is specified", async () => {
-    const result = await execa(cli, [ cliScript ], { cwd, reject: false })
+    const result = await execa(cli, [cliScript], {
+      cwd, reject: false,
+    })
 
-    expect(result.exitCode).toBe(2)
+    expect(result.exitCode)
+      .toBe(2)
   })
 
   it("returns 2 when both --generate and --compare are specified", async () => {
-    const result = await execa(cli, [ cliScript, "--generate", "--compare" ], { cwd, reject: false })
+    const result = await execa(cli, [ cliScript, "--generate", "--compare" ], {
+      cwd, reject: false,
+    })
 
-    expect(result.exitCode).toBe(2)
+    expect(result.exitCode)
+      .toBe(2)
   })
 
   it("returns 3 for unknown option", async () => {
-    const result = await execa(cli, [ cliScript, "--edm115" ], { cwd, reject: false })
+    const result = await execa(cli, [ cliScript, "--edm115" ], {
+      cwd, reject: false,
+    })
 
-    expect(result.exitCode).toBe(3)
+    expect(result.exitCode)
+      .toBe(3)
   })
 
   it("returns 4 when pnpm-workspace.yaml is missing", async () => {
@@ -56,9 +68,12 @@ describe("exit codes", () => {
     const workspaceContent = await readFile(workspaceFilePath, "utf8")
 
     await remove(workspaceFilePath)
-    const result = await execa(cli, [ cliScript, "--generate" ], { cwd, reject: false })
+    const result = await execa(cli, [ cliScript, "--generate" ], {
+      cwd, reject: false,
+    })
 
-    expect(result.exitCode).toBe(4)
+    expect(result.exitCode)
+      .toBe(4)
 
     await writeFile(workspaceFilePath, workspaceContent)
   })
@@ -73,9 +88,12 @@ describe("exit codes", () => {
     const packageJsonContent = await readFile(packageJsonPath, "utf8")
 
     await writeFile(packageJsonPath, "{ invalid json }")
-    const result = await execa(cli, [ cliScript, "--generate" ], { cwd, reject: false })
+    const result = await execa(cli, [ cliScript, "--generate" ], {
+      cwd, reject: false,
+    })
 
-    expect(result.exitCode).toBe(5)
+    expect(result.exitCode)
+      .toBe(5)
 
     await writeFile(packageJsonPath, packageJsonContent)
   })

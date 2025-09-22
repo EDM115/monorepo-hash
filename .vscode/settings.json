@@ -5,25 +5,9 @@
   "[typescript]": {
     "editor.defaultFormatter": "vscode.typescript-language-features"
   },
-  "gremlins.color_error": "rgba(255, 85, 85, .50)",
-  "gremlins.color_info": "rgba(139, 233, 253, .50)",
-  "gremlins.color_warning": "rgba(241, 250, 140, .50)",
-  "importCost.fontStyle": "italic",
-  "importCost.largePackageDarkColor": "#FF5555",
-  "importCost.largePackageLightColor": "#FF5555",
-  "importCost.mediumPackageLightColor": "#50FA7B",
-  "importCost.smallPackageDarkColor": "#50FA7B",
-  "importCost.smallPackageLightColor": "#50FA7B",
   "javascript.inlayHints.functionLikeReturnTypes.enabled": true,
   "javascript.inlayHints.parameterNames.enabled": "all",
-  "markdown.extension.toc.updateOnSave": false,
-  "markdown.validate.enabled": true,
-  "togglequotes.chars": [
-    "'",
-    "\"",
-    "`"
-  ],
-  "turboConsoleLog.logMessageSuffix": " :",
+  "javascript.updateImportsOnFileMove.enabled": "always",
   "typescript.inlayHints.enumMemberValues.enabled": true,
   "typescript.inlayHints.functionLikeReturnTypes.enabled": true,
   "typescript.inlayHints.parameterNames.enabled": "all",

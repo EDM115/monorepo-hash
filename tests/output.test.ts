@@ -27,14 +27,21 @@ describe("monorepo-hash output", () => {
 
   it("reports unchanged when no files changed, and exit code 0", async () => {
     await execa(cli, [ cliScript, "--generate" ], { cwd })
-    const result = await execa(cli, [ cliScript, "--compare" ], { cwd, reject: false, all: true })
+    const result = await execa(cli, [ cliScript, "--compare" ], {
+      cwd, reject: false, all: true,
+    })
 
-    expect(result.exitCode).toBe(0)
+    expect(result.exitCode)
+      .toBe(0)
 
-    expect(result.all).toMatch(/✅ Unchanged \(3\) :/m)
-    expect(result.all).toMatch(new RegExp(`• packages${sep.replace(/\\/g, "\\\\")}pkg-a`, "m"))
-    expect(result.all).toMatch(new RegExp(`• packages${sep.replace(/\\/g, "\\\\")}pkg-b`, "m"))
-    expect(result.all).toMatch(new RegExp(`• packages${sep.replace(/\\/g, "\\\\")}pkg-c`, "m"))
+    expect(result.all)
+      .toMatch(/✅ Unchanged \(3\) :/m)
+    expect(result.all)
+      .toMatch(new RegExp(`• packages${sep.replace(/\\/g, "\\\\")}pkg-a`, "m"))
+    expect(result.all)
+      .toMatch(new RegExp(`• packages${sep.replace(/\\/g, "\\\\")}pkg-b`, "m"))
+    expect(result.all)
+      .toMatch(new RegExp(`• packages${sep.replace(/\\/g, "\\\\")}pkg-c`, "m"))
   })
 
   it("detects a file change and exits with non-zero, listing the changed workspace", async () => {
@@ -46,9 +53,12 @@ describe("monorepo-hash output", () => {
     const pkgBIndex = path.join(globalThis.tmpRoot, "packages", "pkg-b", "index.js")
 
     await writeFile(pkgBIndex, "export const msg = \"pkg-b (edited)\"\n")
-    const result = await execa(cli, [ cliScript, "--compare" ], { cwd, reject: false, all: true })
+    const result = await execa(cli, [ cliScript, "--compare" ], {
+      cwd, reject: false, all: true,
+    })
 
-    expect(result.exitCode).toBe(1)
+    expect(result.exitCode)
+      .toBe(1)
 
     const expectedPattern = new RegExp(
       "✅ Unchanged \\(1\\) :\\s*"
@@ -61,7 +71,8 @@ describe("monorepo-hash output", () => {
       "ms",
     )
 
-    expect(result.all).toMatch(expectedPattern)
+    expect(result.all)
+      .toMatch(expectedPattern)
   })
 
   it("reports missing .hash if you delete a hash file and run --compare", async () => {
@@ -73,11 +84,16 @@ describe("monorepo-hash output", () => {
     const hashAPath = path.join(globalThis.tmpRoot, "packages", "pkg-a", ".hash")
 
     await remove(hashAPath)
-    const result = await execa(cli, [ cliScript, "--compare" ], { cwd, reject: false, all: true })
+    const result = await execa(cli, [ cliScript, "--compare" ], {
+      cwd, reject: false, all: true,
+    })
 
-    expect(result.exitCode).toBe(1)
-    expect(result.all).toContain("❓ Missing .hash files (1) :")
-    expect(result.all).toContain(`• packages${sep}pkg-a`)
+    expect(result.exitCode)
+      .toBe(1)
+    expect(result.all)
+      .toContain("❓ Missing .hash files (1) :")
+    expect(result.all)
+      .toContain(`• packages${sep}pkg-a`)
   })
 
   it("produces deterministic hashes across consecutive --generate runs", async () => {
@@ -97,7 +113,9 @@ describe("monorepo-hash output", () => {
     const secondA = (await readFile(aPath, "utf8")).trim()
     const secondB = (await readFile(bPath, "utf8")).trim()
 
-    expect(secondA).toBe(firstA)
-    expect(secondB).toBe(firstB)
+    expect(secondA)
+      .toBe(firstA)
+    expect(secondB)
+      .toBe(firstB)
   })
 })
