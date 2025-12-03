@@ -5,7 +5,7 @@ exports[`hash generation > generates all hashes and matches snapshot 1`] = `
   "database": "4fd660d2b0881cf3554460f6fdbb49c6e0254e0734877409260576d22f8cd998",
   "packages/cli-tools": "3cb7ab8f6442d61e8672ec34c6bd90ebeb7c77c66a697e210cf39600605e599d",
   "packages/linter": "4c2f2891a2d9f0e61d4d8d7f62d1e40588ced6ce1ff440a656d5c46eead366c6",
-  "services/backend": "2dae41227a8ffb4cad170da9c132d8ea6ece0bf04ef50ca772c4630e8b7f8469",
-  "services/frontend": "865fcb83cf437bf6de171ae5d0ff9fd20dffbcfc4d04105c05e7ab9ffafb46d9",
+  "services/backend": "a187ceff599ebb8d43d8db405200f05d77e25260fdb53250d1b6c0f47a770061",
+  "services/frontend": "e39869da166c1e770aa6a0567a0f28baf507150777bbe5c41f2c7131de6774c1",
 }
 `;

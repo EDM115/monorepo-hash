@@ -45,7 +45,7 @@ await writeJson(
     name: "pkg-a",
     version: "0.1.0",
     type: "module",
-    dependencies: { "pkg-b": "workspace:^" },
+    dependencies: { "pkg-b": "workspace:*" },
   },
   { spaces: 2 },
 )

@@ -26,7 +26,14 @@ import { load } from "js-yaml"
 
 
 // #region types
-export type PnpmWorkspaceConfig = { packages?: string[] }
+export const PACKAGE_MANAGERS = [ "pnpm", "npm", "deno", "bun", "yarn" ] as const
+
+export type PackageManager = (typeof PACKAGE_MANAGERS)[number]
+
+export type PnpmWorkspaceConfig = {
+  packages?: string[];
+  [key: string]: unknown;
+}
 
 export interface PackageManifest {
   name: string;
@@ -59,7 +66,7 @@ let targets: string[] | null = null
 let silent = false
 let debug = false
 let unified = false
-let pmOption: string | null = null
+let pmOption: PackageManager | null = null
 
 for (const arg of argv) {
   if (arg === "--generate" || arg === "-g") {
@@ -89,10 +96,9 @@ for (const arg of argv) {
     unified = true
   } else if (arg.startsWith("--packagemanager=") || arg.startsWith("-pm=")) {
     const [ , val ] = arg.split("=")
-    const supportedPackageManagers = ["pnpm", "npm"]
 
-    if (!supportedPackageManagers.includes(val)) {
-      console.error(`❌ Invalid package manager ("${val}"), supported values are : ${supportedPackageManagers.join(", ")}`)
+    if (!isPackageManager(val)) {
+      console.error(`❌ Invalid package manager ("${val}"), supported values are : ${PACKAGE_MANAGERS.join(", ")}`)
       process.exit(2)
     }
 
@@ -100,7 +106,8 @@ for (const arg of argv) {
   } else if (arg === "--help" || arg === "-h") {
     console.log(`
 monorepo-hash by EDM115
-A simple script to generate or compare .hash files for pnpm workspaces
+A simple script to generate or compare .hash files for monorepo workspaces
+Supports PNPM, Yarn, NPM, Bun and Deno
 
 Arguments :
   --generate        (-g)  Generate or update .hash files for all workspaces
@@ -109,7 +116,7 @@ Arguments :
   --silent          (-s)  Suppress output messages
   --debug           (-d)  Enable debug mode (per-file hashes)
   --unified         (-u)  Use a single root .hash file instead of per-workspace files
-  --packagemanager  (-pm) Force the package manager (pnpm)
+  --packagemanager  (-pm) Force the package manager (${PACKAGE_MANAGERS.join(", ")})
   --help            (-h)  Show this help message
 `)
 
@@ -287,31 +294,211 @@ export async function getWorkspaceFileList(
     .join(sep))
     .toSorted()
 }
+
+/**
+ * Type guard to check if a string is a valid PackageManager
+ * @param value The string to check
+ * @returns True if the string is a valid PackageManager, false otherwise
+ */
+export function isPackageManager(value: string): value is PackageManager {
+  return (PACKAGE_MANAGERS as readonly string[]).includes(value)
+}
 // #endregion
 
-// #region PNPM & Git
-// Load pnpm-workspace.yaml
-const wsYaml: string | undefined = await findUp("pnpm-workspace.yaml")
+// #region Package manager
+/**
+ * Detect PNPM workspaces by locating `pnpm-workspace.yaml` and reading its `packages` field
+ * @returns A promise that resolves to an object containing the package manager, root directory, and workspace globs, or null if not detected
+ */
+export async function detectPNPM(): Promise<{
+  pm: PackageManager; root: string; globs: string[];
+} | null> {
+  const wsYaml = await findUp("pnpm-workspace.yaml")
 
-if (!wsYaml || !(await exists(wsYaml))) {
-  console.error("❌ pnpm-workspace.yaml not found")
+  if (!wsYaml || !(await exists(wsYaml))) {
+    return null
+  }
 
+  const root = dirname(wsYaml)
+  // oxlint-disable-next-line no-unsafe-type-assertion
+  const config = load(await readFile(wsYaml, "utf8")) as PnpmWorkspaceConfig
+  const globs: string[] = Array.isArray(config.packages)
+    ? config.packages
+    : []
+
+  if (globs.length === 0) {
+    return null
+  }
+
+  return {
+    pm: "pnpm", root, globs,
+  }
+}
+
+/**
+ * Detect Deno workspaces by locating `deno.json` or `deno.jsonc` and reading its `workspace` field
+ * @returns A promise that resolves to an object containing the package manager, root directory, and workspace globs, or null if not detected
+ */
+export async function detectDeno(): Promise<{
+  pm: PackageManager; root: string; globs: string[];
+} | null> {
+  let denoPath = await findUp("deno.json")
+
+  if (!denoPath || !(await exists(denoPath))) {
+    denoPath = await findUp("deno.jsonc")
+
+    if (!denoPath || !(await exists(denoPath))) {
+      return null
+    }
+  }
+
+  const root = dirname(denoPath)
+  // oxlint-disable-next-line no-unsafe-type-assertion
+  const config = JSON.parse(await readFile(denoPath, "utf8")) as { workspace?: string[] }
+  const globs: string[] = Array.isArray(config.workspace)
+    ? config.workspace
+    : []
+
+  if (globs.length === 0) {
+    return null
+  }
+
+  return {
+    pm: "deno", root, globs,
+  }
+}
+
+/**
+ * Detect workspaces from `package.json` `workspaces` field, supporting Yarn, NPM and Bun
+ * @returns A promise that resolves to an object containing the package manager, root directory, and workspace globs, or null if not detected
+ */
+export async function detectPkgJson(): Promise<{
+  pm: PackageManager; root: string; globs: string[];
+} | null> {
+  const pkgPath = await findUp(async (dir) => {
+    const pkgFile = join(dir, "package.json")
+
+    if (await exists(pkgFile)) {
+      // oxlint-disable-next-line no-unsafe-type-assertion
+      const data = JSON.parse(await readFile(pkgFile, "utf8")) as { workspaces?: unknown }
+
+      if (data.workspaces) {
+        return pkgFile
+      }
+    }
+
+    return undefined
+  })
+
+  if (!pkgPath) {
+    return null
+  }
+
+  const root = dirname(pkgPath)
+  // oxlint-disable-next-line no-unsafe-type-assertion
+  const pkg = JSON.parse(await readFile(pkgPath, "utf8")) as { workspaces?: string[] | { packages?: string[] } }
+  let globs: string[] = []
+
+  if (Array.isArray(pkg.workspaces)) {
+    globs = pkg.workspaces
+  } else if (pkg.workspaces && Array.isArray((pkg.workspaces as { packages?: string[] }).packages)) {
+    globs = (pkg.workspaces as { packages?: string[] }).packages ?? []
+  }
+
+  if (globs.length === 0) {
+    return null
+  }
+
+  if (await exists(join(root, "bun.lock")) || await exists(join(root, "bun.lockb"))) {
+    return {
+      pm: "bun", root, globs,
+    }
+  }
+
+  if (await exists(join(root, "deno.lock"))) {
+    return {
+      pm: "deno", root, globs,
+    }
+  }
+
+  if (await exists(join(root, "yarn.lock"))) {
+    return {
+      pm: "yarn", root, globs,
+    }
+  }
+
+  if (await exists(join(root, "package-lock.json"))) {
+    return {
+      pm: "npm", root, globs,
+    }
+  }
+
+  return null
+}
+
+/**
+ * Auto-detect the package manager and workspaces
+ * @returns A promise that resolves to an object containing the package manager, root directory, and workspace globs, or null if not detected
+ */
+export async function autoDetect(): Promise<{
+  pm: PackageManager; root: string; globs: string[];
+} | null> {
+  return (await detectPNPM())
+    ?? (await detectDeno())
+    ?? (await detectPkgJson())
+}
+
+/**
+ * Detect workspaces for a specified package manager
+ * @param pm The package manager to detect
+ * @returns A promise that resolves to an object containing the package manager, root directory, and workspace globs, or null if not detected
+ */
+export async function detectSpecified(pm: PackageManager): Promise<{
+  pm: PackageManager; root: string; globs: string[];
+} | null> {
+  if (pm === "pnpm") {
+    return detectPNPM()
+  }
+
+  if (pm === "deno") {
+    return detectDeno()
+  }
+
+  const detectedPm = await detectPkgJson()
+
+  return detectedPm?.pm === pm
+    ? detectedPm
+    : null
+}
+
+const detected = pmOption
+  ? await detectSpecified(pmOption)
+  : await autoDetect()
+
+if (!detected) {
+  if (pmOption) {
+    const auto = await autoDetect()
+
+    if (auto) {
+      console.error(`❌ ${pmOption} workspaces not found. Did you mean --packagemanager=${auto.pm}?`)
+    } else {
+      console.error("❌ Specified package manager not found and no supported package manager detected")
+    }
+
+    process.exit(5)
+  }
+
+  console.error("❌ No workspaces found or unsupported package manager")
   process.exit(4)
 }
 
-const repoRoot: string = dirname(wsYaml)
+const {
+  pm: packageManager,
+  root: repoRoot,
+  globs: workspaceGlobs,
+} = detected
 
-// oxlint-disable-next-line no-unsafe-type-assertion
-const wsConfig: PnpmWorkspaceConfig = load(await readFile(wsYaml, "utf8")) as PnpmWorkspaceConfig
-const workspaceGlobs: string[] = Array.isArray(wsConfig.packages)
-  ? wsConfig.packages
-  : []
-
-if (workspaceGlobs.length === 0) {
-  console.error("❌ No \"packages:\" entries in pnpm-workspace.yaml")
-
-  process.exit(4)
-}
+log(`ℹ️  Using ${packageManager} workspaces from ${repoRoot}\n`)
 
 // Compile root .gitignore
 let rootIgnore = ignore()

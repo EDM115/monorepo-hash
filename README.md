@@ -39,9 +39,12 @@ Well lucky you, `monorepo-hash` is here to help with that !
 You can install `monorepo-hash` globally, but it's best to add it as a dev dependency at the root of your monorepo :
 ```bash
 pnpm add -D monorepo-hash
+# or npm, yarn, deno, bun
+# monorepo-hash was originally made with only PNPM in mind, open an issue if you encounter any problem
 ```
 > [!TIP]  
-> Make sure that the `packages` field in your `pnpm-workspace.yaml` file is set up correctly, as `monorepo-hash` will use it to find your workspaces. Globs are supported.  
+> Make sure that your workspace configuration is set up correctly (`pnpm-workspace.yaml`, `package.json` workspaces or `deno.json(c)` workspace) as `monorepo-hash` will use it to find your workspaces. Globs are supported.  
+> Make sure that your lockfiles are present since they are used to detect the used package manager. To skip this resolution step, use the `--packagemanager` argument to force one.  
 > `monorepo-hash` will also use the `workspace:` field in your `package.json` files to detect transitive dependencies.  
 > Finally, it will generate `.hash` files for each workspace that you would need to keep in your VCS in order for it to be efficient (ex : to be reused in your CI). If you don't like having extra files or you have hundred of packages, use the `--unified` mode to obtain a single root `.hash` file instead.
 
@@ -96,9 +99,10 @@ Don't forget to delete these files afterwards !
 ### Exit codes
 - `0` : No changes detected (or you wanted to get help)
 - `1` : Changes detected in the hashes
-- `2` : Error with the arguments (either `--generate` or `--compare` is missing, or both were provided)
+- `2` : Error with the arguments (either `--generate` or `--compare` is missing, both were provided or an unsupported `--packagemanager` was forced)
 - `3` : Unknown arguments provided
-- `4` : No workspaces found, either the `pnpm-workspace.yaml` file is missing or the `packages` field is not set up correctly
+- `4` : No workspaces found or unsupported package manager
+- `5` : Package manager forced with `--packagemanager` not present in the repo
 - `99` : An unexpected error occurred, please open an issue with the logs
 
 ## :test_tube: Examples
@@ -358,8 +362,6 @@ This is especially useful because when you generate hashes, the action will pick
 For the very first run, you might need to create a workflow which will only checkout and save the .hash files in a cache for future runs.
 
 ## :construction: Limitations
-- Only works with `PNPM` for now  
-  If you really need support for `Yarn` or `NPM`, feel free to open an issue or even submit a pull request !
 - Bases the transitive dependency detection on the `workspace:` field in the `package.json` files
 - If you use another Version Control System than `git`, we can't ignore your files correctly for the hashes generation
 - Your EOL (End of Line) should be consistent across your monorepo's files and the different environments it's being used in. Since Docker containers and GitHub Actions runners are based on Linux, it's recommended to use `LF` as EOL.  
@@ -402,19 +404,27 @@ Here's a quick guide for contributing to `monorepo-hash` :
   ```bash
   git clone https://github.com/USERNAME/monorepo-hash.git
   cd monorepo-hash
-  pnpm i
+  pnpm i --frozen-lockfile
   ```
 3. Do your changes
-4. Test your changes  
+4. Format, typecheck and lint your code
+  ```bash
+  pnpm format
+  pnpm typecheck
+  pnpm lint
+  ```
+5. Test your changes  
   Feel free to add tests to the `tests` directory.
   ```bash
-  pnpm run test
+  pnpm test
   ```
-5. Commit your changes
-6. Open a pull request
+6. Commit your changes
+7. Open a pull request
 
 ## :eyes: Who uses `monorepo-hash` ?
-- [Nexelec](https://nexelec.eu)
+- [Nexelec](https://nexelec.eu), at least during my internship there
+- [Me](https://github.com/EDM115) :smile:
+- You ?
 
 If you use `monorepo-hash` in your project(s), whether you're an individual or a company, please let me know by opening an issue or a pull request, and I'll add you to this list !
 

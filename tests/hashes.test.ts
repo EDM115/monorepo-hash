@@ -78,9 +78,9 @@ packages:
       version: "0.1.0",
       type: "module",
       dependencies: {
-        "database": "workspace:^",
-        "linter": "workspace:^",
-        "cli-tools": "workspace:^",
+        "database": "workspace:*",
+        "linter": "workspace:*",
+        "cli-tools": "workspace:*",
       },
     }, { spaces: 2 })
     await writeFile(join(backend, "index.js"), "export const serve = () => {}\n")
@@ -93,7 +93,7 @@ packages:
       name: "frontend",
       version: "0.1.0",
       type: "module",
-      dependencies: { linter: "workspace:^" },
+      dependencies: { linter: "workspace:*" },
     }, { spaces: 2 })
     await writeFile(join(frontend, "index.js"), "export const render = () => {}\n")
 

@@ -58,7 +58,7 @@ describe("exit codes", () => {
       .toBe(3)
   })
 
-  it("returns 4 when pnpm-workspace.yaml is missing", async () => {
+  it("returns 4 when no workspaces can be found", async () => {
     if (!globalThis.tmpRoot) {
       throw new Error("tmpRoot is not set")
     }
@@ -75,6 +75,15 @@ describe("exit codes", () => {
       .toBe(4)
 
     await writeFile(workspaceFilePath, workspaceContent)
+  })
+
+  it("returns 5 when forcing a wrong package manager", async () => {
+    const result = await execa(cli, [ cliScript, "--generate", "--packagemanager=yarn" ], {
+      cwd, reject: false,
+    })
+
+    expect(result.exitCode)
+      .toBe(5)
   })
 
   it("returns 99 on unexpected error", async () => {
