@@ -99,7 +99,7 @@ Don't forget to delete these files afterwards !
 - `2` : Error with the arguments (either `--generate` or `--compare` is missing, or both were provided)
 - `3` : Unknown arguments provided
 - `4` : No workspaces found, either the `pnpm-workspace.yaml` file is missing or the `packages` field is not set up correctly
-- `5` : An unexpected error occurred, please open an issue with the logs
+- `99` : An unexpected error occurred, please open an issue with the logs
 
 ## :test_tube: Examples
 ### Outputs

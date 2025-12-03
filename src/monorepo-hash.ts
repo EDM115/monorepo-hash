@@ -89,7 +89,7 @@ for (const arg of argv) {
     unified = true
   } else if (arg.startsWith("--packagemanager=") || arg.startsWith("-pm=")) {
     const [ , val ] = arg.split("=")
-    const supportedPackageManagers = ["pnpm"]
+    const supportedPackageManagers = ["pnpm", "npm"]
 
     if (!supportedPackageManagers.includes(val)) {
       console.error(`❌ Invalid package manager ("${val}"), supported values are : ${supportedPackageManagers.join(", ")}`)
@@ -1085,6 +1085,6 @@ try {
   console.error(err instanceof Error
     ? err.message
     : String(err))
-  process.exit(5)
+  process.exit(99)
 }
 // #endregion

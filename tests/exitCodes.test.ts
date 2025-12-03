@@ -77,7 +77,7 @@ describe("exit codes", () => {
     await writeFile(workspaceFilePath, workspaceContent)
   })
 
-  it("returns 5 on unexpected error", async () => {
+  it("returns 99 on unexpected error", async () => {
     if (!globalThis.tmpRoot) {
       throw new Error("tmpRoot is not set")
     }
@@ -92,7 +92,7 @@ describe("exit codes", () => {
     })
 
     expect(result.exitCode)
-      .toBe(5)
+      .toBe(99)
 
     await writeFile(packageJsonPath, packageJsonContent)
   })
