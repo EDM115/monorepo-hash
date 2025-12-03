@@ -54,6 +54,7 @@ let targets: string[] | null = null
 let silent = false
 let debug = false
 let unified = false
+let pmOption: string | null = null
 
 for (const arg of argv) {
   if (arg === "--generate" || arg === "-g") {
@@ -81,6 +82,16 @@ for (const arg of argv) {
     debug = true
   } else if (arg === "--unified" || arg === "-u") {
     unified = true
+  } else if (arg.startsWith("--packagemanager=") || arg.startsWith("-pm=")) {
+    const [ , val ] = arg.split("=")
+    const supportedPackageManagers = ["pnpm"]
+
+    if (!supportedPackageManagers.includes(val)) {
+      console.error(`❌ Invalid package manager ("${val}"), supported values are : ${supportedPackageManagers.join(", ")}`)
+      process.exit(2)
+    }
+
+    pmOption = val
   } else if (arg === "--help" || arg === "-h") {
     console.log(`
 monorepo-hash by EDM115
@@ -93,6 +104,7 @@ Arguments :
   --silent          (-s)  Suppress output messages
   --debug           (-d)  Enable debug mode (per-file hashes)
   --unified         (-u)  Use a single root .hash file instead of per-workspace files
+  --packagemanager  (-pm) Force the package manager (pnpm)
   --help            (-h)  Show this help message
 `)
 

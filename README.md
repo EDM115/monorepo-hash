@@ -3,7 +3,7 @@
 # monorepo-hash
 **A CLI tool to generate hashes for the workspaces of your monorepo**
 
-<img src="https://raw.githubusercontent.com/EDM115/monorepo-hash/refs/heads/master/images/attempt_6.png" alt="monorepo-hash logo" width="200" height="200">
+<img src="https://raw.githubusercontent.com/EDM115/monorepo-hash/refs/heads/master/logo.webp" alt="monorepo-hash logo" width="200" height="200">
 
 ![NPM Version](https://img.shields.io/npm/v/monorepo-hash) ![NPM Downloads](https://img.shields.io/npm/dt/monorepo-hash)  
 ![Dependent repos (via libraries.io)](https://img.shields.io/librariesio/dependent-repos/npm/monorepo-hash) ![Dependents (via libraries.io)](https://img.shields.io/librariesio/dependents/npm/monorepo-hash)  
