@@ -1,11 +1,10 @@
-import path from "node:path"
-
+import { execa } from "execa"
 import {
   writeFile,
   readFile,
   remove,
 } from "fs-extra"
-import { execa } from "execa"
+import { join } from "node:path"
 import {
   beforeAll,
   describe,
@@ -20,7 +19,7 @@ describe("exit codes", () => {
 
   beforeAll(() => {
     cwd = globalThis.tmpRoot
-    cliScript = path.join(cwd, "monorepo-hash.mjs")
+    cliScript = join(cwd, "monorepo-hash.mjs")
   })
 
   it("returns 0 for --help", async () => {
@@ -64,7 +63,7 @@ describe("exit codes", () => {
       throw new Error("tmpRoot is not set")
     }
 
-    const workspaceFilePath = path.join(globalThis.tmpRoot, "pnpm-workspace.yaml")
+    const workspaceFilePath = join(globalThis.tmpRoot, "pnpm-workspace.yaml")
     const workspaceContent = await readFile(workspaceFilePath, "utf8")
 
     await remove(workspaceFilePath)
@@ -84,7 +83,7 @@ describe("exit codes", () => {
     }
 
     // Corrupt pkg-a package.json to trigger a parse error
-    const packageJsonPath = path.join(globalThis.tmpRoot, "packages", "pkg-a", "package.json")
+    const packageJsonPath = join(globalThis.tmpRoot, "packages", "pkg-a", "package.json")
     const packageJsonContent = await readFile(packageJsonPath, "utf8")
 
     await writeFile(packageJsonPath, "{ invalid json }")

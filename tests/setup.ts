@@ -1,6 +1,3 @@
-import os from "node:os"
-import path from "node:path"
-
 import {
   copyFile,
   mkdirp,
@@ -10,13 +7,19 @@ import {
   writeFile,
   writeJson,
 } from "fs-extra"
+import { tmpdir } from "node:os"
+import {
+  dirname,
+  join,
+  resolve,
+} from "node:path"
 import { fileURLToPath } from "node:url"
 import { afterAll } from "vitest"
 
 const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
+const __dirname = dirname(__filename)
 
-const tmp = await mkdtemp(path.join(os.tmpdir(), "vitest-hash-"))
+const tmp = await mkdtemp(join(tmpdir(), "vitest-hash-"))
 
 const workspaceYaml = `
 packages:
@@ -24,20 +27,20 @@ packages:
 `
 
 await writeFile(
-  path.join(tmp, "pnpm-workspace.yaml"),
+  join(tmp, "pnpm-workspace.yaml"),
   `${workspaceYaml.trim()}\n`,
 )
 
-const pkgADir = path.join(tmp, "packages", "pkg-a")
-const pkgBDir = path.join(tmp, "packages", "pkg-b")
-const pkgCDir = path.join(tmp, "packages", "pkg-c")
+const pkgADir = join(tmp, "packages", "pkg-a")
+const pkgBDir = join(tmp, "packages", "pkg-b")
+const pkgCDir = join(tmp, "packages", "pkg-c")
 
 await mkdirp(pkgADir)
 await mkdirp(pkgBDir)
 await mkdirp(pkgCDir)
 
 await writeJson(
-  path.join(pkgADir, "package.json"),
+  join(pkgADir, "package.json"),
   {
     name: "pkg-a",
     version: "0.1.0",
@@ -47,41 +50,41 @@ await writeJson(
   { spaces: 2 },
 )
 await writeFile(
-  path.join(pkgADir, "index.js"),
+  join(pkgADir, "index.js"),
   "console.log(\"hello from pkg-a\")\n",
 )
 
 await writeJson(
-  path.join(pkgBDir, "package.json"),
+  join(pkgBDir, "package.json"),
   {
     name: "pkg-b", version: "0.1.0", type: "module",
   },
   { spaces: 2 },
 )
 await writeFile(
-  path.join(pkgBDir, "index.js"),
+  join(pkgBDir, "index.js"),
   "export const msg = \"pkg-b\"\n",
 )
 
 await writeJson(
-  path.join(pkgCDir, "package.json"),
+  join(pkgCDir, "package.json"),
   {
     name: "pkg-c", version: "0.1.0", type: "module",
   },
   { spaces: 2 },
 )
 await writeFile(
-  path.join(pkgCDir, "index.js"),
+  join(pkgCDir, "index.js"),
   "export const msg = \"pkg-c\"\n",
 )
 
-const src = path.resolve(__dirname, "../dist/monorepo-hash.mjs")
+const src = resolve(__dirname, "../dist/monorepo-hash.mjs")
 
 if (!(await pathExists(src))) {
   throw new Error(`monorepo-hash.mjs not found at ${src}`)
 }
 
-await copyFile(src, path.join(tmp, "monorepo-hash.mjs"))
+await copyFile(src, join(tmp, "monorepo-hash.mjs"))
 
 globalThis.tmpRoot = tmp
 

@@ -1,19 +1,19 @@
-import path from "node:path"
-
+import { execa } from "execa"
 import {
   readFile,
   remove,
   writeFile,
 } from "fs-extra"
-import { execa } from "execa"
+import {
+  join,
+  sep,
+} from "node:path"
 import {
   beforeAll,
   describe,
   expect,
   it,
 } from "vitest"
-
-const { sep } = path
 
 describe("monorepo-hash output", () => {
   let cliScript: string
@@ -22,7 +22,7 @@ describe("monorepo-hash output", () => {
 
   beforeAll(() => {
     cwd = globalThis.tmpRoot
-    cliScript = path.join(cwd, "monorepo-hash.mjs")
+    cliScript = join(cwd, "monorepo-hash.mjs")
   })
 
   it("reports unchanged when no files changed, and exit code 0", async () => {
@@ -50,7 +50,7 @@ describe("monorepo-hash output", () => {
     }
 
     await execa(cli, [ cliScript, "--generate" ], { cwd })
-    const pkgBIndex = path.join(globalThis.tmpRoot, "packages", "pkg-b", "index.js")
+    const pkgBIndex = join(globalThis.tmpRoot, "packages", "pkg-b", "index.js")
 
     await writeFile(pkgBIndex, "export const msg = \"pkg-b (edited)\"\n")
     const result = await execa(cli, [ cliScript, "--compare" ], {
@@ -81,7 +81,7 @@ describe("monorepo-hash output", () => {
     }
 
     await execa(cli, [ cliScript, "--generate" ], { cwd })
-    const hashAPath = path.join(globalThis.tmpRoot, "packages", "pkg-a", ".hash")
+    const hashAPath = join(globalThis.tmpRoot, "packages", "pkg-a", ".hash")
 
     await remove(hashAPath)
     const result = await execa(cli, [ cliScript, "--compare" ], {
@@ -102,8 +102,8 @@ describe("monorepo-hash output", () => {
     }
 
     await execa(cli, [ cliScript, "--generate" ], { cwd })
-    const aPath = path.join(globalThis.tmpRoot, "packages", "pkg-a", ".hash")
-    const bPath = path.join(globalThis.tmpRoot, "packages", "pkg-b", ".hash")
+    const aPath = join(globalThis.tmpRoot, "packages", "pkg-a", ".hash")
+    const bPath = join(globalThis.tmpRoot, "packages", "pkg-b", ".hash")
     const firstA = (await readFile(aPath, "utf8")).trim()
     const firstB = (await readFile(bPath, "utf8")).trim()
 

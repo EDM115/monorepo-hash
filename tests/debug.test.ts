@@ -1,18 +1,18 @@
-import path from "node:path"
-
+import { execa } from "execa"
 import {
   pathExists,
   writeFile,
 } from "fs-extra"
-import { execa } from "execa"
+import {
+  join,
+  sep,
+} from "node:path"
 import {
   beforeAll,
   describe,
   expect,
   it,
 } from "vitest"
-
-const { sep } = path
 
 describe("debug mode", () => {
   let cliScript: string
@@ -21,21 +21,21 @@ describe("debug mode", () => {
 
   beforeAll(() => {
     cwd = globalThis.tmpRoot
-    cliScript = path.join(cwd, "monorepo-hash.mjs")
+    cliScript = join(cwd, "monorepo-hash.mjs")
   })
 
   it("creates .debug-hash files and reports mismatched files", async () => {
     await execa(cli, [ cliScript, "--generate", "--debug" ], { cwd })
 
-    const aDebug = path.join(cwd, "packages", "pkg-a", ".debug-hash")
-    const bDebug = path.join(cwd, "packages", "pkg-b", ".debug-hash")
+    const aDebug = join(cwd, "packages", "pkg-a", ".debug-hash")
+    const bDebug = join(cwd, "packages", "pkg-b", ".debug-hash")
 
     expect(await pathExists(aDebug))
       .toBe(true)
     expect(await pathExists(bDebug))
       .toBe(true)
 
-    const pkgBIndex = path.join(cwd, "packages", "pkg-b", "index.js")
+    const pkgBIndex = join(cwd, "packages", "pkg-b", "index.js")
 
     await writeFile(pkgBIndex, "export const msg = \"pkg-b (edited)\"\n")
 
@@ -57,12 +57,12 @@ describe("debug mode", () => {
 
   it("aggregates debug info when unified flag is used", async () => {
     await execa(cli, [ cliScript, "--generate", "--debug", "--unified" ], { cwd })
-    const rootDebug = path.join(cwd, ".debug-hash")
+    const rootDebug = join(cwd, ".debug-hash")
 
     expect(await pathExists(rootDebug))
       .toBe(true)
 
-    const cliToolsHashPath = path.join(cwd, "packages", "cli-tools", ".debug-hash")
+    const cliToolsHashPath = join(cwd, "packages", "cli-tools", ".debug-hash")
     const cliToolsExists = await pathExists(cliToolsHashPath)
 
     expect(cliToolsExists)

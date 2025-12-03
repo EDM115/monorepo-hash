@@ -1,5 +1,4 @@
-import path from "node:path"
-
+import { execa } from "execa"
 import {
   copyFile,
   mkdirp,
@@ -9,7 +8,10 @@ import {
   writeFile,
   writeJson,
 } from "fs-extra"
-import { execa } from "execa"
+import {
+  join,
+  sep,
+} from "node:path"
 import {
   afterAll,
   beforeAll,
@@ -17,7 +19,6 @@ import {
   expect,
   it,
 } from "vitest"
-
 
 describe("hash generation", () => {
   let cliScript: string
@@ -27,8 +28,8 @@ describe("hash generation", () => {
 
   beforeAll(async () => {
     cwd = globalThis.tmpRoot
-    cliScript = path.join(cwd, "monorepo-hash.mjs")
-    demoDir = path.join(cwd, "small-monorepo")
+    cliScript = join(cwd, "monorepo-hash.mjs")
+    demoDir = join(cwd, "small-monorepo")
 
     // Scaffold a small 5-package monorepo
     await mkdirp(demoDir)
@@ -39,40 +40,40 @@ packages:
   - "database"
 `
 
-    await writeFile(path.join(demoDir, "pnpm-workspace.yaml"), `${workspaceYaml.trim()}\n`)
+    await writeFile(join(demoDir, "pnpm-workspace.yaml"), `${workspaceYaml.trim()}\n`)
 
     // database
-    const db = path.join(demoDir, "database")
+    const db = join(demoDir, "database")
 
     await mkdirp(db)
-    await writeJson(path.join(db, "package.json"), {
+    await writeJson(join(db, "package.json"), {
       name: "database", version: "0.1.0", type: "module",
     }, { spaces: 2 })
-    await writeFile(path.join(db, "index.js"), "export const foo = \"db\"\n")
+    await writeFile(join(db, "index.js"), "export const foo = \"db\"\n")
 
     // packages/linter
-    const lint = path.join(demoDir, "packages", "linter")
+    const lint = join(demoDir, "packages", "linter")
 
     await mkdirp(lint)
-    await writeJson(path.join(lint, "package.json"), {
+    await writeJson(join(lint, "package.json"), {
       name: "linter", version: "0.1.0", type: "module",
     }, { spaces: 2 })
-    await writeFile(path.join(lint, "index.js"), "export const lint = () => true\n")
+    await writeFile(join(lint, "index.js"), "export const lint = () => true\n")
 
     // packages/cli-tools
-    const cliTools = path.join(demoDir, "packages", "cli-tools")
+    const cliTools = join(demoDir, "packages", "cli-tools")
 
     await mkdirp(cliTools)
-    await writeJson(path.join(cliTools, "package.json"), {
+    await writeJson(join(cliTools, "package.json"), {
       name: "cli-tools", version: "0.1.0", type: "module",
     }, { spaces: 2 })
-    await writeFile(path.join(cliTools, "index.js"), "export const run = () => {}\n")
+    await writeFile(join(cliTools, "index.js"), "export const run = () => {}\n")
 
     // services/backend depends on database, linter, cli-tools
-    const backend = path.join(demoDir, "services", "backend")
+    const backend = join(demoDir, "services", "backend")
 
     await mkdirp(backend)
-    await writeJson(path.join(backend, "package.json"), {
+    await writeJson(join(backend, "package.json"), {
       name: "backend",
       version: "0.1.0",
       type: "module",
@@ -82,21 +83,21 @@ packages:
         "cli-tools": "workspace:^",
       },
     }, { spaces: 2 })
-    await writeFile(path.join(backend, "index.js"), "export const serve = () => {}\n")
+    await writeFile(join(backend, "index.js"), "export const serve = () => {}\n")
 
     // services/frontend depends on linter
-    const frontend = path.join(demoDir, "services", "frontend")
+    const frontend = join(demoDir, "services", "frontend")
 
     await mkdirp(frontend)
-    await writeJson(path.join(frontend, "package.json"), {
+    await writeJson(join(frontend, "package.json"), {
       name: "frontend",
       version: "0.1.0",
       type: "module",
       dependencies: { linter: "workspace:^" },
     }, { spaces: 2 })
-    await writeFile(path.join(frontend, "index.js"), "export const render = () => {}\n")
+    await writeFile(join(frontend, "index.js"), "export const render = () => {}\n")
 
-    await copyFile(path.join(globalThis.tmpRoot, "monorepo-hash.mjs"), path.join(demoDir, "monorepo-hash.mjs"))
+    await copyFile(join(globalThis.tmpRoot, "monorepo-hash.mjs"), join(demoDir, "monorepo-hash.mjs"))
   })
 
   afterAll(async () => {
@@ -107,24 +108,24 @@ packages:
 
   const pkgs = [
     "database",
-    path.join("packages", "linter"),
-    path.join("packages", "cli-tools"),
-    path.join("services", "backend"),
-    path.join("services", "frontend"),
+    join("packages", "linter"),
+    join("packages", "cli-tools"),
+    join("services", "backend"),
+    join("services", "frontend"),
   ]
 
   it("generates all hashes and matches snapshot", async () => {
     await execa(cli, [ cliScript, "--generate" ], { cwd: demoDir })
 
     const hashPromises = pkgs.map(async (rel) => {
-      const hash = (await readFile(path.join(demoDir, rel, ".hash"), "utf8")).trim()
+      const hash = (await readFile(join(demoDir, rel, ".hash"), "utf8")).trim()
 
       return [ rel, hash ] as const
     })
 
     const hashEntries = await Promise.all(hashPromises)
     const normalizedEntries = hashEntries.map(([ rel, hash ]) => {
-      const posixRel = rel.split(path.sep)
+      const posixRel = rel.split(sep)
         .join("/")
 
       return [ posixRel, hash ] as const
@@ -139,7 +140,7 @@ packages:
   it("generates hash for a single workspace", async () => {
     // clean up any existing .hash files
     const cleanupPromises = pkgs.map(async (rel) => {
-      const p = path.join(demoDir, rel, ".hash")
+      const p = join(demoDir, rel, ".hash")
 
       if (await pathExists(p)) {
         await remove(p)
@@ -150,7 +151,7 @@ packages:
     await execa(cli, [ cliScript, "--generate", "--target=packages/cli-tools" ], { cwd: demoDir })
 
     const existsPromises = pkgs.map(async (rel) => {
-      const exists = await pathExists(path.join(demoDir, rel, ".hash"))
+      const exists = await pathExists(join(demoDir, rel, ".hash"))
 
       return [ rel, exists ] as const
     })
@@ -158,7 +159,7 @@ packages:
     const existsResults = await Promise.all(existsPromises)
 
     for (const [ rel, exists ] of existsResults) {
-      if (rel === path.join("packages", "cli-tools")) {
+      if (rel === join("packages", "cli-tools")) {
         expect(exists)
           .toBe(true)
       } else {
@@ -171,11 +172,11 @@ packages:
   it("produces the same hash for a workspace with transitive deps as in full generate", async () => {
     // full generate
     await execa(cli, [ cliScript, "--generate" ], { cwd: demoDir })
-    const full = (await readFile(path.join(demoDir, "services", "backend", ".hash"), "utf8")).trim()
+    const full = (await readFile(join(demoDir, "services", "backend", ".hash"), "utf8")).trim()
 
     // remove all .hash
     const cleanPromises = pkgs.map(async (rel) => {
-      const p = path.join(demoDir, rel, ".hash")
+      const p = join(demoDir, rel, ".hash")
 
       if (await pathExists(p)) {
         await remove(p)
@@ -186,10 +187,10 @@ packages:
 
     // partial generate
     await execa(cli, [ cliScript, "--generate", "--target=services/backend" ], { cwd: demoDir })
-    const partial = (await readFile(path.join(demoDir, "services", "backend", ".hash"), "utf8")).trim()
+    const partial = (await readFile(join(demoDir, "services", "backend", ".hash"), "utf8")).trim()
 
     const existsPromises = pkgs.map(async (rel) => {
-      const exists = await pathExists(path.join(demoDir, rel, ".hash"))
+      const exists = await pathExists(join(demoDir, rel, ".hash"))
 
       return [ rel, exists ] as const
     })
@@ -197,7 +198,7 @@ packages:
     const existsResults = await Promise.all(existsPromises)
 
     for (const [ rel, exists ] of existsResults) {
-      if (rel === path.join("services", "backend")) {
+      if (rel === join("services", "backend")) {
         expect(exists)
           .toBe(true)
       } else {
@@ -212,7 +213,7 @@ packages:
 
   it("writes a root .hash when unified flag is used", async () => {
     await execa(cli, [ cliScript, "--generate", "--unified" ], { cwd: demoDir })
-    const rootPath = path.join(demoDir, ".hash")
+    const rootPath = join(demoDir, ".hash")
     const exists = await pathExists(rootPath)
 
     expect(exists)
@@ -225,7 +226,7 @@ packages:
     expect(Object.keys(content).length)
       .toBe(expectedPackageCount)
 
-    const cliToolsHashPath = path.join(demoDir, "packages", "cli-tools", ".hash")
+    const cliToolsHashPath = join(demoDir, "packages", "cli-tools", ".hash")
     const cliToolsExists = await pathExists(cliToolsHashPath)
 
     expect(cliToolsExists)
