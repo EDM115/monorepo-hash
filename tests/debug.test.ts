@@ -21,7 +21,7 @@ describe("debug mode", () => {
 
   beforeAll(() => {
     cwd = globalThis.tmpRoot
-    cliScript = path.join(cwd, "monorepo-hash.js")
+    cliScript = path.join(cwd, "monorepo-hash.mjs")
   })
 
   it("creates .debug-hash files and reports mismatched files", async () => {

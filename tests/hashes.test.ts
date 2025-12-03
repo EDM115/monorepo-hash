@@ -27,7 +27,7 @@ describe("hash generation", () => {
 
   beforeAll(async () => {
     cwd = globalThis.tmpRoot
-    cliScript = path.join(cwd, "monorepo-hash.js")
+    cliScript = path.join(cwd, "monorepo-hash.mjs")
     demoDir = path.join(cwd, "small-monorepo")
 
     // Scaffold a small 5-package monorepo
@@ -96,7 +96,7 @@ packages:
     }, { spaces: 2 })
     await writeFile(path.join(frontend, "index.js"), "export const render = () => {}\n")
 
-    await copyFile(path.join(globalThis.tmpRoot, "monorepo-hash.js"), path.join(demoDir, "monorepo-hash.js"))
+    await copyFile(path.join(globalThis.tmpRoot, "monorepo-hash.mjs"), path.join(demoDir, "monorepo-hash.mjs"))
   })
 
   afterAll(async () => {
@@ -217,6 +217,7 @@ packages:
 
     expect(exists)
       .toBe(true)
+    // oxlint-disable-next-line no-unsafe-type-assertion
     const content = JSON.parse(await readFile(rootPath, "utf8")) as Record<string, string>
 
     const expectedPackageCount = Object.keys(content).length

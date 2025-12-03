@@ -20,7 +20,7 @@ describe("exit codes", () => {
 
   beforeAll(() => {
     cwd = globalThis.tmpRoot
-    cliScript = path.join(cwd, "monorepo-hash.js")
+    cliScript = path.join(cwd, "monorepo-hash.mjs")
   })
 
   it("returns 0 for --help", async () => {

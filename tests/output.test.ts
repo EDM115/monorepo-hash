@@ -22,7 +22,7 @@ describe("monorepo-hash output", () => {
 
   beforeAll(() => {
     cwd = globalThis.tmpRoot
-    cliScript = path.join(cwd, "monorepo-hash.js")
+    cliScript = path.join(cwd, "monorepo-hash.mjs")
   })
 
   it("reports unchanged when no files changed, and exit code 0", async () => {

@@ -140,7 +140,7 @@ export function zeroPad(num: number, places: number): string {
 export async function mapLimit<T, R>(
   items: T[],
   limit: number,
-  fn: (item: T)=> Promise<R>,
+  fn: (item: T) => Promise<R>,
 ): Promise<R[]> {
   const results: R[] = Array.from({ length: items.length })
   let idx = 0
@@ -204,7 +204,7 @@ export async function getWorkspaceFileList(
   // Convert to OS‐specific separators and sort
   return pkgFilteredPOSIX.map((f) => f.split("/")
     .join(sep))
-    .sort()
+    .toSorted()
 }
 
 /**
@@ -322,6 +322,7 @@ export async function loadRootHashFile(rootDir: string): Promise<Record<string, 
     return null
   }
 
+  // oxlint-disable-next-line no-unsafe-type-assertion
   return JSON.parse(await readFile(p, "utf8")) as Record<string, string>
 }
 
@@ -350,6 +351,7 @@ export async function loadDebugFile(dir: string): Promise<Record<string, string>
 
   const text = await readFile(debugPath, "utf8")
 
+  // oxlint-disable-next-line no-unsafe-type-assertion
   return JSON.parse(text) as Record<string, string>
 }
 
@@ -375,6 +377,7 @@ export async function loadRootDebugFile(rootDir: string): Promise<Record<string,
     return null
   }
 
+  // oxlint-disable-next-line no-unsafe-type-assertion
   return JSON.parse(await readFile(p, "utf8")) as Record<string, Record<string, string>>
 }
 
@@ -424,6 +427,7 @@ if (!wsYaml || !(await exists(wsYaml))) {
 
 const repoRoot: string = dirname(wsYaml)
 
+// oxlint-disable-next-line no-unsafe-type-assertion
 const wsConfig: PnpmWorkspaceConfig = load(await readFile(wsYaml, "utf8")) as PnpmWorkspaceConfig
 const workspaceGlobs: string[] = Array.isArray(wsConfig.packages)
   ? wsConfig.packages
@@ -504,7 +508,7 @@ export async function generateHashes(
     await writeRootHashFile(repoRoot, map)
 
     Object.entries(map)
-      .sort((a, b) => a[0].localeCompare(b[0]))
+      .toSorted((a, b) => a[0].localeCompare(b[0]))
       .forEach(([ rel, hash ]) => {
         log(`✅ ${rel} (${hash} written to .hash)`)
       })
@@ -526,7 +530,7 @@ export async function generateHashes(
     const results = await Promise.all(writes)
 
     results
-      .sort((a, b) => a.relDir.localeCompare(b.relDir))
+      .toSorted((a, b) => a.relDir.localeCompare(b.relDir))
       .forEach(({
         relDir, hash,
       }) => {
@@ -834,6 +838,7 @@ export async function hash(): Promise<void> {
     const dir = dirname(absJson)
     const relDir = relative(repoRoot, dir)
 
+    // oxlint-disable-next-line no-unsafe-type-assertion
     const pkgData = JSON.parse(await readFile(absJson, "utf8")) as PackageManifest
     const pkgName: string = pkgData.name
 
@@ -856,7 +861,7 @@ export async function hash(): Promise<void> {
 
     info.deps = Object.keys(allDeps)
       .filter((d) => meta[d])
-      .sort()
+      .toSorted()
   }
 
   // Determine which packages actually need hashing
@@ -918,7 +923,7 @@ export async function hash(): Promise<void> {
       // Compute per-file hashes & ownHash
       const perFileMap = await computePerFileHashes(dir, fileList)
       const sortedKeys = Object.keys(perFileMap)
-        .sort()
+        .toSorted()
       const ownBuffer = computeOwnHashFromPerFile(perFileMap, sortedKeys)
 
       count++

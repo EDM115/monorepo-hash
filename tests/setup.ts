@@ -75,13 +75,13 @@ await writeFile(
   "export const msg = \"pkg-c\"\n",
 )
 
-const src = path.resolve(__dirname, "../dist/monorepo-hash.js")
+const src = path.resolve(__dirname, "../dist/monorepo-hash.mjs")
 
 if (!(await pathExists(src))) {
-  throw new Error(`monorepo-hash.js not found at ${src}`)
+  throw new Error(`monorepo-hash.mjs not found at ${src}`)
 }
 
-await copyFile(src, path.join(tmp, "monorepo-hash.js"))
+await copyFile(src, path.join(tmp, "monorepo-hash.mjs"))
 
 globalThis.tmpRoot = tmp
 
