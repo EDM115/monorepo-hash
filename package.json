@@ -87,5 +87,5 @@
   },
   "type": "module",
   "types": "./dist/monorepo-hash.d.mts",
-  "version": "1.6.0"
+  "version": "1.7.0"
 }

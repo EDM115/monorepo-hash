@@ -1,7 +1,14 @@
 # monorepo-hash changelog
 
-## v1.6.1
-*unreleased*
+## v1.7.0
+✨ feat : allow to use monorepo-hash outside of the cli with `runCli()`, pass it the args as you would in the terminal and it'll work the same !  
+✨ feat : all of the core functions now return their results instead of void, making it easier to use them programmatically  
+👷 ci : specify the package manager to skip their resolution and not skew the benchmark results  
+✅ tests : the workspace detection is now tested properly with the exported functions  
+⬆️ deps : bump tsdown  
+📝 docs : added a text changelog
+
+**Full Changelog**: https://github.com/EDM115/monorepo-hash/compare/1.6.0...1.7.0
 
 ## v1.6.0
 > [!IMPORTANT]  

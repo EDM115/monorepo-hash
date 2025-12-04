@@ -650,7 +650,9 @@ export async function loadRootHashFile(rootDir: string): Promise<Record<string, 
 export async function generateHashes(
   pkgs: Record<string, PackageInfo>,
   finalCache: Record<string, string>,
-): Promise<Record<string, string> | Array<{ relDir: string; hash: string; }>> {
+): Promise<Record<string, string> | Array<{
+  relDir: string; hash: string;
+}>> {
   const entries = Object.entries(pkgs)
     // If the user passed --target, only write those relDirs
     .filter(([ _, { relDir }]) => !targets || targets.includes(relDir))
@@ -667,7 +669,8 @@ export async function generateHashes(
 
     await writeRootHashFile(repoRoot, map)
 
-    map = Object.fromEntries(Object.entries(map).toSorted((a, b) => a[0].localeCompare(b[0])))
+    map = Object.fromEntries(Object.entries(map)
+      .toSorted((a, b) => a[0].localeCompare(b[0])))
 
     Object.entries(map)
       .forEach(([ rel, hash ]) => {
@@ -691,6 +694,7 @@ export async function generateHashes(
       }
     })
     let results = await Promise.all(writes)
+
     results = results.toSorted((a, b) => a.relDir.localeCompare(b.relDir))
 
     results
@@ -712,8 +716,12 @@ export async function generateHashes(
  */
 export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCache: Record<string, string>): Promise<{
   unchangedTargets: string[];
-  changedTargets: Array<{ name: string; oldHash: string; newHash: string; changedDeps: string[]; }>;
-  missingTargets: Array<{ name: string; newHash: string; }>;
+  changedTargets: Array<{
+    name: string; oldHash: string; newHash: string; changedDeps: string[];
+  }>;
+  missingTargets: Array<{
+    name: string; newHash: string;
+  }>;
 }> {
   const rootHashes = unified
     ? await loadRootHashFile(repoRoot)
@@ -1223,7 +1231,9 @@ export async function runCli(argv?: string[]): Promise<Awaited<ReturnType<typeof
         safeExit(2)
       }
 
-      pmOption = isPackageManager(val) ? val : null
+      pmOption = isPackageManager(val)
+        ? val
+        : null
     } else if (arg === "--help" || arg === "-h") {
       console.log(`
 monorepo-hash by EDM115
