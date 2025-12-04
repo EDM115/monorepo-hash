@@ -8,6 +8,7 @@ import {
 } from "fs-extra"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { pathToFileURL } from "node:url"
 import {
   afterEach,
   beforeAll,
@@ -19,25 +20,27 @@ import {
 describe("workspace detection", () => {
   const cli = "node"
   let cliScript: string
+  let cliImport: string
   let tmpRoot: string
   const created: string[] = []
-  
+
   beforeAll(() => {
     tmpRoot = globalThis.tmpRoot
     cliScript = join(tmpRoot, "monorepo-hash.mjs")
+    cliImport = pathToFileURL(cliScript).href
   })
-  
+
   afterEach(async () => {
     const toRemove = created.splice(0)
-  
+
     await Promise.all(toRemove.map((d) => remove(d)))
   })
-  
+
   async function setupDir(name: string): Promise<string> {
     const dir = await mkdtemp(join(tmpdir(), name))
-  
+
     created.push(dir)
-  
+
     return dir
   }
 
@@ -48,6 +51,7 @@ describe("workspace detection", () => {
 packages:
   - "packages/add"
 `
+
     await writeFile(
       join(dir, "pnpm-workspace.yaml"),
       `${workspaceYaml.trim()}\n`,
@@ -60,12 +64,28 @@ packages:
     }, { spaces: 2 })
     await writeFile(join(pkg, "index.ts"), "")
 
-    const result = await execa(cli, [ cliScript, "--generate" ], {
-      cwd: dir, reject: false,
-    })
+    const harness = join(dir, "detect-pnpm.mjs")
 
-    expect(result.exitCode)
-      .toBe(0)
+    await writeFile(harness, `import { detectPNPM } from "${cliImport}"
+
+const result = await detectPNPM()
+console.log(JSON.stringify(result))
+`)
+
+    const { stdout } = await execa(cli, [harness], { cwd: dir })
+
+    // oxlint-disable-next-line no-unsafe-type-assertion
+    const parsed = JSON.parse(stdout) as {
+      pm: string; root: string; globs: string[];
+    } | null
+
+    expect(parsed).not.toBeNull()
+    expect(parsed?.pm)
+      .toBe("pnpm")
+    expect(parsed?.root)
+      .toBe(dir)
+    expect(parsed?.globs)
+      .toEqual(["packages/add"])
   })
 
   it("detects npm workspaces", async () => {
@@ -81,12 +101,28 @@ packages:
     }, { spaces: 2 })
     await writeFile(join(pkg, "index.js"), "")
 
-    const result = await execa(cli, [ cliScript, "--generate" ], {
-      cwd: dir, reject: false,
-    })
+    const harness = join(dir, "detect-npm.mjs")
 
-    expect(result.exitCode)
-      .toBe(0)
+    await writeFile(harness, `import { detectPkgJson } from "${cliImport}"
+
+const result = await detectPkgJson()
+console.log(JSON.stringify(result))
+`)
+
+    const { stdout } = await execa(cli, [harness], { cwd: dir })
+
+    // oxlint-disable-next-line no-unsafe-type-assertion
+    const parsed = JSON.parse(stdout) as {
+      pm: string; root: string; globs: string[];
+    } | null
+
+    expect(parsed).not.toBeNull()
+    expect(parsed?.pm)
+      .toBe("npm")
+    expect(parsed?.root)
+      .toBe(dir)
+    expect(parsed?.globs)
+      .toEqual(["packages/*"])
   })
 
   it("detects yarn workspaces", async () => {
@@ -102,12 +138,28 @@ packages:
     }, { spaces: 2 })
     await writeFile(join(pkg, "index.js"), "")
 
-    const result = await execa(cli, [ cliScript, "--generate" ], {
-      cwd: dir, reject: false,
-    })
+    const harness = join(dir, "detect-yarn.mjs")
 
-    expect(result.exitCode)
-      .toBe(0)
+    await writeFile(harness, `import { detectPkgJson } from "${cliImport}"
+
+const result = await detectPkgJson()
+console.log(JSON.stringify(result))
+`)
+
+    const { stdout } = await execa(cli, [harness], { cwd: dir })
+
+    // oxlint-disable-next-line no-unsafe-type-assertion
+    const parsed = JSON.parse(stdout) as {
+      pm: string; root: string; globs: string[];
+    } | null
+
+    expect(parsed).not.toBeNull()
+    expect(parsed?.pm)
+      .toBe("yarn")
+    expect(parsed?.root)
+      .toBe(dir)
+    expect(parsed?.globs)
+      .toEqual(["packages/*"])
   })
 
   it("detects bun workspaces", async () => {
@@ -123,12 +175,28 @@ packages:
     }, { spaces: 2 })
     await writeFile(join(pkg, "index.js"), "")
 
-    const result = await execa(cli, [ cliScript, "--generate" ], {
-      cwd: dir, reject: false,
-    })
+    const harness = join(dir, "detect-bun.mjs")
 
-    expect(result.exitCode)
-      .toBe(0)
+    await writeFile(harness, `import { detectPkgJson } from "${cliImport}"
+
+const result = await detectPkgJson()
+console.log(JSON.stringify(result))
+`)
+
+    const { stdout } = await execa(cli, [harness], { cwd: dir })
+
+    // oxlint-disable-next-line no-unsafe-type-assertion
+    const parsed = JSON.parse(stdout) as {
+      pm: string; root: string; globs: string[];
+    } | null
+
+    expect(parsed).not.toBeNull()
+    expect(parsed?.pm)
+      .toBe("bun")
+    expect(parsed?.root)
+      .toBe(dir)
+    expect(parsed?.globs)
+      .toEqual(["packages/*"])
   })
 
   it("detects deno workspaces", async () => {
@@ -143,11 +211,27 @@ packages:
     }, { spaces: 2 })
     await writeFile(join(pkg, "index.ts"), "")
 
-    const result = await execa(cli, [ cliScript, "--generate" ], {
-      cwd: dir, reject: false,
-    })
+    const harness = join(dir, "detect-deno.mjs")
 
-    expect(result.exitCode)
-      .toBe(0)
+    await writeFile(harness, `import { detectDeno } from "${cliImport}"
+
+const result = await detectDeno()
+console.log(JSON.stringify(result))
+`)
+
+    const { stdout } = await execa(cli, [harness], { cwd: dir })
+
+    // oxlint-disable-next-line no-unsafe-type-assertion
+    const parsed = JSON.parse(stdout) as {
+      pm: string; root: string; globs: string[];
+    } | null
+
+    expect(parsed).not.toBeNull()
+    expect(parsed?.pm)
+      .toBe("deno")
+    expect(parsed?.root)
+      .toBe(dir)
+    expect(parsed?.globs)
+      .toEqual(["packages/add"])
   })
 })
