@@ -16,6 +16,7 @@ import {
   resolve,
   sep,
 } from "node:path"
+import { pathToFileURL } from "node:url"
 
 import fg from "fast-glob"
 import ignore, { type Ignore } from "ignore"
@@ -57,111 +58,19 @@ export interface PackageInfo {
 // #endregion
 
 
-// #region CLI args
-// Parse CLI flags
-const argv = process.argv.slice(2)
-
-let mode: string | null = null
+// #region CLI state
+let mode: "generate" | "compare" | null = null
 let targets: string[] | null = null
 let silent = false
 let debug = false
 let unified = false
 let pmOption: PackageManager | null = null
 
-for (const arg of argv) {
-  if (arg === "--generate" || arg === "-g") {
-    if (mode === "compare") {
-      console.error("❌ Cannot specify both --generate and --compare")
-      process.exit(2)
-    }
+let packageManager: PackageManager | null = null
+let repoRoot = ""
+let workspaceGlobs: string[] = []
 
-    mode = "generate"
-  } else if (arg === "--compare" || arg === "-c") {
-    if (mode === "generate") {
-      console.error("❌ Cannot specify both --generate and --compare")
-      process.exit(2)
-    }
-
-    mode = "compare"
-  } else if (arg.startsWith("--target=") || arg.startsWith("-t=")) {
-    const [ , val ] = arg.split("=")
-
-    targets = val.split(",")
-      .map((p) => p.replace(/\/+$/, ""))
-  } else if (arg === "--silent" || arg === "-s") {
-    silent = true
-  } else if (arg === "--debug" || arg === "-d") {
-    debug = true
-  } else if (arg === "--unified" || arg === "-u") {
-    unified = true
-  } else if (arg.startsWith("--packagemanager=") || arg.startsWith("-pm=")) {
-    const [ , val ] = arg.split("=")
-
-    if (!isPackageManager(val)) {
-      console.error(`❌ Invalid package manager ("${val}"), supported values are : ${PACKAGE_MANAGERS.join(", ")}`)
-      process.exit(2)
-    }
-
-    pmOption = val
-  } else if (arg === "--help" || arg === "-h") {
-    console.log(`
-monorepo-hash by EDM115
-A simple script to generate or compare .hash files for monorepo workspaces
-Supports PNPM, Yarn, NPM, Bun and Deno
-
-Arguments :
-  --generate        (-g)  Generate or update .hash files for all workspaces
-  --compare         (-c)  Compare current state with existing .hash files. Capture the exit code to check for changes
-  --target="<path>" (-t)  Specify one or more targets to generate/compare (comma-separated)
-  --silent          (-s)  Suppress output messages
-  --debug           (-d)  Enable debug mode (per-file hashes)
-  --unified         (-u)  Use a single root .hash file instead of per-workspace files
-  --packagemanager  (-pm) Force the package manager (${PACKAGE_MANAGERS.join(", ")})
-  --help            (-h)  Show this help message
-`)
-
-    process.exit(0)
-  } else {
-    console.error(`❌ Unknown option : ${arg}`)
-
-    process.exit(3)
-  }
-}
-
-// Normalize targets from forward-slash to platform-specific separators
-if (targets) {
-  targets = targets.map((t) => t.replace(/\/+$/, "")
-    .split("/")
-    .join(sep))
-}
-
-if (!mode) {
-  console.error("❌ Must specify either --generate (-g) or --compare (-c)")
-
-  process.exit(2)
-} else {
-  if (mode === "generate") {
-    if (targets) {
-      log(`ℹ️  Generating hashes for specified targets... (${targets.join(", ")})\n`)
-    } else {
-      log("ℹ️  Generating hashes for all workspaces...\n")
-    }
-  } else {
-    if (targets) {
-      log(`ℹ️  Comparing hashes for specified targets... (${targets.join(", ")})\n`)
-    } else if (targets === null) {
-      log("ℹ️  Comparing hashes for all workspaces...\n")
-    }
-  }
-
-  if (debug) {
-    log("ℹ️  Debug mode enabled\n")
-  }
-
-  if (unified) {
-    log("ℹ️  Unified mode enabled\n")
-  }
-}
+let rootIgnore: Ignore = ignore()
 // #endregion
 
 // #region utils
@@ -469,49 +378,6 @@ export async function detectSpecified(pm: PackageManager): Promise<{
   return detectedPm?.pm === pm
     ? detectedPm
     : null
-}
-
-const detected = pmOption
-  ? await detectSpecified(pmOption)
-  : await autoDetect()
-
-if (!detected) {
-  if (pmOption) {
-    const auto = await autoDetect()
-
-    if (auto) {
-      console.error(`❌ ${pmOption} workspaces not found. Did you mean --packagemanager=${auto.pm}?`)
-    } else {
-      console.error("❌ Specified package manager not found and no supported package manager detected")
-    }
-
-    process.exit(5)
-  }
-
-  console.error("❌ No workspaces found or unsupported package manager")
-  process.exit(4)
-}
-
-const {
-  pm: packageManager,
-  root: repoRoot,
-  globs: workspaceGlobs,
-} = detected
-
-log(`ℹ️  Using ${packageManager} workspaces from ${repoRoot}\n`)
-
-// Compile root .gitignore
-let rootIgnore = ignore()
-const rootGit: string = join(repoRoot, ".gitignore")
-
-if (await exists(rootGit)) {
-  const rootGitContents = await readFile(rootGit, "utf8")
-
-  rootIgnore = ignore()
-    .add(rootGitContents)
-  // Ignore hashes
-  rootIgnore.add("**/.hash")
-  rootIgnore.add("**/.debug-hash")
 }
 // #endregion
 
@@ -966,7 +832,7 @@ export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCach
   // 5) finally, iterate only over the workspaces the user asked for
   const toCheck = targets
     ? Object.entries(pkgs)
-        .filter(([ , info ]) => targets.includes(info.relDir))
+        .filter(([ , info ]) => targets?.includes(info.relDir))
     : Object.entries(pkgs)
 
   const checkResults = await Promise.all(toCheck.map(async ([ pkgName, info ]) => {
@@ -1265,13 +1131,171 @@ export async function hash(): Promise<void> {
 // #endregion
 
 // #region run
-try {
-  await hash()
-} catch (err) {
-  console.error("❌ Unexpected error :")
-  console.error(err instanceof Error
-    ? err.message
-    : String(err))
-  process.exit(99)
+/**
+ * CLI entry point : parse arguments, detect workspaces, and run the hash routine
+ * This is only invoked when the module is executed directly, not when imported
+ * @param argv Optional array of command-line arguments (defaults to process.argv)
+ * @returns A promise that resolves when the CLI process is complete
+ */
+export async function runCli(argv: string[] = process.argv.slice(2)): Promise<void> {
+  // Reset CLI state for each invocation
+  mode = null
+  targets = null
+  silent = false
+  debug = false
+  unified = false
+  pmOption = null
+
+  // Parse CLI flags
+  for (const arg of argv) {
+    if (arg === "--generate" || arg === "-g") {
+      if (mode === "compare") {
+        console.error("❌ Cannot specify both --generate and --compare")
+        process.exit(2)
+      }
+
+      mode = "generate"
+    } else if (arg === "--compare" || arg === "-c") {
+      if (mode === "generate") {
+        console.error("❌ Cannot specify both --generate and --compare")
+        process.exit(2)
+      }
+
+      mode = "compare"
+    } else if (arg.startsWith("--target=") || arg.startsWith("-t=")) {
+      const [ , val ] = arg.split("=")
+
+      targets = val.split(",")
+        .map((p) => p.replace(/\/+$/, ""))
+    } else if (arg === "--silent" || arg === "-s") {
+      silent = true
+    } else if (arg === "--debug" || arg === "-d") {
+      debug = true
+    } else if (arg === "--unified" || arg === "-u") {
+      unified = true
+    } else if (arg.startsWith("--packagemanager=") || arg.startsWith("-pm=")) {
+      const [ , val ] = arg.split("=")
+
+      if (!isPackageManager(val)) {
+        console.error(`❌ Invalid package manager ("${val}"), supported values are : ${PACKAGE_MANAGERS.join(", ")}`)
+        process.exit(2)
+      }
+
+      pmOption = val
+    } else if (arg === "--help" || arg === "-h") {
+      console.log(`
+monorepo-hash by EDM115
+A simple script to generate or compare .hash files for monorepo workspaces
+Supports PNPM, Yarn, NPM, Bun and Deno
+
+Arguments :
+  --generate        (-g)  Generate or update .hash files for all workspaces
+  --compare         (-c)  Compare current state with existing .hash files. Capture the exit code to check for changes
+  --target="<path>" (-t)  Specify one or more targets to generate/compare (comma-separated)
+  --silent          (-s)  Suppress output messages
+  --debug           (-d)  Enable debug mode (per-file hashes)
+  --unified         (-u)  Use a single root .hash file instead of per-workspace files
+  --packagemanager  (-pm) Force the package manager (${PACKAGE_MANAGERS.join(", ")})
+  --help            (-h)  Show this help message
+`)
+
+      process.exit(0)
+    } else {
+      console.error(`❌ Unknown option : ${arg}`)
+
+      process.exit(3)
+    }
+  }
+
+  // Normalize targets from forward-slash to platform-specific separators
+  if (targets) {
+    targets = targets.map((t) => t.replace(/\/+$/, "")
+      .split("/")
+      .join(sep))
+  }
+
+  if (!mode) {
+    console.error("❌ Must specify either --generate (-g) or --compare (-c)")
+
+    process.exit(2)
+  } else {
+    if (mode === "generate") {
+      if (targets) {
+        log(`ℹ️  Generating hashes for specified targets... (${targets.join(", ")})\n`)
+      } else {
+        log("ℹ️  Generating hashes for all workspaces...\n")
+      }
+    } else {
+      if (targets) {
+        log(`ℹ️  Comparing hashes for specified targets... (${targets.join(", ")})\n`)
+      } else if (targets === null) {
+        log("ℹ️  Comparing hashes for all workspaces...\n")
+      }
+    }
+
+    if (debug) {
+      log("ℹ️  Debug mode enabled\n")
+    }
+
+    if (unified) {
+      log("ℹ️  Unified mode enabled\n")
+    }
+  }
+
+  const detected = pmOption
+    ? await detectSpecified(pmOption)
+    : await autoDetect()
+
+  if (!detected) {
+    if (pmOption) {
+      const auto = await autoDetect()
+
+      if (auto) {
+        console.error(`❌ ${pmOption} workspaces not found. Did you mean --packagemanager=${auto.pm}?`)
+      } else {
+        console.error("❌ Specified package manager not found and no supported package manager detected")
+      }
+
+      process.exit(5)
+    }
+
+    console.error("❌ No workspaces found or unsupported package manager")
+    process.exit(4)
+  }
+
+  packageManager = detected.pm
+  repoRoot = detected.root
+  workspaceGlobs = detected.globs
+
+  log(`ℹ️  Using ${packageManager} workspaces from ${repoRoot}\n`)
+
+  // Compile root .gitignore
+  rootIgnore = ignore()
+  const rootGit: string = join(repoRoot, ".gitignore")
+
+  if (await exists(rootGit)) {
+    const rootGitContents = await readFile(rootGit, "utf8")
+
+    rootIgnore = ignore()
+      .add(rootGitContents)
+    // Ignore hashes
+    rootIgnore.add("**/.hash")
+    rootIgnore.add("**/.debug-hash")
+  }
+
+  try {
+    await hash()
+  } catch (err) {
+    console.error("❌ Unexpected error :")
+    console.error(err instanceof Error
+      ? err.message
+      : String(err))
+    process.exit(99)
+  }
+}
+
+// Auto-run only when executed as the main entry point (not when imported)
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
+  await runCli()
 }
 // #endregion
