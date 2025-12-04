@@ -64,6 +64,7 @@ let targets: string[] | null = null
 let silent = false
 let debug = false
 let unified = false
+let cliUsage = true
 let pmOption: PackageManager | null = null
 
 let packageManager: PackageManager | null = null
@@ -121,6 +122,21 @@ export async function exists(f: PathLike): Promise<boolean> {
 export function zeroPad(num: number, places: number): string {
   return String(num)
     .padStart(places, "0")
+}
+
+/**
+ * Only exit the process if running as a CLI, otherwise throw an error
+ * Exit code 1 won't throw an error to still get the comparison results
+ * @param code The exit code
+ */
+export function safeExit(code: number): void {
+  if (cliUsage) {
+    process.exit(code)
+  } else {
+    if (code !== 1) {
+      throw new Error(`Exit with code ${code}`)
+    }
+  }
 }
 
 /**
@@ -451,12 +467,12 @@ export async function loadRootDebugFile(rootDir: string): Promise<Record<string,
  * Generate debug output for a given package, comparing with existing .debug-hash if present
  * @param info The PackageInfo of the package to generate debug for
  * @param oldDebug An optional existing debug map to compare against
- * @returns A promise that resolves when the debug output has been generated
+ * @returns A promise that resolves to an array of diverging file paths
  */
 export async function generateDebug(
   info: PackageInfo,
   oldDebug?: Record<string, string> | null,
-): Promise<void> {
+): Promise<string[]> {
   if (oldDebug === undefined) {
     oldDebug = await loadDebugFile(info.dir)
   }
@@ -481,9 +497,13 @@ export async function generateDebug(
       diverged.forEach((f) => log(`  • ${f}`))
       log("")
     }
+
+    return diverged
   } else {
     log(`❓ <debug> ${info.relDir} has no .debug-hash to compare`)
     log("")
+
+    return []
   }
 }
 // #endregion
@@ -625,18 +645,18 @@ export async function loadRootHashFile(rootDir: string): Promise<Record<string, 
  * Generate and write hashes for all packages
  * @param pkgs A record mapping package names to their PackageInfo
  * @param finalCache A record mapping package names to their final hash strings
- * @returns A promise that resolves when all hashes have been generated and written
+ * @returns A promise that resolves to either a record mapping workspace relative paths to their hashes (if unified), or an array of objects containing relDir and hash for each package (if not unified)
  */
 export async function generateHashes(
   pkgs: Record<string, PackageInfo>,
   finalCache: Record<string, string>,
-): Promise<void> {
+): Promise<Record<string, string> | Array<{ relDir: string; hash: string; }>> {
   const entries = Object.entries(pkgs)
     // If the user passed --target, only write those relDirs
     .filter(([ _, { relDir }]) => !targets || targets.includes(relDir))
 
   if (unified) {
-    const map: Record<string, string> = {}
+    let map: Record<string, string> = {}
 
     for (const [ name, { relDir }] of entries) {
       const posixRel = relDir.split(sep)
@@ -647,11 +667,14 @@ export async function generateHashes(
 
     await writeRootHashFile(repoRoot, map)
 
+    map = Object.fromEntries(Object.entries(map).toSorted((a, b) => a[0].localeCompare(b[0])))
+
     Object.entries(map)
-      .toSorted((a, b) => a[0].localeCompare(b[0]))
       .forEach(([ rel, hash ]) => {
         log(`✅ ${rel} (${hash} written to .hash)`)
       })
+
+    return map
   } else {
     const writes = entries.map(async ([
       name, {
@@ -667,15 +690,17 @@ export async function generateHashes(
         relDir, hash: current,
       }
     })
-    const results = await Promise.all(writes)
+    let results = await Promise.all(writes)
+    results = results.toSorted((a, b) => a.relDir.localeCompare(b.relDir))
 
     results
-      .toSorted((a, b) => a.relDir.localeCompare(b.relDir))
       .forEach(({
         relDir, hash,
       }) => {
         log(`✅ ${relDir} (${hash} written to .hash)`)
       })
+
+    return results
   }
 }
 
@@ -683,9 +708,13 @@ export async function generateHashes(
  * Compare current hashes with existing .hash files
  * @param pkgs A record mapping package names to their PackageInfo
  * @param finalCache A record mapping package names to their final hash strings
- * @returns A promise that resolves when the comparison is complete
+ * @returns A promise that resolves to an object containing arrays of unchanged, changed, and missing targets
  */
-export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCache: Record<string, string>): Promise<void> {
+export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCache: Record<string, string>): Promise<{
+  unchangedTargets: string[];
+  changedTargets: Array<{ name: string; oldHash: string; newHash: string; changedDeps: string[]; }>;
+  missingTargets: Array<{ name: string; newHash: string; }>;
+}> {
   const rootHashes = unified
     ? await loadRootHashFile(repoRoot)
     : null
@@ -952,15 +981,21 @@ export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCach
     mode === "compare"
     && (changedTargets.length > 0 || missingTargets.length > 0)
   ) {
-    process.exit(1)
+    safeExit(1)
+  }
+
+  return {
+    unchangedTargets,
+    changedTargets,
+    missingTargets,
   }
 }
 
 /**
  * Compute hashes for all workspaces in the monorepo
- * @returns A promise that resolves when the hashing process is complete
+ * @returns A promise that resolves to either the result of generateHashes or compareHashes, depending on the mode
  */
-export async function hash(): Promise<void> {
+export async function hash(): Promise<Awaited<ReturnType<typeof generateHashes>> | Awaited<ReturnType<typeof compareHashes>>> {
   // 1) find every workspace's package.json
   const pkgJsonPaths = await fg(
     workspaceGlobs.map((glob) => posix.join(glob, "package.json")),
@@ -1121,12 +1156,16 @@ export async function hash(): Promise<void> {
     computeFinalHash(pkgName, pkgs, finalCache)
   }
 
+  let result: Awaited<ReturnType<typeof generateHashes>> | Awaited<ReturnType<typeof compareHashes>> | null = null
+
   // 5) perform generate or compare
   if (mode === "generate") {
-    await generateHashes(pkgs, finalCache)
+    result = await generateHashes(pkgs, finalCache)
   } else {
-    await compareHashes(pkgs, finalCache)
+    result = await compareHashes(pkgs, finalCache)
   }
+
+  return result
 }
 // #endregion
 
@@ -1135,9 +1174,9 @@ export async function hash(): Promise<void> {
  * CLI entry point : parse arguments, detect workspaces, and run the hash routine
  * This is only invoked when the module is executed directly, not when imported
  * @param argv Optional array of command-line arguments (defaults to process.argv)
- * @returns A promise that resolves when the CLI process is complete
+ * @returns A promise that resolves to the result of the hash operation, or undefined if exiting early
  */
-export async function runCli(argv: string[] = process.argv.slice(2)): Promise<void> {
+export async function runCli(argv?: string[]): Promise<Awaited<ReturnType<typeof hash>> | undefined> {
   // Reset CLI state for each invocation
   mode = null
   targets = null
@@ -1145,20 +1184,23 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<vo
   debug = false
   unified = false
   pmOption = null
+  cliUsage = argv === undefined
+
+  const args = argv ?? process.argv.slice(2)
 
   // Parse CLI flags
-  for (const arg of argv) {
+  for (const arg of args) {
     if (arg === "--generate" || arg === "-g") {
       if (mode === "compare") {
         console.error("❌ Cannot specify both --generate and --compare")
-        process.exit(2)
+        safeExit(2)
       }
 
       mode = "generate"
     } else if (arg === "--compare" || arg === "-c") {
       if (mode === "generate") {
         console.error("❌ Cannot specify both --generate and --compare")
-        process.exit(2)
+        safeExit(2)
       }
 
       mode = "compare"
@@ -1178,10 +1220,10 @@ export async function runCli(argv: string[] = process.argv.slice(2)): Promise<vo
 
       if (!isPackageManager(val)) {
         console.error(`❌ Invalid package manager ("${val}"), supported values are : ${PACKAGE_MANAGERS.join(", ")}`)
-        process.exit(2)
+        safeExit(2)
       }
 
-      pmOption = val
+      pmOption = isPackageManager(val) ? val : null
     } else if (arg === "--help" || arg === "-h") {
       console.log(`
 monorepo-hash by EDM115
@@ -1199,11 +1241,11 @@ Arguments :
   --help            (-h)  Show this help message
 `)
 
-      process.exit(0)
+      safeExit(0)
     } else {
       console.error(`❌ Unknown option : ${arg}`)
 
-      process.exit(3)
+      safeExit(3)
     }
   }
 
@@ -1217,7 +1259,7 @@ Arguments :
   if (!mode) {
     console.error("❌ Must specify either --generate (-g) or --compare (-c)")
 
-    process.exit(2)
+    safeExit(2)
   } else {
     if (mode === "generate") {
       if (targets) {
@@ -1256,16 +1298,16 @@ Arguments :
         console.error("❌ Specified package manager not found and no supported package manager detected")
       }
 
-      process.exit(5)
+      safeExit(5)
     }
 
     console.error("❌ No workspaces found or unsupported package manager")
-    process.exit(4)
+    safeExit(4)
   }
 
-  packageManager = detected.pm
-  repoRoot = detected.root
-  workspaceGlobs = detected.globs
+  packageManager = detected?.pm ?? null
+  repoRoot = detected?.root ?? ""
+  workspaceGlobs = detected?.globs ?? []
 
   log(`ℹ️  Using ${packageManager} workspaces from ${repoRoot}\n`)
 
@@ -1284,13 +1326,15 @@ Arguments :
   }
 
   try {
-    await hash()
+    const result = await hash()
+
+    return result
   } catch (err) {
     console.error("❌ Unexpected error :")
     console.error(err instanceof Error
       ? err.message
       : String(err))
-    process.exit(99)
+    safeExit(99)
   }
 }
 
@@ -1298,4 +1342,6 @@ Arguments :
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   await runCli()
 }
+
+export default runCli
 // #endregion
