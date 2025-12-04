@@ -90,7 +90,7 @@ jobs:
             --warmup 2 \
             --runs 10 \
             --export-markdown ../../benchmarks/small-monorepo.md \
-            'node monorepo-hash.mjs --generate'
+            'node monorepo-hash.mjs --generate -pm=pnpm'
 
       - name: "Benchmark : medium monorepo"
         run: |
@@ -100,7 +100,7 @@ jobs:
             --warmup 2 \
             --runs 10 \
             --export-markdown ../../benchmarks/medium-monorepo.md \
-            'node monorepo-hash.mjs --generate'
+            'node monorepo-hash.mjs --generate -pm=pnpm'
 
       - name: "Benchmark : large monorepo"
         run: |
@@ -110,7 +110,7 @@ jobs:
             --warmup 2 \
             --runs 10 \
             --export-markdown ../../benchmarks/large-monorepo.md \
-            'node monorepo-hash.mjs --generate'
+            'node monorepo-hash.mjs --generate -pm=pnpm'
 
       - name: "Upload benchmarks results"
         uses: actions/upload-artifact@v5
