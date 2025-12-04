@@ -84,6 +84,33 @@ This will suppress all output except for errors. This can be useful for example 
 pnpm monorepo-hash --compare --silent
 ```
 
+### Usage outside of the CLI
+You can also use `monorepo-hash` programmatically in your own scripts.  
+Whether it's because there's some utilities that are interesting or because you prefer to integrate it in your scripts, you can just import about any function or type from `monorepo-hash`.  
+The main functionality stems from `runCli()`, check the autocomplete of your IDE to see the available functions/types, all with some documentation associated with them.
+```ts
+import monorepoHash, { exists } from "monorepo-hash"
+// runCli is a default export as well
+
+// ...
+async function checkFiles() {
+  // logic...
+  for (file in files) {
+    const existsResult = await exists(file)
+
+    if (existsResult) {
+      // do something...
+    }
+  }
+}
+
+// ...
+async function checkHashes() {
+  const compareResult = await monorepoHash(["--compare", "--target=packages/example"])
+  // do something with it...
+}
+```
+
 ### Run in debug mode
 The debug mode will :
 - in generate mode, output `.debug-hash` files which will contain the hashes of each individual file in the workspace as a JSON object (or a single root file when using `--unified`)
