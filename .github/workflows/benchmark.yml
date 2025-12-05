@@ -76,7 +76,8 @@ jobs:
 
       - name: "Prepare the benchmarks"
         run: |
-          pnpm tsdown && pnpm build:bun:linux-x64 && pnpm build:bun:linux-arm64 && pnpm build:bun:windows-x64:ci && pnpm build:bun:darwin-x64 && pnpm build:bun:darwin-arm64 && pnpm build:bun:linux-x64-musl && pnpm build:bun:linux-arm64-musl
+          pnpm tsdown && pnpm build:bun:linux-x64
+          chmod +x dist/monorepo-hash-linux-x64
           mkdir -p tests/benchmarks/node tests/benchmarks/bun
           7z x tests/demo/small-monorepo.7z -o./tests/demo
           cp dist/monorepo-hash.mjs tests/demo/small-monorepo/monorepo-hash.mjs
@@ -87,6 +88,36 @@ jobs:
           7z x tests/demo/large-monorepo.7z -o./tests/demo
           cp dist/monorepo-hash.mjs tests/demo/large-monorepo/monorepo-hash.mjs
           cp dist/monorepo-hash-linux-x64 tests/demo/large-monorepo/monorepo-hash
+
+      - name: "Benchmark : small monorepo, bun"
+        run: |
+          cd tests/demo/small-monorepo
+          hyperfine \
+            --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches' \
+            --warmup 2 \
+            --runs 10 \
+            --export-markdown ../../benchmarks/bun/small-monorepo.md \
+            './monorepo-hash --generate -pm=pnpm'
+
+      - name: "Benchmark : medium monorepo, bun"
+        run: |
+          cd tests/demo/medium-monorepo
+          hyperfine \
+            --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches' \
+            --warmup 2 \
+            --runs 10 \
+            --export-markdown ../../benchmarks/bun/medium-monorepo.md \
+            './monorepo-hash --generate -pm=pnpm'
+
+      - name: "Benchmark : large monorepo, bun"
+        run: |
+          cd tests/demo/large-monorepo
+          hyperfine \
+            --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches' \
+            --warmup 2 \
+            --runs 10 \
+            --export-markdown ../../benchmarks/bun/large-monorepo.md \
+            './monorepo-hash --generate -pm=pnpm'
 
       - name: "Benchmark : small monorepo, node"
         run: |
@@ -117,36 +148,6 @@ jobs:
             --runs 10 \
             --export-markdown ../../benchmarks/node/large-monorepo.md \
             'node monorepo-hash.mjs --generate -pm=pnpm'
-
-      - name: "Benchmark : small monorepo, bun"
-        run: |
-          cd tests/demo/small-monorepo
-          hyperfine \
-            --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches' \
-            --warmup 2 \
-            --runs 10 \
-            --export-markdown ../../benchmarks/bun/small-monorepo.md \
-            'monorepo-hash --generate -pm=pnpm'
-
-      - name: "Benchmark : medium monorepo, bun"
-        run: |
-          cd tests/demo/medium-monorepo
-          hyperfine \
-            --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches' \
-            --warmup 2 \
-            --runs 10 \
-            --export-markdown ../../benchmarks/bun/medium-monorepo.md \
-            'monorepo-hash --generate -pm=pnpm'
-
-      - name: "Benchmark : large monorepo, bun"
-        run: |
-          cd tests/demo/large-monorepo
-          hyperfine \
-            --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches' \
-            --warmup 2 \
-            --runs 10 \
-            --export-markdown ../../benchmarks/bun/large-monorepo.md \
-            'monorepo-hash --generate -pm=pnpm'
 
       - name: "Upload benchmarks results"
         uses: actions/upload-artifact@v5
