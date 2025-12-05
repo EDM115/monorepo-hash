@@ -10,6 +10,7 @@ import { get } from "node:https"
 import {
   dirname,
   join,
+  resolve,
 } from "node:path"
 import { env } from "node:process"
 import {
@@ -24,6 +25,20 @@ import {
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
+
+const localPrefix = process.env.npm_config_local_prefix
+const pkgJsonPath = process.env.npm_package_json
+
+if (!localPrefix || !pkgJsonPath) {
+  process.exit(0)
+}
+
+const pkgDir = dirname(pkgJsonPath)
+const isDevInstall = resolve(localPrefix) === resolve(pkgDir)
+
+if (isDevInstall) {
+  process.exit(0)
+}
 
 async function getVersion(): Promise<string> {
   if (typeof env.npm_package_version === "string" && env.npm_package_version.length > 0) {

@@ -76,7 +76,7 @@ jobs:
 
       - name: "Prepare the benchmarks"
         run: |
-          pnpm tsdown && pnpm build:bun:linux-x64
+          pnpm build && pnpm build:bun:linux-x64
           chmod +x dist/monorepo-hash-linux-x64
           mkdir -p tests/benchmarks/node tests/benchmarks/bun
           7z x tests/demo/small-monorepo.7z -o./tests/demo
