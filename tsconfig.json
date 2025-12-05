@@ -26,5 +26,5 @@
     "verbatimModuleSyntax": true
   },
   "include": [ "src", "tests" ],
-  "exclude": [ "node_modules", "dist", "tests/demo" ],
+  "exclude": [ "node_modules", "bun-build", "dist", "tests/demo" ],
 }

@@ -6,6 +6,7 @@
     "node": true
   },
   "ignorePatterns": [
+    "**/bun-build/",
     "**/dist/",
     "**/node_modules/",
     "tests/demo"

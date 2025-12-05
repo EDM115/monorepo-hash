@@ -153,4 +153,4 @@ jobs:
         uses: actions/upload-artifact@v5
         with:
           name: benchmarks-results-${{ steps.get_ref.outputs.ref }}
-          path: tests/benchmarks/*.md
+          path: tests/benchmarks/**/*.md

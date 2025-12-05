@@ -34,6 +34,7 @@ export default defineConfig([
       "ignore",
       "js-yaml",
     ],
+    outDir: "bun-build",
     platform: "node",
     shims: true,
     target: [ "esnext", "node20" ],
@@ -41,7 +42,7 @@ export default defineConfig([
   {
     banner: { js: "#!/usr/bin/env node" },
     dts: false,
-    entry: { "monorepo-hash-bun": "./src/cli-launcher.ts" },
+    entry: { "install-binary": "./src/install-binary.ts" },
     exports: false,
     format: ["esm"],
     minify: true,

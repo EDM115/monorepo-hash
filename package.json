@@ -2,14 +2,7 @@
   "author": "EDM115 <npmjs@edm115.dev> (https://edm115.dev)",
   "bin": {
     "monorepo-hash": "./dist/monorepo-hash.mjs",
-    "monorepo-hash-bun": "./dist/monorepo-hash-bun.mjs",
-    "monorepo-hash-darwin-arm64": "./dist/monorepo-hash-darwin-arm64",
-    "monorepo-hash-darwin-x64": "./dist/monorepo-hash-darwin-x64",
-    "monorepo-hash-linux-arm64": "./dist/monorepo-hash-linux-arm64",
-    "monorepo-hash-linux-arm64-musl": "./dist/monorepo-hash-linux-arm64-musl",
-    "monorepo-hash-linux-x64": "./dist/monorepo-hash-linux-x64",
-    "monorepo-hash-linux-x64-musl": "./dist/monorepo-hash-linux-x64-musl",
-    "monorepo-hash-windows-x64": "./dist/monorepo-hash-windows-x64"
+    "monorepo-hash-bun": "./dist/monorepo-hash.exe"
   },
   "bugs": {
     "email": "npmjs@edm115.dev",
@@ -84,25 +77,27 @@
     "url": "git+https://github.com/EDM115/monorepo-hash.git"
   },
   "scripts": {
-    "build": "tsdown && pnpm build:bun",
-    "build:bun": "pnpm build:bun:linux-x64 && pnpm build:bun:linux-arm64 && pnpm build:bun:windows-x64 && pnpm build:bun:darwin-x64 && pnpm build:bun:darwin-arm64 && pnpm build:bun:linux-x64-musl && pnpm build:bun:linux-arm64-musl",
-    "build:bun:linux-x64": "bun build --compile --minify --sourcemap --bytecode --target=bun-linux-x64 ./dist/monorepo-hash.cjs --outfile ./dist/monorepo-hash-linux-x64",
-    "build:bun:linux-arm64": "bun build --compile --minify --sourcemap --bytecode --target=bun-linux-arm64 ./dist/monorepo-hash.cjs --outfile ./dist/monorepo-hash-linux-arm64",
-    "build:bun:windows-x64": "bun build --compile --minify --sourcemap --bytecode --windows-icon=logo.ico --target=bun-windows-x64 ./dist/monorepo-hash.cjs --outfile ./dist/monorepo-hash-windows-x64",
-    "build:bun:windows-x64:ci": "bun build --compile --minify --sourcemap --bytecode --target=bun-windows-x64 ./dist/monorepo-hash.cjs --outfile ./dist/monorepo-hash-windows-x64",
-    "build:bun:darwin-x64": "bun build --compile --minify --sourcemap --bytecode --target=bun-darwin-x64 ./dist/monorepo-hash.cjs --outfile ./dist/monorepo-hash-darwin-x64",
-    "build:bun:darwin-arm64": "bun build --compile --minify --sourcemap --bytecode --target=bun-darwin-arm64 ./dist/monorepo-hash.cjs --outfile ./dist/monorepo-hash-darwin-arm64",
-    "build:bun:linux-x64-musl": "bun build --compile --minify --sourcemap --bytecode --target=bun-linux-x64-musl ./dist/monorepo-hash.cjs --outfile ./dist/monorepo-hash-linux-x64-musl",
-    "build:bun:linux-arm64-musl": "bun build --compile --minify --sourcemap --bytecode --target=bun-linux-arm64-musl ./dist/monorepo-hash.cjs --outfile ./dist/monorepo-hash-linux-arm64-musl",
+    "build": "tsdown",
+    "build:bun": "pnpm build:bun:linux-x64 && pnpm build:bun:linux-arm64 && pnpm build:bun:windows-x64 && pnpm build:bun:darwin-x64 && pnpm build:bun:darwin-arm64 && pnpm build:bun:linux-x64-musl && pnpm build:bun:linux-arm64-musl && pnpm build:bun:chmod",
+    "build:bun:linux-x64": "bun build --compile --minify --sourcemap --bytecode --target=bun-linux-x64 ./bun-build/monorepo-hash.cjs --outfile ./bun-build/monorepo-hash-linux-x64",
+    "build:bun:linux-arm64": "bun build --compile --minify --sourcemap --bytecode --target=bun-linux-arm64 ./bun-build/monorepo-hash.cjs --outfile ./bun-build/monorepo-hash-linux-arm64",
+    "build:bun:windows-x64": "bun build --compile --minify --sourcemap --bytecode --windows-icon=logo.ico --target=bun-windows-x64 ./bun-build/monorepo-hash.cjs --outfile ./bun-build/monorepo-hash-windows-x64",
+    "build:bun:windows-x64:ci": "bun build --compile --minify --sourcemap --bytecode --target=bun-windows-x64 ./bun-build/monorepo-hash.cjs --outfile ./bun-build/monorepo-hash-windows-x64",
+    "build:bun:darwin-x64": "bun build --compile --minify --sourcemap --bytecode --target=bun-darwin-x64 ./bun-build/monorepo-hash.cjs --outfile ./bun-build/monorepo-hash-darwin-x64",
+    "build:bun:darwin-arm64": "bun build --compile --minify --sourcemap --bytecode --target=bun-darwin-arm64 ./bun-build/monorepo-hash.cjs --outfile ./bun-build/monorepo-hash-darwin-arm64",
+    "build:bun:linux-x64-musl": "bun build --compile --minify --sourcemap --bytecode --target=bun-linux-x64-musl ./bun-build/monorepo-hash.cjs --outfile ./bun-build/monorepo-hash-linux-x64-musl",
+    "build:bun:linux-arm64-musl": "bun build --compile --minify --sourcemap --bytecode --target=bun-linux-arm64-musl ./bun-build/monorepo-hash.cjs --outfile ./bun-build/monorepo-hash-linux-arm64-musl",
+    "build:bun:chmod": "node -e \"const { chmodSync } = require('fs'); const { readdirSync } = require('fs'); const path = require('path'); const dir = path.join(__dirname, 'bun-build'); for (const file of readdirSync(dir)) { if (!file.includes('.')) { chmodSync(path.join(dir, file), 0o755); } }\"",
     "lint": "oxlint --type-aware .",
     "lint:fix": "oxlint --fix --type-aware .",
     "format": "eslint -c eslint.stylistic.config.ts --concurrency=auto --fix .",
     "prepublishOnly": "pnpm build",
+    "postinstall": "node ./dist/install-binary.mjs",
     "release": "pnpm publish",
     "test": "pnpm build && vitest",
     "typecheck": "tsc --noEmit"
   },
   "type": "module",
   "types": "./dist/monorepo-hash.d.mts",
-  "version": "1.7.0"
+  "version": "1.8.0-beta.0"
 }
