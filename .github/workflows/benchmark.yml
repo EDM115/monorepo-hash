@@ -76,7 +76,7 @@ jobs:
 
       - name: "Prepare the benchmarks"
         run: |
-          pnpm build:bun:linux-x64 && pnpm build:bun:linux-arm64 && pnpm build:bun:windows-x64:ci && pnpm build:bun:darwin-x64 && pnpm build:bun:darwin-arm64 && pnpm build:bun:linux-x64-musl && pnpm build:bun:linux-arm64-musl
+          pnpm tsdown && pnpm build:bun:linux-x64 && pnpm build:bun:linux-arm64 && pnpm build:bun:windows-x64:ci && pnpm build:bun:darwin-x64 && pnpm build:bun:darwin-arm64 && pnpm build:bun:linux-x64-musl && pnpm build:bun:linux-arm64-musl
           mkdir -p tests/benchmarks/node tests/benchmarks/bun
           7z x tests/demo/small-monorepo.7z -o./tests/demo
           cp dist/monorepo-hash.mjs tests/demo/small-monorepo/monorepo-hash.mjs
