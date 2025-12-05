@@ -40,14 +40,15 @@ jobs:
         with:
           ref: ${{ steps.get_ref.outputs.ref }}
 
+      - name: "Install pnpm"
+        uses: pnpm/action-setup@v4
+
       - name: "Bump Node.js to v24"
         uses: actions/setup-node@v6
         with:
-          node-version: lts/krypton
           check-latest: true
-
-      - name: "Install pnpm"
-        uses: pnpm/action-setup@v4
+          cache: "pnpm"
+          node-version: lts/krypton
 
       - name: "Install Bun"
         uses: oven-sh/setup-bun@v2
