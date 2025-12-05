@@ -16,7 +16,6 @@ import {
   resolve,
   sep,
 } from "node:path"
-import { pathToFileURL } from "node:url"
 
 import fg from "fast-glob"
 import ignore, { type Ignore } from "ignore"
@@ -1366,11 +1365,6 @@ Arguments :
       : String(err))
     safeExit(99)
   }
-}
-
-// Auto-run only when executed as the main entry point (not when imported)
-if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
-  await runCli()
 }
 
 export default runCli
