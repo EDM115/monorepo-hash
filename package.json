@@ -1,7 +1,15 @@
 {
   "author": "EDM115 <npmjs@edm115.dev> (https://edm115.dev)",
   "bin": {
-    "monorepo-hash": "./dist/monorepo-hash.mjs"
+    "monorepo-hash": "./dist/monorepo-hash.mjs",
+    "monorepo-hash-bun": "./dist/monorepo-hash-bun.mjs",
+    "monorepo-hash-darwin-arm64": "./dist/monorepo-hash-darwin-arm64",
+    "monorepo-hash-darwin-x64": "./dist/monorepo-hash-darwin-x64",
+    "monorepo-hash-linux-arm64": "./dist/monorepo-hash-linux-arm64",
+    "monorepo-hash-linux-arm64-musl": "./dist/monorepo-hash-linux-arm64-musl",
+    "monorepo-hash-linux-x64": "./dist/monorepo-hash-linux-x64",
+    "monorepo-hash-linux-x64-musl": "./dist/monorepo-hash-linux-x64-musl",
+    "monorepo-hash-windows-x64": "./dist/monorepo-hash-windows-x64"
   },
   "bugs": {
     "email": "npmjs@edm115.dev",
@@ -76,7 +84,8 @@
     "url": "git+https://github.com/EDM115/monorepo-hash.git"
   },
   "scripts": {
-    "build": "tsdown",
+    "build": "tsdown && pnpm build:bun",
+    "build:bun": "bun build --compile --minify --sourcemap --bytecode --target=bun-linux-x64 ./dist/monorepo-hash.cjs --outfile ./dist/monorepo-hash-linux-x64 && bun build --compile --minify --sourcemap --bytecode --target=bun-linux-arm64 ./dist/monorepo-hash.cjs --outfile ./dist/monorepo-hash-linux-arm64 && bun build --compile --minify --sourcemap --bytecode --windows-icon=logo.ico --target=bun-windows-x64 ./dist/monorepo-hash.cjs --outfile ./dist/monorepo-hash-windows-x64 && bun build --compile --minify --sourcemap --bytecode --target=bun-darwin-x64 ./dist/monorepo-hash.cjs --outfile ./dist/monorepo-hash-darwin-x64 && bun build --compile --minify --sourcemap --bytecode --target=bun-darwin-arm64 ./dist/monorepo-hash.cjs --outfile ./dist/monorepo-hash-darwin-arm64 && bun build --compile --minify --sourcemap --bytecode --target=bun-linux-x64-musl ./dist/monorepo-hash.cjs --outfile ./dist/monorepo-hash-linux-x64-musl && bun build --compile --minify --sourcemap --bytecode --target=bun-linux-arm64-musl ./dist/monorepo-hash.cjs --outfile ./dist/monorepo-hash-linux-arm64-musl",
     "lint": "oxlint --type-aware .",
     "lint:fix": "oxlint --fix --type-aware .",
     "format": "eslint -c eslint.stylistic.config.ts --concurrency=auto --fix .",
