@@ -92,7 +92,7 @@
     "lint:fix": "oxlint --fix --type-aware .",
     "format": "eslint -c eslint.stylistic.config.ts --concurrency=auto --fix .",
     "prepublishOnly": "pnpm build",
-    "postinstall": "node ./dist/install-binary.mjs",
+    "postinstall": "node -e \"const fs = require('fs'); const path = require('path'); const installBinaryPath = path.join(__dirname, 'dist', 'install-binary.mjs'); if (fs.existsSync(installBinaryPath)) { const child_process = require('child_process'); child_process.execSync(`node ${installBinaryPath}`, { stdio: 'inherit' }); }\"",
     "release": "pnpm publish",
     "test": "pnpm build && vitest",
     "typecheck": "tsc --noEmit"
