@@ -77,17 +77,17 @@ jobs:
       - name: "Prepare the benchmarks"
         run: |
           pnpm build && pnpm build:bun:linux-x64
-          chmod +x dist/monorepo-hash-linux-x64
+          chmod +x bun-build/monorepo-hash-linux-x64
           mkdir -p tests/benchmarks/node tests/benchmarks/bun
           7z x tests/demo/small-monorepo.7z -o./tests/demo
           cp dist/monorepo-hash.mjs tests/demo/small-monorepo/monorepo-hash.mjs
-          cp dist/monorepo-hash-linux-x64 tests/demo/small-monorepo/monorepo-hash
+          cp bun-build/monorepo-hash-linux-x64 tests/demo/small-monorepo/monorepo-hash
           7z x tests/demo/medium-monorepo.7z -o./tests/demo
           cp dist/monorepo-hash.mjs tests/demo/medium-monorepo/monorepo-hash.mjs
-          cp dist/monorepo-hash-linux-x64 tests/demo/medium-monorepo/monorepo-hash
+          cp bun-build/monorepo-hash-linux-x64 tests/demo/medium-monorepo/monorepo-hash
           7z x tests/demo/large-monorepo.7z -o./tests/demo
           cp dist/monorepo-hash.mjs tests/demo/large-monorepo/monorepo-hash.mjs
-          cp dist/monorepo-hash-linux-x64 tests/demo/large-monorepo/monorepo-hash
+          cp bun-build/monorepo-hash-linux-x64 tests/demo/large-monorepo/monorepo-hash
 
       - name: "Benchmark : small monorepo, bun"
         run: |
