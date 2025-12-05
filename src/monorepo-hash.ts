@@ -27,15 +27,27 @@ import { load } from "js-yaml"
 
 
 // #region types
+/**
+ * The list of supported package managers
+ */
 export const PACKAGE_MANAGERS = [ "pnpm", "npm", "deno", "bun", "yarn" ] as const
 
+/**
+ * The list of supported package managers as a type
+ */
 export type PackageManager = (typeof PACKAGE_MANAGERS)[number]
 
+/**
+ * The minimum expected keys in a `pnpm-workspace.yaml`
+ */
 export type PnpmWorkspaceConfig = {
   packages?: string[];
   [key: string]: unknown;
 }
 
+/**
+ * The minimum expected keys in a `package.json`
+ */
 export interface PackageManifest {
   name: string;
   version?: string;
@@ -47,6 +59,9 @@ export interface PackageManifest {
   [key: string]: unknown;
 }
 
+/**
+ * What informations we're expected to get from a package
+ */
 export interface PackageInfo {
   dir: string;
   relDir: string;
@@ -630,6 +645,11 @@ export async function writeRootHashFile(
   await writeFile(p, JSON.stringify(map, null, 2), "utf8")
 }
 
+/**
+ * Load the mapping of workspace hashes from the root `.hash` file
+ * @param rootDir The root directory of the monorepo
+ * @returns A promise that resolves to a record mapping workspace relative paths to their final hashes, or null if the file does not exist
+ */
 export async function loadRootHashFile(rootDir: string): Promise<Record<string, string> | null> {
   const p = join(rootDir, ".hash")
 
