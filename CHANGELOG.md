@@ -1,5 +1,37 @@
 # monorepo-hash changelog
 
+## v1.8.0
+✨⚡️ feat/perf : expose a new CLI entrypoint `monorepo-hash-bun`
+  - this time you get a binary built with [Bun](https://bun.com/docs/bundler/executables), skipping the need for Node.js to be installed
+  - enjoy faster startup times, lower memory usage and faster I/O operations
+  - in exchange, the built files are massive since they contain Bun's runtime as well. to not bloat the package, the build corresponding to your platform is downloaded as a postinstall step
+  - this version is for now totally optional
+  - note : the file is called `monorepo-hash.exe` for the sole reason that I need a static filename and Windows requires binaries to end in `.exe` while Linux and MacOS don't care at all
+  - binaries are built for the following targets (modern only, open an issue if you need support for baseline) :
+    - Windows x64
+    - Linux x64
+    - Linux ARM64
+    - MacOS x64
+    - MacOS ARM64
+    - Linux x64 MUSL
+    - Linux ARM64 MUSL
+  - the binaries are grabbed from the releases page of the matching monorepo-hash version on GitHub
+
+🐛 fix : don't throw an error when using in a programmatic way and the supposed exit code is 0  
+📝 docs : document the types as well  
+✅ tests : verify the output from the non-CLI version  
+👷 ci : also benchmark the Bun versions  
+🧑‍💻 dev : remove the entrypoint from the main file and create separate ESM/CJS entrypoints *(CJS is only used for Bun so it can do bytecode compilation)*  
+🔨 scripts : add bun build scripts  
+🔨 scripts : add a platform detection script  
+🔨 scripts : add the `postinstall` script that downloads the build corresponding to your platform  
+🍱 assets : add an ICO file for the Windows executable  
+🙈 ignore : don't track bun built files
+
+**Full Changelog**: https://github.com/EDM115/monorepo-hash/compare/1.7.0...1.8.0
+
+---
+
 ## v1.7.0
 ✨ feat : allow to use monorepo-hash outside of the cli with `runCli()`, pass it the args as you would in the terminal and it'll work the same !  
 ✨ feat : all of the core functions now return their results instead of void, making it easier to use them programmatically  
@@ -9,6 +41,8 @@
 📝 docs : added a text changelog
 
 **Full Changelog**: https://github.com/EDM115/monorepo-hash/compare/1.6.0...1.7.0
+
+---
 
 ## v1.6.0
 > [!IMPORTANT]  

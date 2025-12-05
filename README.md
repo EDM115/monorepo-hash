@@ -38,10 +38,14 @@ Well lucky you, `monorepo-hash` is here to help with that !
 ### Installation
 You can install `monorepo-hash` globally, but it's best to add it as a dev dependency at the root of your monorepo :
 ```bash
-pnpm add -D monorepo-hash
+pnpm add -D monorepo-hash --allow-build=monorepo-hash
 # or npm, yarn, deno, bun
 # monorepo-hash was originally made with only PNPM in mind, open an issue if you encounter any problem
 ```
+> [!IMPORTANT]  
+> Since `v1.8.0`, `monorepo-hash` exports direct binaries (`monorepo-hash-bun`) that cut the Node.js overhead. To enable this, the postinstall script needs to be run, which is disabled by default in PNPM for security reasons.  
+> You can totally refuse to use it (whether it is for security reasons or size constraints). If you added `monorepo-hash` without allowing the postinstall script to run, you can do it later at anytime with `pnpm approve-scripts`.
+
 > [!TIP]  
 > Make sure that your workspace configuration is set up correctly (`pnpm-workspace.yaml`, `package.json` workspaces or `deno.json(c)` workspace) as `monorepo-hash` will use it to find your workspaces. Globs are supported.  
 > Make sure that your lockfiles are present since they are used to detect the used package manager. To skip this resolution step, use the `--packagemanager` argument to force one.  
@@ -151,7 +155,7 @@ Tested in the [small monorepo](tests/demo/small-monorepo.7z), with the following
 
 ```bash
 $ pnpm monorepo-hash --generate
-ℹ️  Generating hashes for all workspaces...
+ℹ️ Generating hashes for all workspaces...
 
 ✅ Computed all hashes (5)
 
@@ -168,7 +172,7 @@ $ pnpm monorepo-hash --generate
 
 ```bash
 $ pnpm monorepo-hash --compare
-ℹ️  Comparing hashes for all workspaces...
+ℹ️ Comparing hashes for all workspaces...
 
 ✅ Computed all hashes (5)
 
@@ -186,11 +190,11 @@ $ pnpm monorepo-hash --compare
 
 ```bash
 $ pnpm monorepo-hash --compare
-ℹ️  Comparing hashes for all workspaces...
+ℹ️ Comparing hashes for all workspaces...
 
 ✅ Computed all hashes (5)
 
-⚠️  Changed (5) :
+⚠️ Changed (5) :
 • database
         old : 34e5c3bb9a1545fcc7eab03d439bfe79abe1b12ebb0d2c7cdacb1744e58ab22a
         new : d5c33df5c178385d5f3cb90da5b72a8a699e5c69d446dbc6bed69c0ef2bd0c03
@@ -224,7 +228,7 @@ $ pnpm monorepo-hash --compare
 
 ```bash
 $ pnpm monorepo-hash --compare
-ℹ️  Comparing hashes for all workspaces...
+ℹ️ Comparing hashes for all workspaces...
 
 ✅ Computed all hashes (5)
 
@@ -244,7 +248,7 @@ $ pnpm monorepo-hash --compare
 
 ```bash
 $ pnpm monorepo-hash --generate --target="packages/cli-tools,services/frontend"
-ℹ️  Generating hashes for specified targets... (packages\cli-tools, services\frontend)
+ℹ️ Generating hashes for specified targets... (packages\cli-tools, services\frontend)
 
 ✅ Computed all hashes (3)
 
@@ -258,7 +262,7 @@ $ pnpm monorepo-hash --generate --target="packages/cli-tools,services/frontend"
 
 ```bash
 $ pnpm monorepo-hash --compare --target="packages/cli-tools,services/frontend"
-ℹ️  Comparing hashes for specified targets... (packages\cli-tools, services\frontend)
+ℹ️ Comparing hashes for specified targets... (packages\cli-tools, services\frontend)
 
 ✅ Computed all hashes (3)
 
@@ -273,11 +277,11 @@ $ pnpm monorepo-hash --compare --target="packages/cli-tools,services/frontend"
 
 ```bash
 $ pnpm monorepo-hash --compare --target="services/backend"
-ℹ️  Comparing hashes for specified targets... (services\backend)
+ℹ️ Comparing hashes for specified targets... (services\backend)
 
 ✅ Computed all hashes (4)
 
-⚠️  Changed (1) :
+⚠️ Changed (1) :
 • services\backend
         old : ddba925c23bf35e5b47cd65ffec2846d7631e24d621baa527bc24f5ce3c4f4a5
         new : 2dd588551cf7604896e4eac69bfa2aa1c90c24ff1dff6b7783a7f84b9e3aa4c4
@@ -297,7 +301,7 @@ This was the main reason I created this tool, and whether it's in GitHub Actions
 
 jobs:
   build-and-test:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     defaults:
       run:
         shell: bash
@@ -306,11 +310,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [22]
+        node-version: [24]
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -319,7 +323,7 @@ jobs:
         uses: pnpm/action-setup@v4
 
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
           cache: "pnpm"
@@ -411,20 +415,22 @@ Warm cache usage is usually 2/3 times faster than cold cache, so these results a
 > - :chart_with_downwards_trend: : Slower than the previous version
 > - :balance_scale: : No perceivable change in performance compared to the previous version
 
-| Version                               | Small    | Medium  | Large    |
-| :------------------------------------ | :------- | :------ | :------- |
-| `v1.7.0` :chart_with_upwards_trend:   | 257.5 ms | 3.655 s | 55.136 s |
-| `v1.6.0` :chart_with_downwards_trend: | 290.5 ms | 4.128 s | 56.348 s |
-| `v1.5.1` :balance_scale:              | 284.9 ms | 3.948 s | 55.728 s |
-| `v1.5.0` :balance_scale:              | 266.8 ms | 3.947 s | 55.896 s |
-| `v1.4.2` :chart_with_upwards_trend:   | 277.5 ms | 3.639 s | 54.694 s |
-| `v1.4.1` :chart_with_downwards_trend: | 371.8 ms | 5.240 s | 62.899 s |
-| `v1.4.0` :chart_with_upwards_trend:   | 302.4 ms | 4.417 s | 58.606 s |
-| `v1.3.1` :chart_with_downwards_trend: | 372.2 ms | 5.470 s | 96.353 s |
-| `v1.3.0` :chart_with_upwards_trend:   | 303.5 ms | 4.415 s | 92.203 s |
-| `v1.2.0` :chart_with_downwards_trend: | 345.3 ms | 4.442 s | 93.391 s |
-| `v1.1.0` :chart_with_upwards_trend:   | 284.1 ms | 3.884 s | 56.717 s |
-| `v1.0.0` :balance_scale:              | 318.6 ms | 4.699 s | 58.094 s |
+| Version                                     | Small    | Medium  | Large    |
+| :------------------------------------------ | :------- | :------ | :------- |
+| `v1.8.0 (bun)` :chart_with_upwards_trend:   | 219.2 ms | 3.253 s | 48.768 s |
+| `v1.8.0` :chart_with_downwards_trend:       | 297.1 ms | 4.010 s | 55.842 s |
+| `v1.7.0` :chart_with_upwards_trend:         | 257.5 ms | 3.655 s | 55.136 s |
+| `v1.6.0` :chart_with_downwards_trend:       | 290.5 ms | 4.128 s | 56.348 s |
+| `v1.5.1` :balance_scale:                    | 284.9 ms | 3.948 s | 55.728 s |
+| `v1.5.0` :balance_scale:                    | 266.8 ms | 3.947 s | 55.896 s |
+| `v1.4.2` :chart_with_upwards_trend:         | 277.5 ms | 3.639 s | 54.694 s |
+| `v1.4.1` :chart_with_downwards_trend:       | 371.8 ms | 5.240 s | 62.899 s |
+| `v1.4.0` :chart_with_upwards_trend:         | 302.4 ms | 4.417 s | 58.606 s |
+| `v1.3.1` :chart_with_downwards_trend:       | 372.2 ms | 5.470 s | 96.353 s |
+| `v1.3.0` :chart_with_upwards_trend:         | 303.5 ms | 4.415 s | 92.203 s |
+| `v1.2.0` :chart_with_downwards_trend:       | 345.3 ms | 4.442 s | 93.391 s |
+| `v1.1.0` :chart_with_upwards_trend:         | 284.1 ms | 3.884 s | 56.717 s |
+| `v1.0.0` :balance_scale:                    | 318.6 ms | 4.699 s | 58.094 s |
 
 ## :hammer_and_wrench: Contributing
 Here's a quick guide for contributing to `monorepo-hash` :
@@ -446,6 +452,7 @@ Here's a quick guide for contributing to `monorepo-hash` :
   Feel free to add tests to the `tests` directory.
   ```bash
   pnpm test
+  pnpm build:bun
   ```
 6. Commit your changes
 7. Open a pull request
