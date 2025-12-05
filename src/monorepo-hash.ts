@@ -141,14 +141,14 @@ export function zeroPad(num: number, places: number): string {
 
 /**
  * Only exit the process if running as a CLI, otherwise throw an error
- * Exit code 1 won't throw an error to still get the comparison results
+ * Exit code 1 won't throw an error to still get the comparison results, and exit code 0 is normal
  * @param code The exit code
  */
 export function safeExit(code: number): void {
   if (cliUsage) {
     process.exit(code)
   } else {
-    if (code !== 1) {
+    if (![ 0, 1 ].includes(code)) {
       throw new Error(`Exit with code ${code}`)
     }
   }
