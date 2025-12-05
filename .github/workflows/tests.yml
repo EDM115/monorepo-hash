@@ -39,6 +39,9 @@ jobs:
       
       - name: "Types check"
         run: pnpm typecheck
+      
+      - name: "Build the project"
+        run: pnpm build:bun:linux-x64 && pnpm build:bun:linux-arm64 && pnpm build:bun:windows-x64:ci && pnpm build:bun:darwin-x64 && pnpm build:bun:darwin-arm64 && pnpm build:bun:linux-x64-musl && pnpm build:bun:linux-arm64-musl
 
-      - name: "Build the project and run the tests"
-        run: pnpm test
+      - name: "Run the tests"
+        run: pnpm vitest
