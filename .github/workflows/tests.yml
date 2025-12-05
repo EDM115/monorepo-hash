@@ -27,6 +27,9 @@ jobs:
 
       - name: "Install pnpm"
         uses: pnpm/action-setup@v4
+      
+      - name: "Install Bun"
+        uses: oven-sh/setup-bun@v2
 
       - name: "Install dependencies"
         run: pnpm i --frozen-lockfile
@@ -37,8 +40,5 @@ jobs:
       - name: "Types check"
         run: pnpm typecheck
 
-      - name: "Build the project"
-        run: pnpm build
-
-      - name: "Run the tests"
+      - name: "Build the project and run the tests"
         run: pnpm test
