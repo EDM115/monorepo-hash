@@ -77,7 +77,7 @@
     "url": "git+https://github.com/EDM115/monorepo-hash.git"
   },
   "scripts": {
-    "build": "tsdown",
+    "build": "tsdown && pnpm build:decoy",
     "build:bun": "pnpm build:bun:linux-x64 && pnpm build:bun:linux-arm64 && pnpm build:bun:windows-x64 && pnpm build:bun:darwin-x64 && pnpm build:bun:darwin-arm64 && pnpm build:bun:linux-x64-musl && pnpm build:bun:linux-arm64-musl && pnpm build:bun:chmod",
     "build:bun:linux-x64": "bun build --compile --minify --sourcemap --bytecode --target=bun-linux-x64 ./bun-build/monorepo-hash.cjs --outfile ./bun-build/monorepo-hash-linux-x64",
     "build:bun:linux-arm64": "bun build --compile --minify --sourcemap --bytecode --target=bun-linux-arm64 ./bun-build/monorepo-hash.cjs --outfile ./bun-build/monorepo-hash-linux-arm64",
@@ -88,6 +88,7 @@
     "build:bun:linux-x64-musl": "bun build --compile --minify --sourcemap --bytecode --target=bun-linux-x64-musl ./bun-build/monorepo-hash.cjs --outfile ./bun-build/monorepo-hash-linux-x64-musl",
     "build:bun:linux-arm64-musl": "bun build --compile --minify --sourcemap --bytecode --target=bun-linux-arm64-musl ./bun-build/monorepo-hash.cjs --outfile ./bun-build/monorepo-hash-linux-arm64-musl",
     "build:bun:chmod": "node -e \"const { chmodSync } = require('fs'); const { readdirSync } = require('fs'); const path = require('path'); const dir = path.join(__dirname, 'bun-build'); for (const file of readdirSync(dir)) { if (!file.includes('.')) { chmodSync(path.join(dir, file), 0o755); } }\"",
+    "build:decoy": "node -e \"require('fs').writeFileSync('./dist/monorepo-hash.exe', '', 'utf8')\"",
     "lint": "oxlint --type-aware .",
     "lint:fix": "oxlint --fix --type-aware .",
     "format": "eslint -c eslint.stylistic.config.ts --concurrency=auto --fix .",
@@ -98,5 +99,5 @@
   },
   "type": "module",
   "types": "./dist/monorepo-hash.d.mts",
-  "version": "1.8.0-beta.4"
+  "version": "1.8.0-beta.5"
 }

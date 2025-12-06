@@ -5,6 +5,7 @@ import {
 import {
   mkdir,
   readFile,
+  unlink,
 } from "node:fs/promises"
 import { get } from "node:https"
 import {
@@ -102,6 +103,7 @@ async function main(): Promise<void> {
   await mkdir(__dirname, { recursive: true })
 
   try {
+    await unlink(destPath)
     await download(url, destPath)
     console.log(`monorepo-hash : downloaded ${assetName} for v${version}`)
   } catch (err) {

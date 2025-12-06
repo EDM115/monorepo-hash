@@ -38,10 +38,11 @@ Well lucky you, `monorepo-hash` is here to help with that !
 ### Installation
 You can install `monorepo-hash` globally, but it's best to add it as a dev dependency at the root of your monorepo :
 ```bash
+# ignore the "Failed to create bin" warn
 pnpm add -D monorepo-hash --allow-build=monorepo-hash
 # or bun, yarn, npm, deno
 # monorepo-hash was originally made with only PNPM in mind, open an issue if you encounter any problem
-bun add -d monorepo-hash --trust
+bun add -D monorepo-hash --trust
 yarn add -D monorepo-hash
 npm install -D monorepo-hash
 # for deno, add "nodeModulesDir": "auto" to your deno.json(c) config file first
