@@ -38,20 +38,18 @@ Well lucky you, `monorepo-hash` is here to help with that !
 ### Installation
 You can install `monorepo-hash` globally, but it's best to add it as a dev dependency at the root of your monorepo :
 ```bash
-# ignore the "Failed to create bin" warn
 pnpm add -D monorepo-hash --allow-build=monorepo-hash
 # or bun, yarn, npm, deno
 # monorepo-hash was originally made with only PNPM in mind, open an issue if you encounter any problem
 bun add -D monorepo-hash --trust
 yarn add -D monorepo-hash
 npm install -D monorepo-hash
-# for deno, add "nodeModulesDir": "auto" to your deno.json(c) config file first
+# add "nodeModulesDir": "auto" to your deno.json(c) config file first
 deno install -D npm:monorepo-hash --allow-scripts=npm:monorepo-hash
 ```
 > [!IMPORTANT]  
 > Since `v1.8.0`, `monorepo-hash` exports direct binaries (`monorepo-hash-bun`) that cut the Node.js overhead. To enable this, the postinstall script needs to be run, which is disabled by default in PNPM for security reasons.  
-> You can totally refuse to use it (whether it is for security reasons or size constraints). If you added `monorepo-hash` without allowing the postinstall script to run, you can do it later at anytime with `pnpm approve-scripts`.  
-> You can safely ignore the PNPM warnings about the nonexistent binary since it is retrieved as part of the postinstall script.
+> You can totally refuse to use it (whether it is for security reasons or size constraints). If you added `monorepo-hash` without allowing the postinstall script to run, you can do it later at anytime with `pnpm approve-scripts` or `bun pm trust monorepo-hash`.
 
 > [!TIP]  
 > Make sure that your workspace configuration is set up correctly (`pnpm-workspace.yaml`, `package.json` workspaces or `deno.json(c)` workspace) as `monorepo-hash` will use it to find your workspaces. Globs are supported.  
@@ -65,9 +63,9 @@ pnpm monorepo-hash --help
 # or bun, yarn, npm, deno
 bunx monorepo-hash --help
 yarn run monorepo-hash --help
-# due to issues with npm not linking the exe properly after the postinstall script, you have to run it manually : ./node_modules/monorepo-hash/dist/monorepo-hash.exe --help
 npx monorepo-hash --help
-deno run -A npm:monorepo-hash --help
+deno run -A monorepo-hash --help
+# you cannot directly run binaries from deno, you can only define a shell script that runs from a task
 ```
 > [!TIP]  
 > Short versions of all arguments are also available.
@@ -430,8 +428,8 @@ Warm cache usage is usually 2/3 times faster than cold cache, so these results a
 
 | Version                                     | Small    | Medium  | Large    |
 | :------------------------------------------ | :------- | :------ | :------- |
-| `v1.8.0 (bun)` :chart_with_upwards_trend:   | 219.2 ms | 3.253 s | 48.768 s |
-| `v1.8.0` :chart_with_downwards_trend:       | 297.1 ms | 4.010 s | 55.842 s |
+| `v1.8.0 (bun)` :chart_with_upwards_trend:   | 171.3 ms | 3.038 s | 47.607 s |
+| `v1.8.0` :chart_with_upwards_trend:         | 237.6 ms | 3.669 s | 54.453 s |
 | `v1.7.0` :chart_with_upwards_trend:         | 257.5 ms | 3.655 s | 55.136 s |
 | `v1.6.0` :chart_with_downwards_trend:       | 290.5 ms | 4.128 s | 56.348 s |
 | `v1.5.1` :balance_scale:                    | 284.9 ms | 3.948 s | 55.728 s |

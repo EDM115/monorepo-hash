@@ -9,12 +9,6 @@
     "url": "https://github.com/EDM115/monorepo-hash/issues"
   },
   "description": "A CLI tool to generate hashes for the workspaces of your monorepo",
-  "dependencies": {
-    "fast-glob": "~3.3.3",
-    "find-up": "~8.0.0",
-    "ignore": "~7.0.5",
-    "js-yaml": "~4.1.1"
-  },
   "devDependencies": {
     "@stylistic/eslint-plugin": "~5.6.1",
     "@types/fs-extra": "~11.0.4",
@@ -24,7 +18,11 @@
     "edm115-lint": "~0.1.5",
     "eslint": "~9.39.1",
     "execa": "~9.6.1",
+    "fast-glob": "~3.3.3",
+    "find-up": "~8.0.0",
     "fs-extra": "~11.3.2",
+    "ignore": "~7.0.5",
+    "js-yaml": "~4.1.1",
     "globals": "~16.5.0",
     "oxlint": "~1.31.0",
     "oxlint-tsgolint": "~0.8.3",
@@ -99,5 +97,5 @@
   },
   "type": "module",
   "types": "./dist/monorepo-hash.d.mts",
-  "version": "1.8.0-beta.5"
+  "version": "1.8.0"
 }

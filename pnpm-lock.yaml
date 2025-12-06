@@ -7,19 +7,6 @@ settings:
 importers:
 
   .:
-    dependencies:
-      fast-glob:
-        specifier: ~3.3.3
-        version: 3.3.3
-      find-up:
-        specifier: ~8.0.0
-        version: 8.0.0
-      ignore:
-        specifier: ~7.0.5
-        version: 7.0.5
-      js-yaml:
-        specifier: ~4.1.1
-        version: 4.1.1
     devDependencies:
       '@stylistic/eslint-plugin':
         specifier: ~5.6.1
@@ -45,12 +32,24 @@ importers:
       execa:
         specifier: ~9.6.1
         version: 9.6.1
+      fast-glob:
+        specifier: ~3.3.3
+        version: 3.3.3
+      find-up:
+        specifier: ~8.0.0
+        version: 8.0.0
       fs-extra:
         specifier: ~11.3.2
         version: 11.3.2
       globals:
         specifier: ~16.5.0
         version: 16.5.0
+      ignore:
+        specifier: ~7.0.5
+        version: 7.0.5
+      js-yaml:
+        specifier: ~4.1.1
+        version: 4.1.1
       oxlint:
         specifier: ~1.31.0
         version: 1.31.0(oxlint-tsgolint@0.8.3)
@@ -1392,8 +1391,8 @@ packages:
     resolution: {integrity: sha512-5uKD0nqiYVzlmCRs01Fhs2BdkEgBS3SAVP6ndrBsuK42iC2+JHyxM05Rm9G8+5mkmRtzMZGY8Ct5+mliZxU/Ww==}
     engines: {node: '>=18.12.0'}
 
-  unrun@0.2.16:
-    resolution: {integrity: sha512-DBkjUpQv9AQs1464XWnWQ97RuxPCu+CImvQMPmqFeHoL2Bi6C1BGPacMuXVw4VMIfQewNJZWUxPt5envG90oUA==}
+  unrun@0.2.17:
+    resolution: {integrity: sha512-mumOyjZp1K1bsa1QwfRPw7+9TxyVHSgx6LHB2dBWI4m1hGDG9b2TK3fS3H8vCl/Gl9YTSxhZ9XuLbWv3QF8GEA==}
     engines: {node: '>=20.19.0'}
     hasBin: true
     peerDependencies:
@@ -2635,7 +2634,7 @@ snapshots:
       tinyglobby: 0.2.15
       tree-kill: 1.2.2
       unconfig-core: 7.4.2
-      unrun: 0.2.16
+      unrun: 0.2.17
     optionalDependencies:
       typescript: 5.9.3
       unplugin-unused: 0.5.6
@@ -2688,7 +2687,7 @@ snapshots:
       picomatch: 4.0.3
       webpack-virtual-modules: 0.6.2
 
-  unrun@0.2.16:
+  unrun@0.2.17:
     dependencies:
       '@oxc-project/runtime': 0.101.0
       rolldown: 1.0.0-beta.53

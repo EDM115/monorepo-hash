@@ -17,14 +17,22 @@
     - Linux ARM64 MUSL
   - the binaries are grabbed from the releases page of the matching monorepo-hash version on GitHub
 
-🐛 fix : don't throw an error when using in a programmatic way and the supposed exit code is 0  
+🐛 fix : don't throw an error when using in a programmatic way and the exit code is 0  
+🐛 fix : the postinstall script now properly runs for all package managers and don't rely on NPM internals  
+🔥 qol : redeclare all deps as dev deps so they won't be resolved and installed in your node_modules 😉  
 📝 docs : document the types as well  
+📝 docs : document the release process  
+📝 docs : add informations about the postinstall script  
+📝 docs : add install and usage examples for Bun, NPM, Yarn and Deno  
 ✅ tests : verify the output from the non-CLI version  
 👷 ci : also benchmark the Bun versions  
+👷 ci : the benchmark exits after 45mins instead of 60 and runs in silent mode to save some CPU cycles  
 🧑‍💻 dev : remove the entrypoint from the main file and create separate ESM/CJS entrypoints *(CJS is only used for Bun so it can do bytecode compilation)*  
+🧑‍💻 dev : remove the prepublish script  
 🔨 scripts : add bun build scripts  
 🔨 scripts : add a platform detection script  
 🔨 scripts : add the `postinstall` script that downloads the build corresponding to your platform  
+🔨 scripts : create a decoy binary before packing the NPM package in order to properly link the final executable for NPM and Yarn  
 🍱 assets : add an ICO file for the Windows executable  
 🙈 ignore : don't track bun built files
 
