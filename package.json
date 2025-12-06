@@ -91,7 +91,6 @@
     "lint": "oxlint --type-aware .",
     "lint:fix": "oxlint --fix --type-aware .",
     "format": "eslint -c eslint.stylistic.config.ts --concurrency=auto --fix .",
-    "prepublishOnly": "pnpm build",
     "postinstall": "node -e \"const fs = require('fs'); const path = require('path'); const installBinaryPath = path.join(__dirname, 'dist', 'install-binary.mjs'); if (fs.existsSync(installBinaryPath)) { const child_process = require('child_process'); child_process.execFileSync(process.execPath, [installBinaryPath], { stdio: 'inherit' }); }\"",
     "release": "pnpm publish",
     "test": "pnpm build && vitest",
@@ -99,5 +98,5 @@
   },
   "type": "module",
   "types": "./dist/monorepo-hash.d.mts",
-  "version": "1.8.0-beta.1"
+  "version": "1.8.0-beta.2"
 }
