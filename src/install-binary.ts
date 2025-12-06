@@ -25,18 +25,9 @@ import {
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
+const pkgDir = resolve(__dirname, "..")
 
-const localPrefix = process.env.npm_config_local_prefix
-const pkgJsonPath = process.env.npm_package_json
-
-if (!localPrefix || !pkgJsonPath) {
-  process.exit(0)
-}
-
-const pkgDir = dirname(pkgJsonPath)
-const isDevInstall = resolve(localPrefix) === resolve(pkgDir)
-
-if (isDevInstall) {
+if (resolve(process.cwd()) === pkgDir) {
   process.exit(0)
 }
 

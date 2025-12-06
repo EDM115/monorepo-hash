@@ -39,8 +39,13 @@ Well lucky you, `monorepo-hash` is here to help with that !
 You can install `monorepo-hash` globally, but it's best to add it as a dev dependency at the root of your monorepo :
 ```bash
 pnpm add -D monorepo-hash --allow-build=monorepo-hash
-# or npm, yarn, deno, bun
+# or bun, yarn, npm, deno
 # monorepo-hash was originally made with only PNPM in mind, open an issue if you encounter any problem
+bun add -d monorepo-hash --trust
+yarn add -D monorepo-hash
+npm install -D monorepo-hash
+# for deno, add "nodeModulesDir": "auto" to your deno.json(c) config file first
+deno install -D npm:monorepo-hash --allow-scripts=npm:monorepo-hash
 ```
 > [!IMPORTANT]  
 > Since `v1.8.0`, `monorepo-hash` exports direct binaries (`monorepo-hash-bun`) that cut the Node.js overhead. To enable this, the postinstall script needs to be run, which is disabled by default in PNPM for security reasons.  
@@ -56,6 +61,12 @@ pnpm add -D monorepo-hash --allow-build=monorepo-hash
 ### Get help
 ```bash
 pnpm monorepo-hash --help
+# or bun, yarn, npm, deno
+bunx monorepo-hash --help
+yarn run monorepo-hash --help
+# due to issues with npm not linking the exe properly after the postinstall script, you have to run it manually : ./node_modules/monorepo-hash/dist/monorepo-hash.exe --help
+npx monorepo-hash --help
+deno run -A npm:monorepo-hash --help
 ```
 > [!TIP]  
 > Short versions of all arguments are also available.
