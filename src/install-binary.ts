@@ -10,7 +10,6 @@ import { get } from "node:https"
 import {
   dirname,
   join,
-  resolve,
 } from "node:path"
 import { env } from "node:process"
 import {
@@ -25,11 +24,6 @@ import {
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
-const pkgDir = resolve(__dirname, "..")
-
-if (resolve(process.cwd()) === pkgDir) {
-  process.exit(0)
-}
 
 async function getVersion(): Promise<string> {
   if (typeof env.npm_package_version === "string" && env.npm_package_version.length > 0) {
