@@ -44,7 +44,8 @@ pnpm add -D monorepo-hash --allow-build=monorepo-hash
 ```
 > [!IMPORTANT]  
 > Since `v1.8.0`, `monorepo-hash` exports direct binaries (`monorepo-hash-bun`) that cut the Node.js overhead. To enable this, the postinstall script needs to be run, which is disabled by default in PNPM for security reasons.  
-> You can totally refuse to use it (whether it is for security reasons or size constraints). If you added `monorepo-hash` without allowing the postinstall script to run, you can do it later at anytime with `pnpm approve-scripts`.
+> You can totally refuse to use it (whether it is for security reasons or size constraints). If you added `monorepo-hash` without allowing the postinstall script to run, you can do it later at anytime with `pnpm approve-scripts`.  
+> You can safely ignore the PNPM warnings about the nonexistent binary since it is retrieved as part of the postinstall script.
 
 > [!TIP]  
 > Make sure that your workspace configuration is set up correctly (`pnpm-workspace.yaml`, `package.json` workspaces or `deno.json(c)` workspace) as `monorepo-hash` will use it to find your workspaces. Globs are supported.  
@@ -456,6 +457,20 @@ Here's a quick guide for contributing to `monorepo-hash` :
   ```
 6. Commit your changes
 7. Open a pull request
+
+### Release process
+```bash
+# bump the version in package.json
+git commit && git push
+pnpm typecheck
+pnpm build
+pnpm build:bun
+# create a draft release on GitHub with the bun artifacts
+# compare the benchmarks ran from master and the release and pick the best ones to include as a zip artifact & in the README
+git commit && git push
+# un-draft and publish the release on GitHub as latest
+pnpm release
+```
 
 ## :eyes: Who uses `monorepo-hash` ?
 - [Nexelec](https://nexelec.eu), at least during my internship there
