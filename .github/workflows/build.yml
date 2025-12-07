@@ -115,26 +115,19 @@ jobs:
 
   linux-arm64-musl:
     name: "Build for Linux arm64 musl"
-    runs-on: ubuntu-24.04-arm
-    container: arm64v8/alpine:latest
+    runs-on: ubuntu-24.04
+    container: arm64v8/node:24-alpine
     timeout-minutes: 10
 
     steps:
-      - name: "Checkout"
-        uses: actions/checkout@v6
-
       - name: "Prepare musl dependencies"
         run: apk update && apk add --no-cache make musl-dev linux-headers g++ gcc libgcc libstdc++ libffi-dev
 
+      - name: "Checkout"
+        uses: actions/checkout@v6
+
       - name: "Install pnpm"
         uses: pnpm/action-setup@v4
-
-      - name: "Bump Node.js to v24"
-        uses: actions/setup-node@v6
-        with:
-          check-latest: true
-          cache: "pnpm"
-          node-version: lts/krypton
 
       - name: "Install Bun"
         uses: oven-sh/setup-bun@v2
@@ -194,25 +187,18 @@ jobs:
   linux-x64-musl:
     name: "Build for Linux x64 musl"
     runs-on: ubuntu-24.04
-    container: amd64/alpine:latest
+    container: amd64/node:24-alpine
     timeout-minutes: 10
 
     steps:
-      - name: "Checkout"
-        uses: actions/checkout@v6
-
       - name: "Prepare musl dependencies"
         run: apk update && apk add --no-cache make musl-dev linux-headers g++ gcc libgcc libstdc++ libffi-dev
 
+      - name: "Checkout"
+        uses: actions/checkout@v6
+
       - name: "Install pnpm"
         uses: pnpm/action-setup@v4
-
-      - name: "Bump Node.js to v24"
-        uses: actions/setup-node@v6
-        with:
-          check-latest: true
-          cache: "pnpm"
-          node-version: lts/krypton
 
       - name: "Install Bun"
         uses: oven-sh/setup-bun@v2
@@ -260,10 +246,10 @@ jobs:
         run: pnpm build && pnpm build:bun:windows-x64
 
       - name: "Test the binary"
-        run: .\bun-build\monorepo-hash-windows-x64 --help
+        run: .\bun-build\monorepo-hash-windows-x64.exe --help
 
       - name: "Upload Windows x64 binary"
         uses: actions/upload-artifact@v5
         with:
-          name: monorepo-hash-windows-x64
-          path: .\bun-build\monorepo-hash-windows-x64
+          name: monorepo-hash-windows-x64.exe
+          path: .\bun-build\monorepo-hash-windows-x64.exe
