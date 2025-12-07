@@ -1,0 +1,269 @@
+name: Builds the Bun binaries on all platforms
+
+on:
+  workflow_dispatch:
+
+jobs:
+  darwin-arm64:
+    name: "Build for Darwin arm64"
+    runs-on: macos-15
+    timeout-minutes: 10
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v6
+
+      - name: "Install pnpm"
+        uses: pnpm/action-setup@v4
+
+      - name: "Bump Node.js to v24"
+        uses: actions/setup-node@v6
+        with:
+          check-latest: true
+          cache: "pnpm"
+          node-version: lts/krypton
+
+      - name: "Install Bun"
+        uses: oven-sh/setup-bun@v2
+
+      - name: "Install dependencies"
+        run: pnpm i --frozen-lockfile
+
+      - name: "Build the Darwin arm64 binary"
+        run: pnpm build && pnpm build:bun:darwin-arm64 && pnpm build:bun:chmod
+
+      - name: "Test the binary"
+        run: ./bun-build/monorepo-hash-darwin-arm64 --help
+      - name: "Upload Darwin arm64 binary"
+        uses: actions/upload-artifact@v5
+        with:
+          name: monorepo-hash-darwin-arm64
+          path: ./bun-build/monorepo-hash-darwin-arm64
+
+  darwin-x64:
+    name: "Build for Darwin x64"
+    runs-on: macos-15-intel
+    timeout-minutes: 10
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v6
+
+      - name: "Install pnpm"
+        uses: pnpm/action-setup@v4
+
+      - name: "Bump Node.js to v24"
+        uses: actions/setup-node@v6
+        with:
+          check-latest: true
+          cache: "pnpm"
+          node-version: lts/krypton
+
+      - name: "Install Bun"
+        uses: oven-sh/setup-bun@v2
+
+      - name: "Install dependencies"
+        run: pnpm i --frozen-lockfile
+
+      - name: "Build the Darwin x64 binary"
+        run: pnpm build && pnpm build:bun:darwin-x64 && pnpm build:bun:chmod
+
+      - name: "Test the binary"
+        run: ./bun-build/monorepo-hash-darwin-x64 --help
+      - name: "Upload Darwin x64 binary"
+        uses: actions/upload-artifact@v5
+        with:
+          name: monorepo-hash-darwin-x64
+          path: ./bun-build/monorepo-hash-darwin-x64
+
+  linux-arm64:
+    name: "Build for Linux arm64"
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v6
+
+      - name: "Install pnpm"
+        uses: pnpm/action-setup@v4
+
+      - name: "Bump Node.js to v24"
+        uses: actions/setup-node@v6
+        with:
+          check-latest: true
+          cache: "pnpm"
+          node-version: lts/krypton
+
+      - name: "Install Bun"
+        uses: oven-sh/setup-bun@v2
+
+      - name: "Install dependencies"
+        run: pnpm i --frozen-lockfile
+
+      - name: "Build the Linux arm64 binary"
+        run: pnpm build && pnpm build:bun:linux-arm64 && pnpm build:bun:chmod
+
+      - name: "Test the binary"
+        run: ./bun-build/monorepo-hash-linux-arm64 --help
+
+      - name: "Upload Linux arm64 binary"
+        uses: actions/upload-artifact@v5
+        with:
+          name: monorepo-hash-linux-arm64
+          path: ./bun-build/monorepo-hash-linux-arm64
+
+  linux-arm64-musl:
+    name: "Build for Linux arm64 musl"
+    runs-on: ubuntu-24.04-arm
+    container: arm64v8/alpine:latest
+    timeout-minutes: 10
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v6
+
+      - name: "Prepare musl dependencies"
+        run: apk update && apk add --no-cache make musl-dev linux-headers g++ gcc libgcc libstdc++ libffi-dev
+
+      - name: "Install pnpm"
+        uses: pnpm/action-setup@v4
+
+      - name: "Bump Node.js to v24"
+        uses: actions/setup-node@v6
+        with:
+          check-latest: true
+          cache: "pnpm"
+          node-version: lts/krypton
+
+      - name: "Install Bun"
+        uses: oven-sh/setup-bun@v2
+
+      - name: "Install dependencies"
+        run: pnpm i --frozen-lockfile
+
+      - name: "Build the Linux arm64 musl binary"
+        run: pnpm build && pnpm build:bun:linux-arm64-musl && pnpm build:bun:chmod
+
+      - name: "Test the binary"
+        run: ./bun-build/monorepo-hash-linux-arm64-musl --help
+
+      - name: "Upload Linux arm64 musl binary"
+        uses: actions/upload-artifact@v5
+        with:
+          name: monorepo-hash-linux-arm64-musl
+          path: ./bun-build/monorepo-hash-linux-arm64-musl
+
+  linux-x64:
+    name: "Build for Linux x64"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v6
+
+      - name: "Install pnpm"
+        uses: pnpm/action-setup@v4
+
+      - name: "Bump Node.js to v24"
+        uses: actions/setup-node@v6
+        with:
+          check-latest: true
+          cache: "pnpm"
+          node-version: lts/krypton
+
+      - name: "Install Bun"
+        uses: oven-sh/setup-bun@v2
+
+      - name: "Install dependencies"
+        run: pnpm i --frozen-lockfile
+
+      - name: "Build the Linux x64 binary"
+        run: pnpm build && pnpm build:bun:linux-x64 && pnpm build:bun:chmod
+
+      - name: "Test the binary"
+        run: ./bun-build/monorepo-hash-linux-x64 --help
+
+      - name: "Upload Linux x64 binary"
+        uses: actions/upload-artifact@v5
+        with:
+          name: monorepo-hash-linux-x64
+          path: ./bun-build/monorepo-hash-linux-x64
+
+  linux-x64-musl:
+    name: "Build for Linux x64 musl"
+    runs-on: ubuntu-24.04
+    container: amd64/alpine:latest
+    timeout-minutes: 10
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v6
+
+      - name: "Prepare musl dependencies"
+        run: apk update && apk add --no-cache make musl-dev linux-headers g++ gcc libgcc libstdc++ libffi-dev
+
+      - name: "Install pnpm"
+        uses: pnpm/action-setup@v4
+
+      - name: "Bump Node.js to v24"
+        uses: actions/setup-node@v6
+        with:
+          check-latest: true
+          cache: "pnpm"
+          node-version: lts/krypton
+
+      - name: "Install Bun"
+        uses: oven-sh/setup-bun@v2
+
+      - name: "Install dependencies"
+        run: pnpm i --frozen-lockfile
+
+      - name: "Build the Linux x64 musl binary"
+        run: pnpm build && pnpm build:bun:linux-x64-musl && pnpm build:bun:chmod
+
+      - name: "Test the binary"
+        run: ./bun-build/monorepo-hash-linux-x64-musl --help
+      - name: "Upload Linux x64 musl binary"
+        uses: actions/upload-artifact@v5
+        with:
+          name: monorepo-hash-linux-x64-musl
+          path: ./bun-build/monorepo-hash-linux-x64-musl
+
+  windows-x64:
+    name: "Build for Windows x64"
+    runs-on: windows-2025
+    timeout-minutes: 10
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v6
+
+      - name: "Install pnpm"
+        uses: pnpm/action-setup@v4
+
+      - name: "Bump Node.js to v24"
+        uses: actions/setup-node@v6
+        with:
+          check-latest: true
+          cache: "pnpm"
+          node-version: lts/krypton
+
+      - name: "Install Bun"
+        uses: oven-sh/setup-bun@v2
+
+      - name: "Install dependencies"
+        run: pnpm i --frozen-lockfile
+
+      - name: "Build the Windows x64 binary"
+        run: pnpm build && pnpm build:bun:windows-x64
+
+      - name: "Test the binary"
+        run: .\bun-build\monorepo-hash-windows-x64 --help
+
+      - name: "Upload Windows x64 binary"
+        uses: actions/upload-artifact@v5
+        with:
+          name: monorepo-hash-windows-x64
+          path: .\bun-build\monorepo-hash-windows-x64
