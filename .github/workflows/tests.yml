@@ -51,8 +51,9 @@ jobs:
         run: |
           sed -i 's#\.\./dist/monorepo-hash.mjs#\.\./bun-build/monorepo-hash-linux-x64#g' tests/setup.ts
           sed -i 's#monorepo-hash.mjs#monorepo-hash-linux-x64#g' tests/setup.ts
-          find tests -name "*.test.ts" -exec sed -i 's/const cli = "node"/const cli = ""/g' {} \;
-          find tests -name "*.test.ts" -exec sed -i 's/cliScript = join(cwd, "monorepo-hash.mjs")/cliScript = join(cwd, "monorepo-hash-linux-x64")/g' {} \;
+          find tests -name "*.test.ts" -exec sed -i 's#const cli = "node"#const cli = join(cwd, "monorepo-hash-linux-x64")#g; s#cliScript = join(cwd, "monorepo-hash.mjs")##g; s#\[ cliScript,#\[ #g' {} \;
+          sed -i 's#const cli = join(cwd, "monorepo-hash-linux-x64")#const cli = "bun"#g; s#cliScript = join(cwd, "monorepo-hash.mjs")#cliScript = join(cwd, "monorepo-hash-bun.ts")#g' tests/workspaceDetection.test.ts
+          sed -i '/describe("monorepo-hash output"/,${s#const cli = join(cwd, "monorepo-hash-linux-x64")#const cli = "bun"#g; s#cliScript = join(cwd, "monorepo-hash.mjs")#cliScript = join(cwd, "monorepo-hash-bun.ts")#g}' tests/output.test.ts
 
       - name: "Run the binary tests"
         run: pnpm vitest
