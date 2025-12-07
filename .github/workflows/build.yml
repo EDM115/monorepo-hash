@@ -34,6 +34,7 @@ jobs:
 
       - name: "Test the binary"
         run: ./bun-build/monorepo-hash-darwin-arm64 --help
+
       - name: "Upload Darwin arm64 binary"
         uses: actions/upload-artifact@v5
         with:
@@ -70,6 +71,7 @@ jobs:
 
       - name: "Test the binary"
         run: ./bun-build/monorepo-hash-darwin-x64 --help
+
       - name: "Upload Darwin x64 binary"
         uses: actions/upload-artifact@v5
         with:
@@ -113,40 +115,6 @@ jobs:
           name: monorepo-hash-linux-arm64
           path: ./bun-build/monorepo-hash-linux-arm64
 
-  linux-arm64-musl:
-    name: "Build for Linux arm64 musl"
-    runs-on: ubuntu-24.04-arm
-    container: arm64v8/node:24-alpine
-    timeout-minutes: 10
-
-    steps:
-      - name: "Prepare musl dependencies"
-        run: apk update && apk add --no-cache make musl-dev linux-headers g++ gcc libgcc libstdc++ libffi-dev
-
-      - name: "Checkout"
-        uses: actions/checkout@v6
-
-      - name: "Install pnpm"
-        uses: pnpm/action-setup@v4
-
-      - name: "Install Bun"
-        uses: oven-sh/setup-bun@v2
-
-      - name: "Install dependencies"
-        run: pnpm i --frozen-lockfile
-
-      - name: "Build the Linux arm64 musl binary"
-        run: pnpm build && pnpm build:bun:linux-arm64-musl && pnpm build:bun:chmod
-
-      - name: "Test the binary"
-        run: ./bun-build/monorepo-hash-linux-arm64-musl --help
-
-      - name: "Upload Linux arm64 musl binary"
-        uses: actions/upload-artifact@v5
-        with:
-          name: monorepo-hash-linux-arm64-musl
-          path: ./bun-build/monorepo-hash-linux-arm64-musl
-
   linux-x64:
     name: "Build for Linux x64"
     runs-on: ubuntu-24.04
@@ -183,39 +151,6 @@ jobs:
         with:
           name: monorepo-hash-linux-x64
           path: ./bun-build/monorepo-hash-linux-x64
-
-  linux-x64-musl:
-    name: "Build for Linux x64 musl"
-    runs-on: ubuntu-24.04
-    container: amd64/node:24-alpine
-    timeout-minutes: 10
-
-    steps:
-      - name: "Prepare musl dependencies"
-        run: apk update && apk add --no-cache bash curl make musl-dev linux-headers g++ gcc libgcc libstdc++ libffi-dev
-
-      - name: "Checkout"
-        uses: actions/checkout@v6
-
-      - name: "Install pnpm"
-        uses: pnpm/action-setup@v4
-
-      - name: "Install Bun"
-        run: curl -fsSL https://bun.sh/install | bash
-
-      - name: "Install dependencies"
-        run: pnpm i --frozen-lockfile
-
-      - name: "Build the Linux x64 musl binary"
-        run: pnpm build && pnpm build:bun:linux-x64-musl && pnpm build:bun:chmod
-
-      - name: "Test the binary"
-        run: ./bun-build/monorepo-hash-linux-x64-musl --help
-      - name: "Upload Linux x64 musl binary"
-        uses: actions/upload-artifact@v5
-        with:
-          name: monorepo-hash-linux-x64-musl
-          path: ./bun-build/monorepo-hash-linux-x64-musl
 
   windows-x64:
     name: "Build for Windows x64"

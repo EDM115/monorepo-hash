@@ -13,8 +13,8 @@
     - Linux ARM64
     - MacOS x64
     - MacOS ARM64
-    - Linux x64 MUSL
-    - Linux ARM64 MUSL
+    - Linux x64 MUSL (no bytecode compilation, cross-compiled from Windows, large file)
+    - Linux ARM64 MUSL (no bytecode compilation, cross-compiled from Windows, large file)
   - the binaries are grabbed from the releases page of the matching monorepo-hash version on GitHub
 
 🐛 fix : don't throw an error when using in a programmatic way and the exit code is 0  
