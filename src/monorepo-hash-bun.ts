@@ -1011,7 +1011,7 @@ async function hash() {
 // #endregion
 
 // #region run
-async function runCli() {
+async function runCli(customArgv?: string[]) {
   // Reset CLI state for each invocation
   mode = null
   targets = null
@@ -1021,7 +1021,7 @@ async function runCli() {
   pmOption = null
 
   // Parse CLI flags
-  for (const arg of Bun.argv.slice(2)) {
+  for (const arg of (customArgv ?? Bun.argv.slice(2))) {
     if (arg === "--generate" || arg === "-g") {
       if (mode === "compare") {
         console.error("❌ Cannot specify both --generate and --compare")
