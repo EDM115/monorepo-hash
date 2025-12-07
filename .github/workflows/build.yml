@@ -115,7 +115,7 @@ jobs:
 
   linux-arm64-musl:
     name: "Build for Linux arm64 musl"
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-24.04-arm
     container: arm64v8/node:24-alpine
     timeout-minutes: 10
 
@@ -192,7 +192,7 @@ jobs:
 
     steps:
       - name: "Prepare musl dependencies"
-        run: apk update && apk add --no-cache make musl-dev linux-headers g++ gcc libgcc libstdc++ libffi-dev
+        run: apk update && apk add --no-cache bash curl make musl-dev linux-headers g++ gcc libgcc libstdc++ libffi-dev
 
       - name: "Checkout"
         uses: actions/checkout@v6
@@ -201,7 +201,7 @@ jobs:
         uses: pnpm/action-setup@v4
 
       - name: "Install Bun"
-        uses: oven-sh/setup-bun@v2
+        run: curl -fsSL https://bun.sh/install | bash
 
       - name: "Install dependencies"
         run: pnpm i --frozen-lockfile
