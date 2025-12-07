@@ -149,16 +149,9 @@ jobs:
               && export PATH="$BUN_INSTALL/bin:$PATH" \
               && pnpm build \
               && pnpm build:bun:linux-arm64-musl \
-              && pnpm build:bun:chmod
+              && pnpm build:bun:chmod \
+              && ./bun-build/monorepo-hash-linux-arm64-musl --help
             '
-
-      - name: "Install qemu-user"
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y qemu-user
-
-      - name: "Test the binary"
-        run: qemu-aarch64 ./bun-build/monorepo-hash-linux-arm64-musl --help
 
       - name: "Upload Linux arm64 musl binary"
         uses: actions/upload-artifact@v5
@@ -236,23 +229,16 @@ jobs:
               && export BUN_INSTALL="$HOME/.bun" \
               && export PATH="$BUN_INSTALL/bin:$PATH" \
               && pnpm build \
-              && pnpm build:bun:linux-amd64-musl \
-              && pnpm build:bun:chmod
+              && pnpm build:bun:linux-x64-musl \
+              && pnpm build:bun:chmod \
+              && ./bun-build/monorepo-hash-linux-x64-musl --help
             '
 
-      - name: "Install qemu-user"
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y qemu-user
-
-      - name: "Test the binary"
-        run: qemu-amd64 ./bun-build/monorepo-hash-linux-amd64-musl --help
-
-      - name: "Upload Linux amd64 musl binary"
+      - name: "Upload Linux x64 musl binary"
         uses: actions/upload-artifact@v5
         with:
-          name: monorepo-hash-linux-amd64-musl
-          path: ./bun-build/monorepo-hash-linux-amd64-musl
+          name: monorepo-hash-linux-x64-musl
+          path: ./bun-build/monorepo-hash-linux-x64-musl
 
   windows-x64:
     name: "Build for Windows x64"
