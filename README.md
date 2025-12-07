@@ -49,7 +49,7 @@ deno install -D npm:monorepo-hash --allow-scripts=npm:monorepo-hash
 ```
 > [!IMPORTANT]  
 > Since `v1.8.0`, `monorepo-hash` exports direct binaries (`monorepo-hash-bun`) that cut the Node.js overhead. To enable this, the postinstall script needs to be run, which is disabled by default in PNPM for security reasons.  
-> You can totally refuse to use it (whether it is for security reasons or size constraints). Due to issues with GitHub Actions ([actions/runner#801](https://github.com/actions/runner/issues/801) & [actions/upload-artifact#739](https://github.com/actions/upload-artifact/issues/739), MUSL versions will **not** have bytecode compilation added (and thus, might be a bit slower).  
+> You can totally refuse to use it (whether it is for security reasons or size constraints).  
 > If you added `monorepo-hash` without allowing the postinstall script to run, you can do it later at anytime with `pnpm approve-scripts` or `bun pm trust monorepo-hash`.
 
 > [!TIP]  

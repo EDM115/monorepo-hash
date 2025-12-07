@@ -115,6 +115,57 @@ jobs:
           name: monorepo-hash-linux-arm64
           path: ./bun-build/monorepo-hash-linux-arm64
 
+  linux-arm64-musl:
+    name: "Build for Linux arm64 musl"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v6
+
+      - name: "Set up QEMU"
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: "Set up Docker Buildx"
+        uses: docker/setup-buildx-action@v3
+
+      - name: "Build in arm64v8/node:24-alpine container"
+        run: |
+          docker run --rm \
+            --platform linux/arm64 \
+            -v "$PWD":/workspace \
+            -w /workspace \
+            arm64v8/node:24-alpine \
+            sh -lc '
+              apk update && apk add --no-cache bash curl make musl-dev linux-headers g++ gcc libgcc libstdc++ libffi-dev git \
+              && curl -fsSL https://get.pnpm.io/install.sh | ENV="$HOME/.shrc" SHELL="$(which sh)" sh - \
+              && export PATH="$HOME/.local/share/pnpm:$PATH" \
+              && pnpm i --frozen-lockfile \
+              && curl -fsSL https://bun.sh/install | bash \
+              && export BUN_INSTALL="$HOME/.bun" \
+              && export PATH="$BUN_INSTALL/bin:$PATH" \
+              && pnpm build \
+              && pnpm build:bun:linux-arm64-musl \
+              && pnpm build:bun:chmod
+            '
+
+      - name: "Install qemu-user"
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-user
+
+      - name: "Test the binary"
+        run: qemu-aarch64 ./bun-build/monorepo-hash-linux-arm64-musl --help
+
+      - name: "Upload Linux arm64 musl binary"
+        uses: actions/upload-artifact@v5
+        with:
+          name: monorepo-hash-linux-arm64-musl
+          path: ./bun-build/monorepo-hash-linux-arm64-musl
+
   linux-x64:
     name: "Build for Linux x64"
     runs-on: ubuntu-24.04
@@ -151,6 +202,57 @@ jobs:
         with:
           name: monorepo-hash-linux-x64
           path: ./bun-build/monorepo-hash-linux-x64
+
+  linux-x64-musl:
+    name: "Build for Linux x64 musl"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v6
+
+      - name: "Set up QEMU"
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: amd64
+
+      - name: "Set up Docker Buildx"
+        uses: docker/setup-buildx-action@v3
+
+      - name: "Build in amd64/node:24-alpine container"
+        run: |
+          docker run --rm \
+            --platform linux/amd64 \
+            -v "$PWD":/workspace \
+            -w /workspace \
+            amd64/node:24-alpine \
+            sh -lc '
+              apk update && apk add --no-cache bash curl make musl-dev linux-headers g++ gcc libgcc libstdc++ libffi-dev git \
+              && curl -fsSL https://get.pnpm.io/install.sh | ENV="$HOME/.shrc" SHELL="$(which sh)" sh - \
+              && export PATH="$HOME/.local/share/pnpm:$PATH" \
+              && pnpm i --frozen-lockfile \
+              && curl -fsSL https://bun.sh/install | bash \
+              && export BUN_INSTALL="$HOME/.bun" \
+              && export PATH="$BUN_INSTALL/bin:$PATH" \
+              && pnpm build \
+              && pnpm build:bun:linux-amd64-musl \
+              && pnpm build:bun:chmod
+            '
+
+      - name: "Install qemu-user"
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-user
+
+      - name: "Test the binary"
+        run: qemu-amd64 ./bun-build/monorepo-hash-linux-amd64-musl --help
+
+      - name: "Upload Linux amd64 musl binary"
+        uses: actions/upload-artifact@v5
+        with:
+          name: monorepo-hash-linux-amd64-musl
+          path: ./bun-build/monorepo-hash-linux-amd64-musl
 
   windows-x64:
     name: "Build for Windows x64"
