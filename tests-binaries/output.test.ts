@@ -23,7 +23,7 @@ describe("monorepo-hash CLI output", () => {
 
   beforeAll(() => {
     cwd = globalThis.tmpRoot
-    cli = join(cwd, "monorepo-hash-linux-x64")
+    cli = join(cwd, "monorepo-hash.exe")
   })
 
   it("reports unchanged when no files changed, and exit code 0", async () => {
@@ -131,8 +131,8 @@ describe("monorepo-hash output", () => {
 
   beforeAll(() => {
     cwd = globalThis.tmpRoot
+    cliBinary = join(cwd, "monorepo-hash.exe")
     cliScript = join(cwd, "monorepo-hash-bun.ts")
-    cliBinary = join(cwd, "monorepo-hash-linux-x64")
     cliImport = pathToFileURL(cliScript).href
   })
 

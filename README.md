@@ -460,11 +460,11 @@ Here's a quick guide for contributing to `monorepo-hash` :
   pnpm typecheck
   pnpm lint
   ```
-5. Test your changes  
+5. Test your changes (stage them before)  
   Feel free to add tests to the `tests` directory.
   ```bash
   pnpm test
-  pnpm build:bun
+  pnpm test:binaries
   ```
 6. Commit your changes
 7. Open a pull request

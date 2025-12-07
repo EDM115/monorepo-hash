@@ -18,7 +18,7 @@ describe("exit codes", () => {
 
   beforeAll(() => {
     cwd = globalThis.tmpRoot
-    cli = join(cwd, "monorepo-hash-linux-x64")
+    cli = join(cwd, "monorepo-hash.exe")
   })
 
   it("returns 0 for --help", async () => {

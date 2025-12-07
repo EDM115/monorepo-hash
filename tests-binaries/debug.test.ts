@@ -20,7 +20,7 @@ describe("debug mode", () => {
 
   beforeAll(() => {
     cwd = globalThis.tmpRoot
-    cli = join(cwd, "monorepo-hash-linux-x64")
+    cli = join(cwd, "monorepo-hash.exe")
   })
 
   it("creates .debug-hash files and reports mismatched files", async () => {
