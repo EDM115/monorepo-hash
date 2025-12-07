@@ -125,12 +125,14 @@ describe("monorepo-hash output", () => {
   let cliScript: string
   let cliImport: string
   let cwd: string
+  let cliBinary: string
   const cli = "bun"
   const created: string[] = []
 
   beforeAll(() => {
     cwd = globalThis.tmpRoot
     cliScript = join(cwd, "monorepo-hash-bun.ts")
+    cliBinary = join(cwd, "monorepo-hash-linux-x64")
     cliImport = pathToFileURL(cliScript).href
   })
 
@@ -141,7 +143,7 @@ describe("monorepo-hash output", () => {
   })
 
   it("reports unchanged when no files changed", async () => {
-    await execa(cli, [ cliScript, "--generate" ], { cwd })
+    await execa(cliBinary, [ "--generate" ], { cwd })
 
     const harness = join(cwd, "unchanged.mjs")
 
@@ -183,7 +185,7 @@ console.log(JSON.stringify(result))
       throw new Error("tmpRoot is not set")
     }
 
-    await execa(cli, [ cliScript, "--generate" ], { cwd })
+    await execa(cliBinary, [ "--generate" ], { cwd })
     const pkgBIndex = join(globalThis.tmpRoot, "packages", "pkg-b", "index.js")
 
     await writeFile(pkgBIndex, "export const msg = \"pkg-b (edited again)\"\n")
@@ -232,7 +234,7 @@ console.log(JSON.stringify(result))
       throw new Error("tmpRoot is not set")
     }
 
-    await execa(cli, [ cliScript, "--generate" ], { cwd })
+    await execa(cliBinary, [ "--generate" ], { cwd })
     const hashAPath = join(globalThis.tmpRoot, "packages", "pkg-a", ".hash")
 
     await remove(hashAPath)

@@ -96,7 +96,7 @@ packages:
     }, { spaces: 2 })
     await writeFile(join(frontend, "index.js"), "export const render = () => {}\n")
 
-    await copyFile(join(globalThis.tmpRoot, "monorepo-hash.mjs"), join(demoDir, "monorepo-hash.mjs"))
+    await copyFile(join(globalThis.tmpRoot, "monorepo-hash-bun.ts"), join(demoDir, "monorepo-hash-bun.ts"))
   })
 
   afterAll(async () => {
