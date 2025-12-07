@@ -1,12 +1,4 @@
 // #region imports
-import type { PathLike } from "node:fs"
-
-import { createHash } from "node:crypto"
-import {
-  access,
-  readFile,
-  writeFile,
-} from "node:fs/promises"
 import { cpus } from "node:os"
 import {
   dirname,
@@ -17,11 +9,9 @@ import {
   sep,
 } from "node:path"
 import {
-  argv,
   exit,
   stdout,
 } from "node:process"
-import { pathToFileURL } from "node:url"
 
 import fg from "fast-glob"
 import ignore, { type Ignore } from "ignore"
@@ -32,28 +22,16 @@ import { load } from "js-yaml"
 
 
 // #region types
-/**
- * The list of supported package managers
- */
-export const PACKAGE_MANAGERS = [ "pnpm", "npm", "deno", "bun", "yarn" ] as const
+const PACKAGE_MANAGERS = [ "pnpm", "npm", "deno", "bun", "yarn" ] as const
 
-/**
- * The list of supported package managers as a type
- */
-export type PackageManager = (typeof PACKAGE_MANAGERS)[number]
+type PackageManager = (typeof PACKAGE_MANAGERS)[number]
 
-/**
- * The minimum expected keys in a `pnpm-workspace.yaml`
- */
-export type PnpmWorkspaceConfig = {
+type PnpmWorkspaceConfig = {
   packages?: string[];
   [key: string]: unknown;
 }
 
-/**
- * The minimum expected keys in a `package.json`
- */
-export interface PackageManifest {
+interface PackageManifest {
   name: string;
   version?: string;
   dependencies?: Record<string, string>;
@@ -64,10 +42,7 @@ export interface PackageManifest {
   [key: string]: unknown;
 }
 
-/**
- * What informations we're expected to get from a package
- */
-export interface PackageInfo {
+interface PackageInfo {
   dir: string;
   relDir: string;
   deps: string[];
@@ -84,7 +59,6 @@ let targets: string[] | null = null
 let silent = false
 let debug = false
 let unified = false
-let cliUsage = true
 let pmOption: PackageManager | null = null
 
 let packageManager: PackageManager | null = null
@@ -95,12 +69,7 @@ let rootIgnore: Ignore = ignore()
 // #endregion
 
 // #region utils
-/**
- * Log messages to console with support for silent mode and overwriting
- * @param message The message to log
- * @param overwrite Whether to overwrite the current line
- */
-export function log(message: string, overwrite = false): void {
+function log(message: string, overwrite = false) {
   if (!silent) {
     if (
       overwrite
@@ -118,59 +87,16 @@ export function log(message: string, overwrite = false): void {
   }
 }
 
-/**
- * Check if a file or directory exists
- * @param f The path to check
- * @returns A promise that resolves to true if the path exists, false otherwise
- */
-export async function exists(f: PathLike): Promise<boolean> {
-  try {
-    await access(f)
-
-    return true
-  } catch {
-    return false
-  }
-}
-
-/**
- * Pad a number with leading zeros
- * @param num The number to pad
- * @param places The total length of the resulting string
- * @returns The padded number as a string
- */
-export function zeroPad(num: number, places: number): string {
+function zeroPad(num: number, places: number){
   return String(num)
     .padStart(places, "0")
 }
 
-/**
- * Only exit the process if running as a CLI, otherwise throw an error
- * Exit code 1 won't throw an error to still get the comparison results, and exit code 0 is normal
- * @param code The exit code
- */
-export function safeExit(code: number): void {
-  if (cliUsage) {
-    exit(code)
-  } else {
-    if (![ 0, 1 ].includes(code)) {
-      throw new Error(`Exit with code ${code}`)
-    }
-  }
-}
-
-/**
- * Map over an array with a concurrency limit
- * @param items The array of items to process
- * @param limit The maximum number of concurrent operations
- * @param fn The async function to apply to each item
- * @returns A promise that resolves to an array of results
- */
-export async function mapLimit<T, R>(
+async function mapLimit<T, R>(
   items: T[],
   limit: number,
   fn: (item: T) => Promise<R>,
-): Promise<R[]> {
+) {
   const results: R[] = Array.from({ length: items.length })
   let idx = 0
 
@@ -191,18 +117,11 @@ export async function mapLimit<T, R>(
   return results
 }
 
-/**
- * Given a workspace directory (`dir`) and its repo-relative path (`relDir`), return a sorted array of all file-relative paths (using OS-specific separators), after applying root and package‐level .gitignore filters
- * @param dir The absolute path to the workspace directory
- * @param relDir The repo-relative path to the workspace directory
- * @param rootIgnore The root-level ignore instance to apply
- * @returns A promise that resolves to an array of relative file paths
- */
-export async function getWorkspaceFileList(
+async function getWorkspaceFileList(
   dir: string,
   relDir: string,
   rootIgnore: Ignore,
-): Promise<string[]> {
+) {
   // Gather all files under `dir`
   const rawFiles = await fg("**/*", {
     cwd: dir, onlyFiles: true, dot: true,
@@ -220,8 +139,8 @@ export async function getWorkspaceFileList(
   const pkgIgnore = ignore()
   const pkgGit = join(dir, ".gitignore")
 
-  if (await exists(pkgGit)) {
-    const pkgContents = await readFile(pkgGit, "utf8")
+  if (await Bun.file(pkgGit).exists()) {
+    const pkgContents = await Bun.file(pkgGit).text()
 
     pkgIgnore.add(pkgContents)
   }
@@ -240,33 +159,24 @@ export async function getWorkspaceFileList(
     .toSorted()
 }
 
-/**
- * Type guard to check if a string is a valid PackageManager
- * @param value The string to check
- * @returns True if the string is a valid PackageManager, false otherwise
- */
-export function isPackageManager(value: string): value is PackageManager {
+function isPackageManager(value: string): value is PackageManager {
   return (PACKAGE_MANAGERS as readonly string[]).includes(value)
 }
 // #endregion
 
 // #region Package manager
-/**
- * Detect PNPM workspaces by locating `pnpm-workspace.yaml` and reading its `packages` field
- * @returns A promise that resolves to an object containing the package manager, root directory, and workspace globs, or null if not detected
- */
-export async function detectPNPM(): Promise<{
+async function detectPNPM(): Promise<{
   pm: PackageManager; root: string; globs: string[];
 } | null> {
   const wsYaml = await findUp("pnpm-workspace.yaml")
 
-  if (!wsYaml || !(await exists(wsYaml))) {
+  if (!wsYaml || !(await Bun.file(wsYaml).exists())) {
     return null
   }
 
   const root = dirname(wsYaml)
   // oxlint-disable-next-line no-unsafe-type-assertion
-  const config = load(await readFile(wsYaml, "utf8")) as PnpmWorkspaceConfig
+  const config = load(await Bun.file(wsYaml).text()) as PnpmWorkspaceConfig
   const globs: string[] = Array.isArray(config.packages)
     ? config.packages
     : []
@@ -280,26 +190,22 @@ export async function detectPNPM(): Promise<{
   }
 }
 
-/**
- * Detect Deno workspaces by locating `deno.json` or `deno.jsonc` and reading its `workspace` field
- * @returns A promise that resolves to an object containing the package manager, root directory, and workspace globs, or null if not detected
- */
-export async function detectDeno(): Promise<{
+async function detectDeno(): Promise<{
   pm: PackageManager; root: string; globs: string[];
 } | null> {
   let denoPath = await findUp("deno.json")
 
-  if (!denoPath || !(await exists(denoPath))) {
+  if (!denoPath || !(await Bun.file(denoPath).exists())) {
     denoPath = await findUp("deno.jsonc")
 
-    if (!denoPath || !(await exists(denoPath))) {
+    if (!denoPath || !(await Bun.file(denoPath).exists())) {
       return null
     }
   }
 
   const root = dirname(denoPath)
   // oxlint-disable-next-line no-unsafe-type-assertion
-  const config = JSON.parse(await readFile(denoPath, "utf8")) as { workspace?: string[] }
+  const config = await Bun.file(denoPath).json() as { workspace?: string[] }
   const globs: string[] = Array.isArray(config.workspace)
     ? config.workspace
     : []
@@ -313,19 +219,15 @@ export async function detectDeno(): Promise<{
   }
 }
 
-/**
- * Detect workspaces from `package.json` `workspaces` field, supporting Yarn, NPM and Bun
- * @returns A promise that resolves to an object containing the package manager, root directory, and workspace globs, or null if not detected
- */
-export async function detectPkgJson(): Promise<{
+async function detectPkgJson(): Promise<{
   pm: PackageManager; root: string; globs: string[];
 } | null> {
   const pkgPath = await findUp(async (dir) => {
     const pkgFile = join(dir, "package.json")
 
-    if (await exists(pkgFile)) {
+    if (await Bun.file(pkgFile).exists()) {
       // oxlint-disable-next-line no-unsafe-type-assertion
-      const data = JSON.parse(await readFile(pkgFile, "utf8")) as { workspaces?: unknown }
+      const data = await Bun.file(pkgFile).json() as { workspaces?: unknown }
 
       if (data.workspaces) {
         return pkgFile
@@ -341,7 +243,7 @@ export async function detectPkgJson(): Promise<{
 
   const root = dirname(pkgPath)
   // oxlint-disable-next-line no-unsafe-type-assertion
-  const pkg = JSON.parse(await readFile(pkgPath, "utf8")) as { workspaces?: string[] | { packages?: string[] } }
+  const pkg = await Bun.file(pkgPath).json() as { workspaces?: string[] | { packages?: string[] } }
   let globs: string[] = []
 
   if (Array.isArray(pkg.workspaces)) {
@@ -354,25 +256,25 @@ export async function detectPkgJson(): Promise<{
     return null
   }
 
-  if (await exists(join(root, "bun.lock")) || await exists(join(root, "bun.lockb"))) {
+  if (await Bun.file(join(root, "bun.lock")).exists() || await Bun.file(join(root, "bun.lockb")).exists()) {
     return {
       pm: "bun", root, globs,
     }
   }
 
-  if (await exists(join(root, "deno.lock"))) {
+  if (await Bun.file(join(root, "deno.lock")).exists()) {
     return {
       pm: "deno", root, globs,
     }
   }
 
-  if (await exists(join(root, "yarn.lock"))) {
+  if (await Bun.file(join(root, "yarn.lock")).exists()) {
     return {
       pm: "yarn", root, globs,
     }
   }
 
-  if (await exists(join(root, "package-lock.json"))) {
+  if (await Bun.file(join(root, "package-lock.json")).exists()) {
     return {
       pm: "npm", root, globs,
     }
@@ -381,11 +283,7 @@ export async function detectPkgJson(): Promise<{
   return null
 }
 
-/**
- * Auto-detect the package manager and workspaces
- * @returns A promise that resolves to an object containing the package manager, root directory, and workspace globs, or null if not detected
- */
-export async function autoDetect(): Promise<{
+async function autoDetect(): Promise<{
   pm: PackageManager; root: string; globs: string[];
 } | null> {
   return (await detectPNPM())
@@ -393,12 +291,7 @@ export async function autoDetect(): Promise<{
     ?? (await detectPkgJson())
 }
 
-/**
- * Detect workspaces for a specified package manager
- * @param pm The package manager to detect
- * @returns A promise that resolves to an object containing the package manager, root directory, and workspace globs, or null if not detected
- */
-export async function detectSpecified(pm: PackageManager): Promise<{
+async function detectSpecified(pm: PackageManager): Promise<{
   pm: PackageManager; root: string; globs: string[];
 } | null> {
   if (pm === "pnpm") {
@@ -418,81 +311,52 @@ export async function detectSpecified(pm: PackageManager): Promise<{
 // #endregion
 
 // #region debug
-/**
- * Write a JSON-serialized debug map to `.debug-hash` in `dir`
- * @param dir The directory to write the debug file in
- * @param debugMap A record mapping POSIX relative file paths to their SHA-256 hex hashes
- * @returns A promise that resolves when the file has been written
- */
-export async function writeDebugFile(
+async function writeDebugFile(
   dir: string,
   debugMap: Record<string, string>,
-): Promise<void> {
+) {
   const debugPath = join(dir, ".debug-hash")
 
-  await writeFile(debugPath, JSON.stringify(debugMap, null, 2), "utf8")
+  await Bun.write(debugPath, JSON.stringify(debugMap, null, 2))
 }
 
-/**
- * Load the existing `.debug-hash` JSON from `dir`, if present
- * Otherwise returns null
- * @param dir The directory to load the debug file from
- * @returns A promise that resolves to a record mapping POSIX relative file paths to their SHA-256 hex hashes, or null if the file does not exist
- */
-export async function loadDebugFile(dir: string): Promise<Record<string, string> | null> {
+async function loadDebugFile(dir: string) {
   const debugPath = join(dir, ".debug-hash")
 
-  if (!(await exists(debugPath))) {
+  if (!(await Bun.file(debugPath).exists())) {
     return null
   }
 
-  const text = await readFile(debugPath, "utf8")
+  const text = await Bun.file(debugPath).text()
 
   // oxlint-disable-next-line no-unsafe-type-assertion
   return JSON.parse(text) as Record<string, string>
 }
 
-/**
- * Write all per-file hashes to the root `.debug-hash` file
- * @param rootDir The root directory of the monorepo
- * @param map A record mapping workspace relative paths to their per-file hash maps
- * @returns A promise that resolves when the file has been written
- */
-export async function writeRootDebugFile(
+async function writeRootDebugFile(
   rootDir: string,
   map: Record<string, Record<string, string>>,
-): Promise<void> {
+) {
   const p = join(rootDir, ".debug-hash")
 
-  await writeFile(p, JSON.stringify(map, null, 2), "utf8")
+  await Bun.write(p, JSON.stringify(map, null, 2))
 }
 
-/**
- * Load the root `.debug-hash` file if present
- * @param rootDir The root directory of the monorepo
- * @returns A promise that resolves to a record mapping workspace relative paths to their per-file hash maps, or null if the file does not exist
- */
-export async function loadRootDebugFile(rootDir: string): Promise<Record<string, Record<string, string>> | null> {
+async function loadRootDebugFile(rootDir: string) {
   const p = join(rootDir, ".debug-hash")
 
-  if (!(await exists(p))) {
+  if (!(await Bun.file(p).exists())) {
     return null
   }
 
   // oxlint-disable-next-line no-unsafe-type-assertion
-  return JSON.parse(await readFile(p, "utf8")) as Record<string, Record<string, string>>
+  return await Bun.file(p).json() as Record<string, Record<string, string>>
 }
 
-/**
- * Generate debug output for a given package, comparing with existing .debug-hash if present
- * @param info The PackageInfo of the package to generate debug for
- * @param oldDebug An optional existing debug map to compare against
- * @returns A promise that resolves to an array of diverging file paths
- */
-export async function generateDebug(
+async function generateDebug(
   info: PackageInfo,
   oldDebug?: Record<string, string> | null,
-): Promise<string[]> {
+) {
   if (oldDebug === undefined) {
     oldDebug = await loadDebugFile(info.dir)
   }
@@ -529,17 +393,10 @@ export async function generateDebug(
 // #endregion
 
 // #region hash compute
-/**
- * For a given `dir` and list of relative file paths (`fileList`), compute per-file SHA-256 on (normalizedPath + rawContent)
- * Always returns a map : { "posix/rel/path": "hex" }
- * @param dir The absolute path to the directory containing the files
- * @param fileList An array of relative file paths within the directory
- * @returns A promise that resolves to a record mapping POSIX relative paths to their SHA-256 hex hashes
- */
-export async function computePerFileHashes(
+async function computePerFileHashes(
   dir: string,
   fileList: string[],
-): Promise<Record<string, string>> {
+) {
   const result: Record<string, string> = {}
   const CONCURRENCY = 100
 
@@ -549,15 +406,16 @@ export async function computePerFileHashes(
       .join("/"),
   ])
 
+  const hasher = new Bun.CryptoHasher("sha256")
+
   for (let i = 0; i < normalized.length; i += CONCURRENCY) {
     const batch = normalized.slice(i, i + CONCURRENCY)
 
     // oxlint-disable-next-line no-await-in-loop : Needed to not blow up memory with too many concurrent reads
     const partial = await Promise.all(batch.map(async ([ rel, norm ]) => {
       const fullPath = join(dir, rel)
-      const content = await readFile(fullPath)
-      const fileHash = createHash("sha256")
-        .update(norm)
+      const content = await Bun.file(fullPath).arrayBuffer()
+      const fileHash = hasher.update(norm)
         .update(content)
         .digest("hex")
 
@@ -572,17 +430,11 @@ export async function computePerFileHashes(
   return result
 }
 
-/**
- * Given a per-file‐hash map and its sorted keys, produce the "ownHash" Buffer by concatenating each raw hash‐buffer (in sorted key order) and feeding them into a SHA-256
- * @param perFileMap A record mapping POSIX relative file paths to their SHA-256 hex hashes
- * @param sortedKeys An array of sorted keys from the perFileMap
- * @returns A Buffer representing the combined SHA-256 hash
- */
-export function computeOwnHashFromPerFile(
+function computeOwnHashFromPerFile(
   perFileMap: Record<string, string>,
   sortedKeys: string[],
-): Buffer {
-  const h = createHash("sha256")
+) {
+  const h = new Bun.CryptoHasher("sha256")
 
   for (const key of sortedKeys) {
     // Each entry in perFileMap[key] is a hex string, convert to Buffer
@@ -594,18 +446,11 @@ export function computeOwnHashFromPerFile(
   return h.digest()
 }
 
-/**
- * Recursively compute the final (aggregate) hash for `pkgName`, given a map of all PackageInfo, storing ownHash as Buffer
- * @param pkgName The name of the package to compute the final hash for
- * @param pkgs A record mapping package names to their PackageInfo
- * @param cache A record used to cache computed final hashes
- * @returns The final hash as a hex string
- */
-export function computeFinalHash(
+function computeFinalHash(
   pkgName: string,
   pkgs: Record<string, PackageInfo>,
   cache: Record<string, string>,
-): string {
+) {
   if (cache[pkgName]) {
     return cache[pkgName]
   }
@@ -617,7 +462,7 @@ export function computeFinalHash(
   }
 
   // Start the chain
-  let chain = createHash("sha256")
+  let chain = new Bun.CryptoHasher("sha256")
     .update(pkg.ownHash)
 
   // Then incorporate each dependency's final hash (as Buffer)
@@ -635,49 +480,30 @@ export function computeFinalHash(
   return finalHex
 }
 
-/**
- * Write the mapping of workspace hashes to the root `.hash` file
- * @param rootDir The root directory of the monorepo
- * @param map A record mapping workspace relative paths to their final hashes
- * @returns A promise that resolves when the file has been written
- */
-export async function writeRootHashFile(
+async function writeRootHashFile(
   rootDir: string,
   map: Record<string, string>,
-): Promise<void> {
+) {
   const p = join(rootDir, ".hash")
 
-  await writeFile(p, JSON.stringify(map, null, 2), "utf8")
+  await Bun.write(p, JSON.stringify(map, null, 2))
 }
 
-/**
- * Load the mapping of workspace hashes from the root `.hash` file
- * @param rootDir The root directory of the monorepo
- * @returns A promise that resolves to a record mapping workspace relative paths to their final hashes, or null if the file does not exist
- */
-export async function loadRootHashFile(rootDir: string): Promise<Record<string, string> | null> {
+async function loadRootHashFile(rootDir: string) {
   const p = join(rootDir, ".hash")
 
-  if (!(await exists(p))) {
+  if (!(await Bun.file(p).exists())) {
     return null
   }
 
   // oxlint-disable-next-line no-unsafe-type-assertion
-  return JSON.parse(await readFile(p, "utf8")) as Record<string, string>
+  return await Bun.file(p).json() as Record<string, string>
 }
 
-/**
- * Generate and write hashes for all packages
- * @param pkgs A record mapping package names to their PackageInfo
- * @param finalCache A record mapping package names to their final hash strings
- * @returns A promise that resolves to either a record mapping workspace relative paths to their hashes (if unified), or an array of objects containing relDir and hash for each package (if not unified)
- */
-export async function generateHashes(
+async function generateHashes(
   pkgs: Record<string, PackageInfo>,
   finalCache: Record<string, string>,
-): Promise<Record<string, string> | Array<{
-  relDir: string; hash: string;
-}>> {
+) {
   const entries = Object.entries(pkgs)
     // If the user passed --target, only write those relDirs
     .filter(([ _, { relDir }]) => !targets || targets.includes(relDir))
@@ -712,7 +538,7 @@ export async function generateHashes(
       const current = finalCache[name]
       const hashPath = join(dir, ".hash")
 
-      await writeFile(hashPath, current)
+      await Bun.write(hashPath, current)
 
       return {
         relDir, hash: current,
@@ -733,21 +559,7 @@ export async function generateHashes(
   }
 }
 
-/**
- * Compare current hashes with existing .hash files
- * @param pkgs A record mapping package names to their PackageInfo
- * @param finalCache A record mapping package names to their final hash strings
- * @returns A promise that resolves to an object containing arrays of unchanged, changed, and missing targets
- */
-export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCache: Record<string, string>): Promise<{
-  unchangedTargets: string[];
-  changedTargets: Array<{
-    name: string; oldHash: string; newHash: string; changedDeps: string[];
-  }>;
-  missingTargets: Array<{
-    name: string; newHash: string;
-  }>;
-}> {
+async function compareHashes(pkgs: Record<string, PackageInfo>, finalCache: Record<string, string>) {
   const rootHashes = unified
     ? await loadRootHashFile(repoRoot)
     : null
@@ -778,7 +590,7 @@ export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCach
         }
       } else {
         const hashPath = join(info.dir, ".hash")
-        const existsHash = await exists(hashPath)
+        const existsHash = await Bun.file(hashPath).exists()
 
         if (!existsHash) {
           return {
@@ -786,7 +598,7 @@ export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCach
           }
         }
 
-        const oldHex = (await readFile(hashPath, "utf8")).trim()
+        const oldHex = (await Bun.file(hashPath).text()).trim()
 
         return {
           pkgName, missing: false, changed: oldHex !== currentHex,
@@ -872,11 +684,11 @@ export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCach
       } else {
         const hashPath = join(info.dir, ".hash")
 
-        if (!(await exists(hashPath))) {
+        if (!(await Bun.file(hashPath).exists())) {
           return null
         }
 
-        const oldHex = (await readFile(hashPath, "utf8")).trim()
+        const oldHex = (await Bun.file(hashPath).text()).trim()
 
         return [ pkgName, oldHex ] as [string, string]
       }
@@ -1014,7 +826,7 @@ export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCach
     mode === "compare"
     && (changedTargets.length > 0 || missingTargets.length > 0)
   ) {
-    safeExit(1)
+    exit(1)
   }
 
   return {
@@ -1024,11 +836,7 @@ export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCach
   }
 }
 
-/**
- * Compute hashes for all workspaces in the monorepo
- * @returns A promise that resolves to either the result of generateHashes or compareHashes, depending on the mode
- */
-export async function hash(): Promise<Awaited<ReturnType<typeof generateHashes>> | Awaited<ReturnType<typeof compareHashes>>> {
+async function hash() {
   // 1) find every workspace's package.json
   const pkgJsonPaths = await fg(
     workspaceGlobs.map((glob) => posix.join(glob, "package.json")),
@@ -1054,7 +862,7 @@ export async function hash(): Promise<Awaited<ReturnType<typeof generateHashes>>
     const relDir = relative(repoRoot, dir)
 
     // oxlint-disable-next-line no-unsafe-type-assertion
-    const pkgData = JSON.parse(await readFile(absJson, "utf8")) as PackageManifest
+    const pkgData = await Bun.file(absJson).json() as PackageManifest
     const pkgName: string = pkgData.name
 
     meta[pkgName] = {
@@ -1203,13 +1011,7 @@ export async function hash(): Promise<Awaited<ReturnType<typeof generateHashes>>
 // #endregion
 
 // #region run
-/**
- * CLI entry point : parse arguments, detect workspaces, and run the hash routine
- * This is only invoked when the module is executed directly, not when imported
- * @param customArgv Optional array of command-line arguments (defaults to process.argv)
- * @returns A promise that resolves to the result of the hash operation, or undefined if exiting early
- */
-export async function runCli(customArgv?: string[]): Promise<Awaited<ReturnType<typeof hash>> | undefined> {
+async function runCli() {
   // Reset CLI state for each invocation
   mode = null
   targets = null
@@ -1217,23 +1019,20 @@ export async function runCli(customArgv?: string[]): Promise<Awaited<ReturnType<
   debug = false
   unified = false
   pmOption = null
-  cliUsage = customArgv === undefined
-
-  const args = customArgv ?? argv.slice(2)
 
   // Parse CLI flags
-  for (const arg of args) {
+  for (const arg of Bun.argv.slice(2)) {
     if (arg === "--generate" || arg === "-g") {
       if (mode === "compare") {
         console.error("❌ Cannot specify both --generate and --compare")
-        safeExit(2)
+        exit(2)
       }
 
       mode = "generate"
     } else if (arg === "--compare" || arg === "-c") {
       if (mode === "generate") {
         console.error("❌ Cannot specify both --generate and --compare")
-        safeExit(2)
+        exit(2)
       }
 
       mode = "compare"
@@ -1253,7 +1052,7 @@ export async function runCli(customArgv?: string[]): Promise<Awaited<ReturnType<
 
       if (!isPackageManager(val)) {
         console.error(`❌ Invalid package manager ("${val}"), supported values are : ${PACKAGE_MANAGERS.join(", ")}`)
-        safeExit(2)
+        exit(2)
       }
 
       pmOption = isPackageManager(val)
@@ -1276,11 +1075,11 @@ Arguments :
   --help            (-h)  Show this help message
 `)
 
-      safeExit(0)
+      exit(0)
     } else {
       console.error(`❌ Unknown option : ${arg}`)
 
-      safeExit(3)
+      exit(3)
     }
   }
 
@@ -1294,7 +1093,7 @@ Arguments :
   if (!mode) {
     console.error("❌ Must specify either --generate (-g) or --compare (-c)")
 
-    safeExit(2)
+    exit(2)
   } else {
     if (mode === "generate") {
       if (targets) {
@@ -1333,11 +1132,11 @@ Arguments :
         console.error("❌ Specified package manager not found and no supported package manager detected")
       }
 
-      safeExit(5)
+      exit(5)
     }
 
     console.error("❌ No workspaces found or unsupported package manager")
-    safeExit(4)
+    exit(4)
   }
 
   packageManager = detected?.pm ?? null
@@ -1350,8 +1149,8 @@ Arguments :
   rootIgnore = ignore()
   const rootGit: string = join(repoRoot, ".gitignore")
 
-  if (await exists(rootGit)) {
-    const rootGitContents = await readFile(rootGit, "utf8")
+  if (await Bun.file(rootGit).exists()) {
+    const rootGitContents = await Bun.file(rootGit).text()
 
     rootIgnore = ignore()
       .add(rootGitContents)
@@ -1369,14 +1168,14 @@ Arguments :
     console.error(err instanceof Error
       ? err.message
       : String(err))
-    safeExit(99)
+    exit(99)
   }
 }
 
-export default runCli
-
-// Auto-run only when executed as the main entry point (not when imported)
-if (import.meta.url === pathToFileURL(argv[1] ?? "").href) {
+(async () => {
   await runCli()
-}
+})()
+  .catch((error: unknown) => {
+    console.error(error)
+  })
 // #endregion

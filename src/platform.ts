@@ -1,7 +1,9 @@
 import { spawnSync } from "node:child_process"
 import { join } from "node:path"
 import {
-  arch, platform, report,
+  arch,
+  platform,
+  report,
 } from "node:process"
 
 import { exists } from "./monorepo-hash"

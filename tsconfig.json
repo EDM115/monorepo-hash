@@ -10,7 +10,7 @@
     "incremental": true,
     "isolatedDeclarations": true,
     "isolatedModules": true,
-    "lib": [ "es2023" ],
+    "lib": [ "ESNext" ],
     "module": "preserve",
     "moduleDetection": "force",
     "moduleResolution": "bundler",
@@ -21,8 +21,7 @@
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "strict": true,
-    "target": "esnext",
-    "types": [ "node" ],
+    "target": "ESNext",
     "verbatimModuleSyntax": true
   },
   "include": [ "src", "tests" ],

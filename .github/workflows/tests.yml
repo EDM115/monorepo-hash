@@ -46,3 +46,13 @@ jobs:
 
       - name: "Run the tests"
         run: pnpm vitest
+
+      - name: "Prepare the binary tests"
+        run: |
+          sed -i 's#\.\./dist/monorepo-hash.mjs#\.\./bun-build/monorepo-hash-linux-x64#g' tests/setup.ts
+          sed -i 's#monorepo-hash.mjs#monorepo-hash-linux-x64#g' tests/setup.ts
+          find tests -name "*.test.ts" -exec sed -i 's/const cli = "node"/const cli = ""/g' {} \;
+          find tests -name "*.test.ts" -exec sed -i 's/cliScript = join(cwd, "monorepo-hash.mjs")/cliScript = join(cwd, "monorepo-hash-linux-x64")/g' {} \;
+
+      - name: "Run the binary tests"
+        run: pnpm vitest
