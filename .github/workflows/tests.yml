@@ -47,5 +47,12 @@ jobs:
       - name: "Run the tests"
         run: pnpm vitest
 
+      - name: "Prepare the binary tests"
+        run: |
+          sed -i 's/async function detectPNPM/export async function detectPNPM/g' src/monorepo-hash-bun.ts
+          sed -i 's/async function detectDeno/export async function detectDeno/g' src/monorepo-hash-bun.ts
+          sed -i 's/async function detectPkgJson/export async function detectPkgJson/g' src/monorepo-hash-bun.ts
+          sed -i 's/async function runCli/export async function runCli/g' src/monorepo-hash-bun.ts
+
       - name: "Run the binary tests"
         run: pnpm vitest --config vitest.binaries.config.ts
