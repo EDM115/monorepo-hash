@@ -1,5 +1,10 @@
 # monorepo-hash changelog
 
+## v2.0.0
+...
+
+---
+
 ## v1.9.0
 🚑️🐛 hotfix : the binaries no longer segfault on platforms other than Windows as they are now built each directly in their target OS (see [#18](https://github.com/EDM115/monorepo-hash/issues/18)). Binaries from [v1.8.0](#v180) have been rebuilt & republished since (except for `musl` variants which still crashes)  
 ✨⚡️ feat/perf : the binaries now ship Bun-optimized code

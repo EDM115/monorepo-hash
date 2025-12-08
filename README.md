@@ -55,8 +55,8 @@ deno install -D npm:monorepo-hash --allow-scripts=npm:monorepo-hash
 > [!TIP]  
 > Make sure that your workspace configuration is set up correctly (`pnpm-workspace.yaml`, `package.json` workspaces or `deno.json(c)` workspace) as `monorepo-hash` will use it to find your workspaces. Globs are supported.  
 > Make sure that your lockfiles are present as well since they are used to detect the used package manager. To skip this resolution step, use the `--packagemanager` argument to force one.  
-> To detect internal trasnsitive dependencies, `monorepo-hash` will check the deps of each of the packages included in the workspaces configs. This allows it to work regardless of the package manager's standard (simple version, `workspace:` protocol or direct `file:` links).  
-> Finally, it will generate a single root `.hash` file that you would need to keep in your VCS in order for it to be efficient (ex : to be reused in your CI). This is made to not clutter your filesystem and VCS, especially if you have a lot of packages, howver if you prefer to have per-workspace `.hash` files, use the `--workspaces` mode.
+> To detect internal transitive dependencies, `monorepo-hash` will check the deps of each of the packages included in the workspaces configs. This allows it to work regardless of the package manager's standard (simple version, `workspace:` protocol or direct `file:` links).  
+> Finally, it will generate a single root `.hash` file that you would need to keep in your VCS in order for it to be efficient (ex : to be reused in your CI). This is made to not clutter your filesystem and VCS, especially if you have a lot of packages, however if you prefer to have per-workspace `.hash` files, use the `--workspaces` mode.
 
 ### Get help
 ```bash
@@ -184,13 +184,15 @@ Tested in the [small monorepo](tests/demo/small-monorepo.7z), with the following
 $ pnpm monorepo-hash --generate
 ℹ️ Generating hashes for all workspaces...
 
+ℹ️ Using pnpm workspaces from C:\Users\EDM115\Desktop\test\small-monorepo
+
 ✅ Computed all hashes (5)
 
-✅ database (34e5c3bb9a1545fcc7eab03d439bfe79abe1b12ebb0d2c7cdacb1744e58ab22a) written to .hash
-✅ packages\cli-tools (b0b7271f403749b906dec2405e6127c58c2d267695a6d84bc96f1a2918fb0d07) written to .hash
-✅ packages\linter (aa37077b2c0034ce44a074d8a46778153cf51b1125e2623364de272d1b640bd6) written to .hash
-✅ services\backend (1aa3f39996e526e3f530943f2d0081cde30efabc643af64ba95d157b0072c463) written to .hash
-✅ services\frontend (7251bacb2abaec585b7faa4ea56c9c74a8b7ed20422255a72442bfa7ce7dbb71) written to .hash
+✅ database (34e5c3bb9a1545fcc7eab03d439bfe79abe1b12ebb0d2c7cdacb1744e58ab22a written to .hash)
+✅ packages/cli-tools (b0b7271f403749b906dec2405e6127c58c2d267695a6d84bc96f1a2918fb0d07 written to .hash)
+✅ packages/linter (aa37077b2c0034ce44a074d8a46778153cf51b1125e2623364de272d1b640bd6 written to .hash)
+✅ services/backend (1aa3f39996e526e3f530943f2d0081cde30efabc643af64ba95d157b0072c463 written to .hash)
+✅ services/frontend (7251bacb2abaec585b7faa4ea56c9c74a8b7ed20422255a72442bfa7ce7dbb71 written to .hash)
 ```
 
 </details>
@@ -201,14 +203,16 @@ $ pnpm monorepo-hash --generate
 $ pnpm monorepo-hash --compare
 ℹ️ Comparing hashes for all workspaces...
 
+ℹ️ Using pnpm workspaces from C:\Users\EDM115\Desktop\test\small-monorepo
+
 ✅ Computed all hashes (5)
 
 ✅ Unchanged (5) :
 • database
-• packages\cli-tools
-• packages\linter
-• services\backend
-• services\frontend
+• packages/cli-tools
+• packages/linter
+• services/backend
+• services/frontend
 ```
 
 </details>
@@ -219,34 +223,36 @@ $ pnpm monorepo-hash --compare
 $ pnpm monorepo-hash --compare
 ℹ️ Comparing hashes for all workspaces...
 
+ℹ️ Using pnpm workspaces from C:\Users\EDM115\Desktop\test\small-monorepo
+
 ✅ Computed all hashes (5)
 
 ⚠️ Changed (5) :
 • database
         old : 34e5c3bb9a1545fcc7eab03d439bfe79abe1b12ebb0d2c7cdacb1744e58ab22a
-        new : d5c33df5c178385d5f3cb90da5b72a8a699e5c69d446dbc6bed69c0ef2bd0c03
+        new : b10e0b4af3f4d25033e3116ffed89a6d73873b4238d27bcf48cf87318b701cf6
         🚧 changed dependency(s) :
-                • packages\linter
-• packages\cli-tools
+                • packages/linter
+• packages/cli-tools
         old : b0b7271f403749b906dec2405e6127c58c2d267695a6d84bc96f1a2918fb0d07
-        new : dc8e3feeb66909003114a0cbc12b4693a21291433bdd000141b0a795f9ca8b25
+        new : 0b42cd27826f37213e54535ff9f32808fc673b256a4bec1ce0288d8c02886f73
         🚧 changed dependency(s) :
-                • packages\linter
-• packages\linter
+                • packages/linter
+• packages/linter
         old : aa37077b2c0034ce44a074d8a46778153cf51b1125e2623364de272d1b640bd6
-        new : dd73da7037b50eb1b0defd8858d5235ae0bf9d07d5cf31fb57789ac9a5b9f455
-• services\backend
+        new : 9ad670319943d97c8ffa11e2428f4fa9d91c63e826e2f5f8509ffa9d460c45f8
+• services/backend
         old : 1aa3f39996e526e3f530943f2d0081cde30efabc643af64ba95d157b0072c463
-        new : ddba925c23bf35e5b47cd65ffec2846d7631e24d621baa527bc24f5ce3c4f4a5
+        new : 3fcf8f991bfe7d69db962a29d56010877072ba42dfd6fb0b3b64f3e1fc30bed3
         🚧 changed dependency(s) :
                 • database
-                • packages\cli-tools
-                • packages\linter
-• services\frontend
+                • packages/cli-tools
+                • packages/linter
+• services/frontend
         old : 7251bacb2abaec585b7faa4ea56c9c74a8b7ed20422255a72442bfa7ce7dbb71
-        new : a7e40bc42980b6c56982259c6641e0f370cb171496046a810272f23c041500ab
+        new : 5c2b81df00712306f0eaff7021808dd5efdbbcfb93e77d730d9812f4fd6194c8
         🚧 changed dependency(s) :
-                • packages\linter
+                • packages/linter
 ```
 
 </details>
@@ -257,16 +263,18 @@ $ pnpm monorepo-hash --compare
 $ pnpm monorepo-hash --compare
 ℹ️ Comparing hashes for all workspaces...
 
+ℹ️ Using pnpm workspaces from C:\Users\EDM115\Desktop\test\small-monorepo
+
 ✅ Computed all hashes (5)
 
 ✅ Unchanged (4) :
-• packages\cli-tools
-• packages\linter
-• services\backend
-• services\frontend
+• packages/cli-tools
+• packages/linter
+• services/backend
+• services/frontend
 
 ❓ Missing .hash files (1) :
-• database (would be d5c33df5c178385d5f3cb90da5b72a8a699e5c69d446dbc6bed69c0ef2bd0c03)
+• database (would be 34e5c3bb9a1545fcc7eab03d439bfe79abe1b12ebb0d2c7cdacb1744e58ab22a)
 ```
 
 </details>
@@ -275,12 +283,14 @@ $ pnpm monorepo-hash --compare
 
 ```bash
 $ pnpm monorepo-hash --generate --target="packages/cli-tools,services/frontend"
-ℹ️ Generating hashes for specified targets... (packages\cli-tools, services\frontend)
+ℹ️ Generating hashes for specified targets... (packages/cli-tools, services/frontend)
+
+ℹ️ Using pnpm workspaces from C:\Users\EDM115\Desktop\test\small-monorepo
 
 ✅ Computed all hashes (3)
 
-✅ packages\cli-tools (dc8e3feeb66909003114a0cbc12b4693a21291433bdd000141b0a795f9ca8b25) written to .hash
-✅ services\frontend (a7e40bc42980b6c56982259c6641e0f370cb171496046a810272f23c041500ab) written to .hash
+✅ packages/cli-tools (b0b7271f403749b906dec2405e6127c58c2d267695a6d84bc96f1a2918fb0d07 written to .hash)
+✅ services/frontend (7251bacb2abaec585b7faa4ea56c9c74a8b7ed20422255a72442bfa7ce7dbb71 written to .hash)
 ```
 
 </details>
@@ -289,31 +299,35 @@ $ pnpm monorepo-hash --generate --target="packages/cli-tools,services/frontend"
 
 ```bash
 $ pnpm monorepo-hash --compare --target="packages/cli-tools,services/frontend"
-ℹ️ Comparing hashes for specified targets... (packages\cli-tools, services\frontend)
+ℹ️ Comparing hashes for specified targets... (packages/cli-tools, services/frontend)
+
+ℹ️ Using pnpm workspaces from C:\Users\EDM115\Desktop\test\small-monorepo
 
 ✅ Computed all hashes (3)
 
 ✅ Unchanged (2) :
-• packages\cli-tools
-• services\frontend
+• packages/cli-tools
+• services/frontend
 ```
 
 </details>
 
-<details><summary><h4>Hash comparison - specific workspaces - changes detected</h4></summary>
+<details><summary><h4>Hash comparison - specific workspaces - changes detected even outside of the specified targets</h4></summary>
 
 ```bash
 $ pnpm monorepo-hash --compare --target="services/backend"
-ℹ️ Comparing hashes for specified targets... (services\backend)
+ℹ️ Comparing hashes for specified targets... (services/backend)
+
+ℹ️ Using pnpm workspaces from C:\Users\EDM115\Desktop\test\small-monorepo
 
 ✅ Computed all hashes (4)
 
 ⚠️ Changed (1) :
-• services\backend
-        old : ddba925c23bf35e5b47cd65ffec2846d7631e24d621baa527bc24f5ce3c4f4a5
-        new : 2dd588551cf7604896e4eac69bfa2aa1c90c24ff1dff6b7783a7f84b9e3aa4c4
+• services/backend
+        old : 36be1199988004d364bbe3ec945eb653beef7457d336cc4e3a12a0ce6ad845c1
+        new : 1aa3f39996e526e3f530943f2d0081cde30efabc643af64ba95d157b0072c463
         🚧 changed dependency(s) :
-                • packages\cli-tools
+                • packages/cli-tools
 ```
 
 </details>

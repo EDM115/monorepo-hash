@@ -87,6 +87,10 @@ function log(message: string, overwrite = false) {
   }
 }
 
+function displayPath(p: string) {
+  return p.replace(/\\/g, "/")
+}
+
 function zeroPad(num: number, places: number) {
   return String(num)
     .padStart(places, "0")
@@ -396,14 +400,14 @@ async function generateDebug(
     }
 
     if (diverged.length > 0) {
-      log(`⚠️  <debug> ${info.relDir} diverging files :`)
-      diverged.forEach((f) => log(`  • ${f}`))
+      log(`⚠️  <debug> ${displayPath(info.relDir)} diverging files :`)
+      diverged.forEach((f) => log(`  • ${displayPath(f)}`))
       log("")
     }
 
     return diverged
   } else {
-    log(`❓ <debug> ${info.relDir} has no .debug-hash to compare`)
+    log(`❓ <debug> ${displayPath(info.relDir)} has no .debug-hash to compare`)
     log("")
 
     return []
@@ -547,7 +551,7 @@ async function generateHashes(
 
     Object.entries(map)
       .forEach(([ rel, hash ]) => {
-        log(`✅ ${rel} (${hash} written to .hash)`)
+        log(`✅ ${displayPath(rel)} (${hash} written to .hash)`)
       })
 
     return map
@@ -574,7 +578,7 @@ async function generateHashes(
       .forEach(({
         relDir, hash,
       }) => {
-        log(`✅ ${relDir} (${hash} written to .hash)`)
+        log(`✅ ${displayPath(relDir)} (${hash} written to .hash)`)
       })
 
     return results
@@ -817,7 +821,7 @@ async function compareHashes(pkgs: Record<string, PackageInfo>, finalCache: Reco
   // Display results grouped by category
   if (unchangedTargets.length > 0) {
     log(`✅ Unchanged (${unchangedTargets.length}) :`)
-    unchangedTargets.forEach((r) => log(`• ${r}`))
+    unchangedTargets.forEach((r) => log(`• ${displayPath(r)}`))
     log("")
   }
 
@@ -827,13 +831,13 @@ async function compareHashes(pkgs: Record<string, PackageInfo>, finalCache: Reco
     for (const {
       name, oldHash, newHash, changedDeps,
     } of changedTargets) {
-      log(`• ${name}`)
+      log(`• ${displayPath(name)}`)
       log(`\told : ${oldHash}`)
       log(`\tnew : ${newHash}`)
 
       if (changedDeps.length > 0) {
         log("\t🚧 changed dependency(s) :")
-        changedDeps.forEach((d) => log(`\t\t• ${d}`))
+        changedDeps.forEach((d) => log(`\t\t• ${displayPath(d)}`))
       }
     }
 
@@ -844,7 +848,7 @@ async function compareHashes(pkgs: Record<string, PackageInfo>, finalCache: Reco
     log(`❓ Missing .hash files (${missingTargets.length}) :`)
     missingTargets.forEach(({
       name, newHash,
-    }) => log(`• ${name} (would be ${newHash})`))
+    }) => log(`• ${displayPath(name)} (would be ${newHash})`))
     log("")
   }
 
@@ -977,7 +981,7 @@ async function hash() {
       const ownBuffer = computeOwnHashFromPerFile(perFileMap, sortedKeys)
 
       count++
-      log(`\r🔄 Computing hashes (${zeroPad(count, pad)}/${total}) • ${relDir}`, true)
+      log(`\r🔄 Computing hashes (${zeroPad(count, pad)}/${total}) • ${displayPath(relDir)}`, true)
 
       if (debug && mode === "generate") {
         if (unified) {
