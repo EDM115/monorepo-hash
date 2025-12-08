@@ -132,7 +132,7 @@ jobs:
       - name: "Set up Docker Buildx"
         uses: docker/setup-buildx-action@v3
 
-      - name: "Build in arm64v8/node:24-alpine container"
+      - name: "Build and test in arm64v8/node:24-alpine container"
         run: |
           docker run --rm \
             --platform linux/arm64 \
@@ -213,7 +213,7 @@ jobs:
       - name: "Set up Docker Buildx"
         uses: docker/setup-buildx-action@v3
 
-      - name: "Build in amd64/node:24-alpine container"
+      - name: "Build and test in amd64/node:24-alpine container"
         run: |
           docker run --rm \
             --platform linux/amd64 \

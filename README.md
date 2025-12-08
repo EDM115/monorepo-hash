@@ -429,6 +429,8 @@ Warm cache usage is usually 2/3 times faster than cold cache, so these results a
 
 | Version                                     | Small    | Medium  | Large    |
 | :------------------------------------------ | :------- | :------ | :------- |
+| `v1.9.0 (bun)` :balance_scale:              | 180.2 ms | 3.048 s | 47.661 s |
+| `v1.9.0` :balance_scale:                    | 255.5 ms | 3.668 s | 54.953 s |
 | `v1.8.0 (bun)` :chart_with_upwards_trend:   | 171.3 ms | 3.038 s | 47.607 s |
 | `v1.8.0` :chart_with_upwards_trend:         | 237.6 ms | 3.669 s | 54.453 s |
 | `v1.7.0` :chart_with_upwards_trend:         | 257.5 ms | 3.655 s | 55.136 s |

@@ -1,5 +1,20 @@
 # monorepo-hash changelog
 
+## v1.9.0
+🚑️🐛 hotfix : the binaries no longer segfault on platforms other than Windows as they are now built each directly in their target OS (see [#18](https://github.com/EDM115/monorepo-hash/issues/18)). Binaries from [v1.8.0](#v180) have been rebuilt & republished since (except for `musl` variants which still crashes)  
+✨⚡️ feat/perf : the binaries now ship Bun-optimized code
+  - separate file just for Bun
+  - most Node functions (especially I/O ones) have been swapped to Bun native ones, which should improve peformance even further
+  - some helper functions have been removed as well as docs, nothing is exported anymore since it's self-contained
+  - the entrypoints and separate build steps have also been removed, reducing a bit the binaries file size
+
+✅ tests : also test the behavior of the binary version  
+🔥 build : remove the separate entrypoints  
+🔧 config : no longer build separate entrypoints and drop the CJS version  
+🔧 config : tweak the TS config
+
+---
+
 ## v1.8.0
 ✨⚡️ feat/perf : expose a new CLI entrypoint `monorepo-hash-bun`
   - this time you get a binary built with [Bun](https://bun.com/docs/bundler/executables), skipping the need for Node.js to be installed
