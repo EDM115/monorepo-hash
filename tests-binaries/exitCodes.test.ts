@@ -22,7 +22,7 @@ describe("exit codes", () => {
   })
 
   it("returns 0 for --help", async () => {
-    const result = await execa(cli, [ "--help" ], {
+    const result = await execa(cli, ["--help"], {
       cwd, reject: false,
     })
 
@@ -49,7 +49,7 @@ describe("exit codes", () => {
   })
 
   it("returns 3 for unknown option", async () => {
-    const result = await execa(cli, [ "--edm115" ], {
+    const result = await execa(cli, ["--edm115"], {
       cwd, reject: false,
     })
 
@@ -66,7 +66,7 @@ describe("exit codes", () => {
     const workspaceContent = await readFile(workspaceFilePath, "utf8")
 
     await remove(workspaceFilePath)
-    const result = await execa(cli, [ "--generate" ], {
+    const result = await execa(cli, ["--generate"], {
       cwd, reject: false,
     })
 
@@ -95,7 +95,7 @@ describe("exit codes", () => {
     const packageJsonContent = await readFile(packageJsonPath, "utf8")
 
     await writeFile(packageJsonPath, "{ invalid json }")
-    const result = await execa(cli, [ "--generate" ], {
+    const result = await execa(cli, ["--generate"], {
       cwd, reject: false,
     })
 

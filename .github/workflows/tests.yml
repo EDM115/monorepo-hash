@@ -44,8 +44,8 @@ jobs:
       - name: "Build the project"
         run: pnpm build && pnpm build:bun:linux-x64 && pnpm build:bun:linux-arm64 && pnpm build:bun:windows-x64:ci && pnpm build:bun:darwin-x64 && pnpm build:bun:darwin-arm64 && pnpm build:bun:linux-x64-musl && pnpm build:bun:linux-arm64-musl && pnpm build:bun:chmod
 
-      - name: "Run the tests"
+      - name: "Run the node tests"
         run: pnpm vitest
 
-      - name: "Run the binary tests"
+      - name: "Run the bun tests"
         run: pnpm test:binaries:prepare && pnpm vitest --config vitest.binaries.config.ts

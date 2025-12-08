@@ -83,7 +83,7 @@ let mode: "generate" | "compare" | null = null
 let targets: string[] | null = null
 let silent = false
 let debug = false
-let unified = false
+let unified = true
 let cliUsage = true
 let pmOption: PackageManager | null = null
 
@@ -1215,7 +1215,7 @@ export async function runCli(customArgv?: string[]): Promise<Awaited<ReturnType<
   targets = null
   silent = false
   debug = false
-  unified = false
+  unified = true
   pmOption = null
   cliUsage = customArgv === undefined
 
@@ -1246,8 +1246,8 @@ export async function runCli(customArgv?: string[]): Promise<Awaited<ReturnType<
       silent = true
     } else if (arg === "--debug" || arg === "-d") {
       debug = true
-    } else if (arg === "--unified" || arg === "-u") {
-      unified = true
+    } else if (arg === "--workspaces" || arg === "-w") {
+      unified = false
     } else if (arg.startsWith("--packagemanager=") || arg.startsWith("-pm=")) {
       const [ , val ] = arg.split("=")
 
@@ -1271,7 +1271,7 @@ Arguments :
   --target="<path>" (-t)  Specify one or more targets to generate/compare (comma-separated)
   --silent          (-s)  Suppress output messages
   --debug           (-d)  Enable debug mode (per-file hashes)
-  --unified         (-u)  Use a single root .hash file instead of per-workspace files
+  --workspaces      (-w)  Use per-workspace .hash files instead of a single root one
   --packagemanager  (-pm) Force the package manager (${PACKAGE_MANAGERS.join(", ")})
   --help            (-h)  Show this help message
 `)
@@ -1314,8 +1314,8 @@ Arguments :
       log("ℹ️  Debug mode enabled\n")
     }
 
-    if (unified) {
-      log("ℹ️  Unified mode enabled\n")
+    if (!unified) {
+      log("ℹ️  Per-workspace mode enabled\n")
     }
   }
 

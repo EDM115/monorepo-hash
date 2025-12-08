@@ -1,6 +1,7 @@
 import { execa } from "execa"
 import {
   pathExists,
+  remove,
   writeFile,
 } from "fs-extra"
 import {
@@ -23,8 +24,36 @@ describe("debug mode", () => {
     cli = join(cwd, "monorepo-hash.exe")
   })
 
-  it("creates .debug-hash files and reports mismatched files", async () => {
+  it("creates root .debug-hash file and reports mismatched files", async () => {
     await execa(cli, [ "--generate", "--debug" ], { cwd })
+
+    const rootDebug = join(cwd, ".debug-hash")
+
+    expect(await pathExists(rootDebug))
+      .toBe(true)
+
+    const pkgBIndex = join(cwd, "packages", "pkg-b", "index.js")
+
+    await writeFile(pkgBIndex, "export const msg = \"pkg-b (edited)\"\n")
+
+    const result = await execa(
+      cli,
+      [ "--compare", "--debug" ],
+      {
+        cwd, reject: false, all: true,
+      },
+    )
+
+    expect(result.all)
+      .toMatch(new RegExp(`⚠️\\s+<debug>\\s+packages\\${sep}pkg-b\\s+diverging files\\s*:`))
+    expect(result.all)
+      .toContain("• index.js")
+    expect(result.exitCode)
+      .toBe(1)
+  })
+
+  it("creates .debug-hash files on workspaces mode and reports mismatched files", async () => {
+    await execa(cli, [ "--generate", "--debug", "--workspaces" ], { cwd })
 
     const aDebug = join(cwd, "packages", "pkg-a", ".debug-hash")
     const bDebug = join(cwd, "packages", "pkg-b", ".debug-hash")
@@ -54,17 +83,45 @@ describe("debug mode", () => {
       .toBe(1)
   })
 
-  it("aggregates debug info when unified flag is used", async () => {
-    await execa(cli, [ "--generate", "--debug", "--unified" ], { cwd })
+  it("write separate debug info when workspaces flag is used", async () => {
     const rootDebug = join(cwd, ".debug-hash")
+
+    if (await pathExists(rootDebug)) {
+      await remove(rootDebug)
+    }
+
+    await execa(cli, [ "--generate", "--debug", "--workspaces" ], { cwd })
+
+    expect(await pathExists(rootDebug))
+      .toBe(false)
+
+    const pkgADebugPath = join(cwd, "packages", "pkg-a", ".debug-hash")
+    const pkgADebugExists = await pathExists(pkgADebugPath)
+
+    expect(pkgADebugExists)
+      .toBe(true)
+  })
+
+  it("aggregates debug info", async () => {
+    const rootDebug = join(cwd, ".debug-hash")
+    const pkgADebugPath = join(cwd, "packages", "pkg-a", ".debug-hash")
+
+    if (await pathExists(rootDebug)) {
+      await remove(rootDebug)
+    }
+
+    if (await pathExists(pkgADebugPath)) {
+      await remove(pkgADebugPath)
+    }
+
+    await execa(cli, [ "--generate", "--debug" ], { cwd })
 
     expect(await pathExists(rootDebug))
       .toBe(true)
 
-    const cliToolsHashPath = join(cwd, "packages", "cli-tools", ".debug-hash")
-    const cliToolsExists = await pathExists(cliToolsHashPath)
+    const pkgADebugExists = await pathExists(pkgADebugPath)
 
-    expect(cliToolsExists)
+    expect(pkgADebugExists)
       .toBe(false)
   })
 })

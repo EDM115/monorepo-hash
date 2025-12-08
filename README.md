@@ -10,7 +10,7 @@
 ![Libraries.io dependency status for latest release](https://img.shields.io/librariesio/release/npm/monorepo-hash) ![Libraries.io SourceRank](https://img.shields.io/librariesio/sourcerank/npm/monorepo-hash)
 
 ## :memo: Features
-:runner: **Fast** : Runs in huge monorepos [in no time](#rocket-benchmarks), processes workspaces in parallel  
+:runner: **Fast** : Runs in huge monorepos [in no time](#rocket-benchmarks), processes workspaces in parallel, powered by Bun  
 :dart: **Accurate** : Generates hashes based on every tracked file  
 :left_right_arrow: **Complete** : Supports transitive workspace dependencies  
 :ok_hand: **No config** : Drop-in and instantly usable  
@@ -48,15 +48,15 @@ npm install -D monorepo-hash
 deno install -D npm:monorepo-hash --allow-scripts=npm:monorepo-hash
 ```
 > [!IMPORTANT]  
-> Since `v1.8.0`, `monorepo-hash` exports direct binaries (`monorepo-hash-bun`) that cut the Node.js overhead. To enable this, the postinstall script needs to be run, which is disabled by default in PNPM for security reasons.  
-> You can totally refuse to use it (whether it is for security reasons or size constraints).  
+> Since `v2.0.0`, the `monorepo-hash` cli command is a direct binary made with Bun that cut the Node.js overhead and enables faster I/O. To enable this, the postinstall script needs to be run, which is disabled by default in PNPM for security reasons.  
+> You can totally refuse to use it (whether it is for security reasons or size constraints). In such case, either run the older Node + plain JS version (`monorepo-hash-js`) or use the [programmatic API](#usage-outside-of-the-cli).  
 > If you added `monorepo-hash` without allowing the postinstall script to run, you can do it later at anytime with `pnpm approve-scripts` or `bun pm trust monorepo-hash`.
 
 > [!TIP]  
 > Make sure that your workspace configuration is set up correctly (`pnpm-workspace.yaml`, `package.json` workspaces or `deno.json(c)` workspace) as `monorepo-hash` will use it to find your workspaces. Globs are supported.  
-> Make sure that your lockfiles are present since they are used to detect the used package manager. To skip this resolution step, use the `--packagemanager` argument to force one.  
-> `monorepo-hash` will also use the `workspace:` field in your `package.json` files to detect transitive dependencies.  
-> Finally, it will generate `.hash` files for each workspace that you would need to keep in your VCS in order for it to be efficient (ex : to be reused in your CI). If you don't like having extra files or you have hundred of packages, use the `--unified` mode to obtain a single root `.hash` file instead.
+> Make sure that your lockfiles are present as well since they are used to detect the used package manager. To skip this resolution step, use the `--packagemanager` argument to force one.  
+> To detect internal trasnsitive dependencies, `monorepo-hash` will check the deps of each of the packages included in the workspaces configs. This allows it to work regardless of the package manager's standard (simple version, `workspace:` protocol or direct `file:` links).  
+> Finally, it will generate a single root `.hash` file that you would need to keep in your VCS in order for it to be efficient (ex : to be reused in your CI). This is made to not clutter your filesystem and VCS, especially if you have a lot of packages, howver if you prefer to have per-workspace `.hash` files, use the `--workspaces` mode.
 
 ### Get help
 ```bash
@@ -65,8 +65,9 @@ pnpm monorepo-hash --help
 bunx monorepo-hash --help
 yarn run monorepo-hash --help
 npx monorepo-hash --help
-deno run -A monorepo-hash --help
 # you cannot directly run binaries from deno, you can only define a shell script that runs from a task
+# so either do that or run the JS-based version
+deno run -A monorepo-hash-js --help
 ```
 > [!TIP]  
 > Short versions of all arguments are also available.
@@ -108,6 +109,10 @@ The main functionality stems from `runCli()`, check the autocomplete of your IDE
 import monorepoHash, { exists } from "monorepo-hash"
 // runCli is a default export as well
 
+import { download, detectLibcFamily } from "monorepo-hash/install-binary"
+// additional functions live here
+// tip : if you only need the `exists` function, import it from here instead to reduce bundle size
+
 // ...
 async function checkFiles() {
   // logic...
@@ -121,6 +126,16 @@ async function checkFiles() {
 }
 
 // ...
+async function dlThings() {
+  const url = "https://example.com/somefile"
+  const dest = "./somefile"
+
+  await download(url, dest)
+  const libc = await detectLibcFamily()
+  // do something with it...
+}
+
+// ...
 async function checkHashes() {
   const compareResult = await monorepoHash(["--compare", "--target=packages/example"])
   // do something with it...
@@ -129,7 +144,7 @@ async function checkHashes() {
 
 ### Run in debug mode
 The debug mode will :
-- in generate mode, output `.debug-hash` files which will contain the hashes of each individual file in the workspace as a JSON object (or a single root file when using `--unified`)
+- in generate mode, output a root `.debug-hash` file which will contain the hashes of each individual file in the workspace as a JSON object (or per-workspace files when using `--workspaces`)
 - in compare mode, read those `.debug-hash` file(s) and tell you *exactly* which files have changed in each workspace, and what their hashes are
 This can be useful to check why the hashes appear to be different, or to debug issues with the hashes generation.
 ```bash
@@ -405,16 +420,16 @@ This is especially useful because when you generate hashes, the action will pick
 For the very first run, you might need to create a workflow which will only checkout and save the .hash files in a cache for future runs.
 
 ## :construction: Limitations
-- Bases the transitive dependency detection on the `workspace:` field in the `package.json` files
 - If you use another Version Control System than `git`, we can't ignore your files correctly for the hashes generation
 - Your EOL (End of Line) should be consistent across your monorepo's files and the different environments it's being used in. Since Docker containers and GitHub Actions runners are based on Linux, it's recommended to use `LF` as EOL.  
   I recommend to set this up in your IDE and formatter config.
 
 ## :rocket: Benchmarks
 These benchmarks have been realised on Standard GitHub-hosted runner that you can get by running any Action.  
-The specs as I'm writing this are an AMD EPYC 7763 64-Core (4) @ 3.24 GHz CPU, 15.62 GiB of RAM and 71.61 GiB of SSD storage.  
+The specs as I'm writing this are an AMD EPYC 7763 64-Core (4) @ 3.24 GHz CPU, 15.62 GiB of RAM and 71.61 GiB of SSD storage. Keep in mind that since the servers are shared between multiple users, the performance may vary slightly. between runs.  
 They have been reproduced 10 times with a cold disk cache thanks to [hyperfine](https://github.com/sharkdp/hyperfine).  
-Warm cache usage is usually 2/3 times faster than cold cache, so these results are more representative of a first run in CI or on a fresh boot. The script run speed doesn't really change, the only performance overhead on a cold cache is the time it takes to run Node.js (and reading files from the disk).
+Warm cache usage is usually 2/3 times faster than cold cache, so these results are more representative of a first run in CI or on a fresh boot. The script run speed doesn't really change, the only performance overhead on a cold cache is the time it takes to run Node.js (and reading files from the disk).  
+The versions denoted with `(bun)` are using the Bun binary build of `monorepo-hash`, which removes the Node.js overhead, uses Bun internal replacements and is generally faster. This build is the default one since `v2.0.0`.
 > [!NOTE]  
 > Here are the details of each demo monorepo used for the benchmarks :
 > - **Small monorepo** : 5 workspaces of 100 files each, files composed of 1 line of text
@@ -425,7 +440,7 @@ Warm cache usage is usually 2/3 times faster than cold cache, so these results a
 > Symbols :
 > - :chart_with_upwards_trend: : Faster than the previous version
 > - :chart_with_downwards_trend: : Slower than the previous version
-> - :balance_scale: : No perceivable change in performance compared to the previous version
+> - :balance_scale: : Negligible or no perceivable change in performance compared to the previous version
 
 | Version                                     | Small    | Medium  | Large    |
 | :------------------------------------------ | :------- | :------ | :------- |
@@ -478,6 +493,7 @@ git commit && git push
 pnpm typecheck
 pnpm build
 pnpm build:bun
+# run the action that builds the binaries and download the artifacts
 # create a draft release on GitHub with the bun artifacts
 # compare the benchmarks ran from master and the release and pick the best ones to include as a zip artifact & in the README
 git commit && git push

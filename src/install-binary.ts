@@ -19,14 +19,23 @@ import {
 } from "node:url"
 
 import {
+  type LibcFamily,
+  type PlatformId,
+  detectLibcFamily,
   detectPlatformId,
+  exists,
   getBinaryBasename,
+  resolveBinaryPath,
 } from "./platform"
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
-async function getVersion(): Promise<string> {
+/**
+ * Get the current version of the monorepo-hash package.
+ * @returns A promise that resolves to the version string
+ */
+export async function getVersion(): Promise<string> {
   if (typeof env.npm_package_version === "string" && env.npm_package_version.length > 0) {
     return env.npm_package_version
   }
@@ -43,7 +52,13 @@ async function getVersion(): Promise<string> {
   return pkg.version
 }
 
-function download(url: string, dest: string): Promise<void> {
+/**
+ * Download a file from a URL to a destination path.
+ * @param url The URL to download from
+ * @param dest The destination file path
+ * @returns A promise that resolves when the download is complete
+ */
+export function download(url: string, dest: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const file = createWriteStream(dest, { mode: 0o755 })
 
@@ -86,7 +101,11 @@ function download(url: string, dest: string): Promise<void> {
   })
 }
 
-async function main(): Promise<void> {
+/**
+ * The main function to download the native binary for the current platform.
+ * @returns A promise that resolves when the process is complete
+ */
+export async function main(): Promise<void> {
   const platformId = await detectPlatformId()
 
   if (!platformId) {
@@ -119,3 +138,16 @@ async function main(): Promise<void> {
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   await main()
 }
+
+// re-export platform utilities
+export {
+  type LibcFamily,
+  type PlatformId,
+  detectLibcFamily,
+  detectPlatformId,
+  exists,
+  getBinaryBasename,
+  resolveBinaryPath,
+}
+
+export default main

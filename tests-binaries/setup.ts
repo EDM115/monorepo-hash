@@ -16,7 +16,10 @@ import {
 import { fileURLToPath } from "node:url"
 import { afterAll } from "vitest"
 
-import { detectPlatformId, getBinaryBasename } from "../src/platform"
+import {
+  detectPlatformId,
+  getBinaryBasename,
+} from "../src/platform"
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -89,6 +92,7 @@ if (!(await pathExists(src))) {
 await copyFile(src, join(tmp, "monorepo-hash-bun.ts"))
 
 const executableName = getBinaryBasename(await detectPlatformId() ?? "linux-x64")
+
 src = resolve(__dirname, `../bun-build/${executableName}`)
 
 if (!(await pathExists(src))) {

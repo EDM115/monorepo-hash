@@ -117,6 +117,26 @@ packages:
   it("generates all hashes and matches snapshot", async () => {
     await execa(cli, [ cliScript, "--generate" ], { cwd: demoDir })
 
+    const rootPath = join(demoDir, ".hash")
+    // oxlint-disable-next-line no-unsafe-type-assertion
+    const content = JSON.parse(await readFile(rootPath, "utf8")) as Record<string, string>
+
+    const normalizedEntries = pkgs.map((rel) => {
+      const posixRel = rel.split(sep)
+        .join("/")
+
+      return [ posixRel, content[posixRel] ] as const
+    })
+
+    const hashes: Record<string, string> = Object.fromEntries(normalizedEntries)
+
+    expect(hashes)
+      .toMatchSnapshot()
+  })
+
+  it("generates all hashes and matches snapshot (per workspace)", async () => {
+    await execa(cli, [ cliScript, "--generate", "--workspaces" ], { cwd: demoDir })
+
     const hashPromises = pkgs.map(async (rel) => {
       const hash = (await readFile(join(demoDir, rel, ".hash"), "utf8")).trim()
 
@@ -138,6 +158,28 @@ packages:
   })
 
   it("generates hash for a single workspace", async () => {
+    // clean up any existing root .hash file
+    const rootPath = join(demoDir, ".hash")
+
+    if (await pathExists(rootPath)) {
+      await remove(rootPath)
+    }
+
+    await execa(cli, [ cliScript, "--generate", "--target=packages/cli-tools" ], { cwd: demoDir })
+
+    // oxlint-disable-next-line no-unsafe-type-assertion
+    const content = JSON.parse(await readFile(rootPath, "utf8")) as Record<string, string>
+    const keys = Object.keys(content)
+
+    const cliToolsKey = [ "packages", "cli-tools" ].join("/")
+
+    expect(keys)
+      .toContain(cliToolsKey)
+    expect(keys)
+      .toHaveLength(1)
+  })
+
+  it("generates hash for a single workspace (per workspace)", async () => {
     // clean up any existing .hash files
     const cleanupPromises = pkgs.map(async (rel) => {
       const p = join(demoDir, rel, ".hash")
@@ -148,7 +190,7 @@ packages:
     })
 
     await Promise.all(cleanupPromises)
-    await execa(cli, [ cliScript, "--generate", "--target=packages/cli-tools" ], { cwd: demoDir })
+    await execa(cli, [ cliScript, "--generate", "--target=packages/cli-tools", "--workspaces" ], { cwd: demoDir })
 
     const existsPromises = pkgs.map(async (rel) => {
       const exists = await pathExists(join(demoDir, rel, ".hash"))
@@ -172,6 +214,34 @@ packages:
   it("produces the same hash for a workspace with transitive deps as in full generate", async () => {
     // full generate
     await execa(cli, [ cliScript, "--generate" ], { cwd: demoDir })
+    // oxlint-disable-next-line no-unsafe-type-assertion
+    const fullContent = JSON.parse(await readFile(join(demoDir, ".hash"), "utf8")) as Record<string, string>
+    const backendKey = [ "services", "backend" ].join("/")
+    const full = fullContent[backendKey]
+
+    // remove root .hash
+    const rootPath = join(demoDir, ".hash")
+
+    if (await pathExists(rootPath)) {
+      await remove(rootPath)
+    }
+
+    // partial generate
+    await execa(cli, [ cliScript, "--generate", "--target=services/backend" ], { cwd: demoDir })
+    // oxlint-disable-next-line no-unsafe-type-assertion
+    const partialContent = JSON.parse(await readFile(rootPath, "utf8")) as Record<string, string>
+    const partial = partialContent[backendKey]
+
+    expect(Object.keys(partialContent))
+      .toEqual([backendKey])
+
+    expect(partial)
+      .toBe(full)
+  })
+
+  it("produces the same hash for a workspace with transitive deps as in full generate (per workspace)", async () => {
+    // full generate
+    await execa(cli, [ cliScript, "--generate", "--workspaces" ], { cwd: demoDir })
     const full = (await readFile(join(demoDir, "services", "backend", ".hash"), "utf8")).trim()
 
     // remove all .hash
@@ -186,7 +256,7 @@ packages:
     await Promise.all(cleanPromises)
 
     // partial generate
-    await execa(cli, [ cliScript, "--generate", "--target=services/backend" ], { cwd: demoDir })
+    await execa(cli, [ cliScript, "--generate", "--target=services/backend", "--workspaces" ], { cwd: demoDir })
     const partial = (await readFile(join(demoDir, "services", "backend", ".hash"), "utf8")).trim()
 
     const existsPromises = pkgs.map(async (rel) => {
@@ -211,8 +281,34 @@ packages:
       .toBe(full)
   })
 
-  it("writes a root .hash when unified flag is used", async () => {
-    await execa(cli, [ cliScript, "--generate", "--unified" ], { cwd: demoDir })
+  it("writes per-workspace .hash files when workspaces flag is used", async () => {
+    const rootPath = join(demoDir, ".hash")
+
+    if (await pathExists(rootPath)) {
+      await remove(rootPath)
+    }
+
+    await execa(cli, [ cliScript, "--generate", "--workspaces" ], { cwd: demoDir })
+    const exists = await pathExists(rootPath)
+
+    expect(exists)
+      .toBe(false)
+
+    const cliToolsHashPath = join(demoDir, "packages", "cli-tools", ".hash")
+    const cliToolsExists = await pathExists(cliToolsHashPath)
+
+    expect(cliToolsExists)
+      .toBe(true)
+  })
+
+  it("writes a root .hash file", async () => {
+    const cliToolsHashPath = join(demoDir, "packages", "cli-tools", ".hash")
+
+    if (await pathExists(cliToolsHashPath)) {
+      await remove(cliToolsHashPath)
+    }
+
+    await execa(cli, [ cliScript, "--generate" ], { cwd: demoDir })
     const rootPath = join(demoDir, ".hash")
     const exists = await pathExists(rootPath)
 
@@ -226,7 +322,6 @@ packages:
     expect(Object.keys(content).length)
       .toBe(expectedPackageCount)
 
-    const cliToolsHashPath = join(demoDir, "packages", "cli-tools", ".hash")
     const cliToolsExists = await pathExists(cliToolsHashPath)
 
     expect(cliToolsExists)

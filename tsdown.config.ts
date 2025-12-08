@@ -5,7 +5,7 @@ export default defineConfig([
     banner: { js: "#!/usr/bin/env node" },
     dts: true,
     entry: { "monorepo-hash": "./src/monorepo-hash.ts" },
-    exports: true,
+    exports: false,
     format: ["esm"],
     minify: true,
     nodeProtocol: true,
@@ -22,7 +22,7 @@ export default defineConfig([
   },
   {
     banner: { js: "#!/usr/bin/env node" },
-    dts: false,
+    dts: true,
     entry: { "install-binary": "./src/install-binary.ts" },
     exports: false,
     format: ["esm"],

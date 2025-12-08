@@ -27,8 +27,8 @@ describe("monorepo-hash CLI output", () => {
   })
 
   it("reports unchanged when no files changed, and exit code 0", async () => {
-    await execa(cli, [ "--generate" ], { cwd })
-    const result = await execa(cli, [ "--compare" ], {
+    await execa(cli, ["--generate"], { cwd })
+    const result = await execa(cli, ["--compare"], {
       cwd, reject: false, all: true,
     })
 
@@ -50,11 +50,11 @@ describe("monorepo-hash CLI output", () => {
       throw new Error("tmpRoot is not set")
     }
 
-    await execa(cli, [ "--generate" ], { cwd })
+    await execa(cli, ["--generate"], { cwd })
     const pkgBIndex = join(globalThis.tmpRoot, "packages", "pkg-b", "index.js")
 
     await writeFile(pkgBIndex, "export const msg = \"pkg-b (edited)\"\n")
-    const result = await execa(cli, [ "--compare" ], {
+    const result = await execa(cli, ["--compare"], {
       cwd, reject: false, all: true,
     })
 
@@ -76,16 +76,41 @@ describe("monorepo-hash CLI output", () => {
       .toMatch(expectedPattern)
   })
 
-  it("reports missing .hash if you delete a hash file and run --compare", async () => {
+  it("reports missing .hash if you delete an entry and run --compare", async () => {
     if (!globalThis.tmpRoot) {
       throw new Error("tmpRoot is not set")
     }
 
-    await execa(cli, [ "--generate" ], { cwd })
+    await execa(cli, ["--generate"], { cwd })
+    const rootHashPath = join(globalThis.tmpRoot, ".hash")
+    // oxlint-disable-next-line no-unsafe-type-assertion
+    const content = JSON.parse(await readFile(rootHashPath, "utf8")) as Record<string, string>
+    const pkgAKey = [ "packages", "pkg-a" ].join("/")
+
+    delete content[pkgAKey]
+    await writeFile(rootHashPath, `${JSON.stringify(content, null, 2)}\n`)
+    const result = await execa(cli, ["--compare"], {
+      cwd, reject: false, all: true,
+    })
+
+    expect(result.exitCode)
+      .toBe(1)
+    expect(result.all)
+      .toContain("❓ Missing .hash files (1) :")
+    expect(result.all)
+      .toContain(`• packages${sep}pkg-a`)
+  })
+
+  it("reports missing .hash if you delete a hash file and run --compare (per workspace)", async () => {
+    if (!globalThis.tmpRoot) {
+      throw new Error("tmpRoot is not set")
+    }
+
+    await execa(cli, [ "--generate", "--workspaces" ], { cwd })
     const hashAPath = join(globalThis.tmpRoot, "packages", "pkg-a", ".hash")
 
     await remove(hashAPath)
-    const result = await execa(cli, [ "--compare" ], {
+    const result = await execa(cli, [ "--compare", "--workspaces" ], {
       cwd, reject: false, all: true,
     })
 
@@ -102,7 +127,34 @@ describe("monorepo-hash CLI output", () => {
       throw new Error("tmpRoot is not set")
     }
 
-    await execa(cli, [ "--generate" ], { cwd })
+    await execa(cli, ["--generate"], { cwd })
+    const rootHashPath = join(globalThis.tmpRoot, ".hash")
+    // oxlint-disable-next-line no-unsafe-type-assertion
+    const firstContent = JSON.parse(await readFile(rootHashPath, "utf8")) as Record<string, string>
+    const pkgAKey = [ "packages", "pkg-a" ].join("/")
+    const pkgBKey = [ "packages", "pkg-b" ].join("/")
+    const firstA = firstContent[pkgAKey]
+    const firstB = firstContent[pkgBKey]
+
+    await remove(rootHashPath)
+    await execa(cli, ["--generate"], { cwd })
+    // oxlint-disable-next-line no-unsafe-type-assertion
+    const secondContent = JSON.parse(await readFile(rootHashPath, "utf8")) as Record<string, string>
+    const secondA = secondContent[pkgAKey]
+    const secondB = secondContent[pkgBKey]
+
+    expect(secondA)
+      .toBe(firstA)
+    expect(secondB)
+      .toBe(firstB)
+  })
+
+  it("produces deterministic hashes across consecutive --generate runs (per workspace)", async () => {
+    if (!globalThis.tmpRoot) {
+      throw new Error("tmpRoot is not set")
+    }
+
+    await execa(cli, [ "--generate", "--workspaces" ], { cwd })
     const aPath = join(globalThis.tmpRoot, "packages", "pkg-a", ".hash")
     const bPath = join(globalThis.tmpRoot, "packages", "pkg-b", ".hash")
     const firstA = (await readFile(aPath, "utf8")).trim()
@@ -110,7 +162,7 @@ describe("monorepo-hash CLI output", () => {
 
     await remove(aPath)
     await remove(bPath)
-    await execa(cli, [ "--generate" ], { cwd })
+    await execa(cli, [ "--generate", "--workspaces" ], { cwd })
     const secondA = (await readFile(aPath, "utf8")).trim()
     const secondB = (await readFile(bPath, "utf8")).trim()
 
@@ -143,7 +195,7 @@ describe("monorepo-hash output", () => {
   })
 
   it("reports unchanged when no files changed", async () => {
-    await execa(cliBinary, [ "--generate" ], { cwd })
+    await execa(cliBinary, ["--generate"], { cwd })
 
     const harness = join(cwd, "unchanged.mjs")
 
@@ -185,7 +237,7 @@ console.log(JSON.stringify(result))
       throw new Error("tmpRoot is not set")
     }
 
-    await execa(cliBinary, [ "--generate" ], { cwd })
+    await execa(cliBinary, ["--generate"], { cwd })
     const pkgBIndex = join(globalThis.tmpRoot, "packages", "pkg-b", "index.js")
 
     await writeFile(pkgBIndex, "export const msg = \"pkg-b (edited again)\"\n")
@@ -229,12 +281,57 @@ console.log(JSON.stringify(result))
       .toContain(`packages${sep}pkg-b`)
   })
 
-  it("reports missing .hash if you delete a hash file and run --compare", async () => {
+  it("reports missing .hash if you delete an entry and run --compare", async () => {
     if (!globalThis.tmpRoot) {
       throw new Error("tmpRoot is not set")
     }
 
-    await execa(cliBinary, [ "--generate" ], { cwd })
+    await execa(cli, [ cliScript, "--generate" ], { cwd })
+    const rootHashPath = join(globalThis.tmpRoot, ".hash")
+    // oxlint-disable-next-line no-unsafe-type-assertion
+    const content = JSON.parse(await readFile(rootHashPath, "utf8")) as Record<string, string>
+    const pkgAKey = [ "packages", "pkg-a" ].join("/")
+
+    delete content[pkgAKey]
+    await writeFile(rootHashPath, `${JSON.stringify(content, null, 2)}\n`)
+
+    const harness = join(cwd, "missing.mjs")
+
+    created.push(harness)
+
+    await writeFile(harness, `import { runCli } from "${cliImport}"
+
+const result = await runCli(["--compare", "--silent"])
+console.log(JSON.stringify(result))
+`)
+
+    const { stdout } = await execa(cli, [harness], { cwd })
+
+    // oxlint-disable-next-line no-unsafe-type-assertion
+    const parsed = JSON.parse(stdout) as {
+      unchangedTargets: string[];
+      changedTargets: Array<{
+        name: string; oldHash: string; newHash: string; changedDeps: string[];
+      }>;
+      missingTargets: Array<{
+        name: string; newHash: string;
+      }>
+      | null;
+    }
+
+    expect(parsed).not.toBeNull()
+    expect(parsed?.missingTargets)
+      .toHaveLength(1)
+    expect(parsed?.missingTargets?.[0].name)
+      .toBe(`packages${sep}pkg-a`)
+  })
+
+  it("reports missing .hash if you delete a hash file and run --compare (per workspace)", async () => {
+    if (!globalThis.tmpRoot) {
+      throw new Error("tmpRoot is not set")
+    }
+
+    await execa(cliBinary, [ "--generate", "--workspaces" ], { cwd })
     const hashAPath = join(globalThis.tmpRoot, "packages", "pkg-a", ".hash")
 
     await remove(hashAPath)
@@ -245,7 +342,7 @@ console.log(JSON.stringify(result))
 
     await writeFile(harness, `import { runCli } from "${cliImport}"
 
-const result = await runCli(["--compare", "--silent"])
+const result = await runCli(["--compare", "--silent", "--workspaces"])
 console.log(JSON.stringify(result))
 `)
 
@@ -282,6 +379,42 @@ console.log(JSON.stringify(result))
     await writeFile(harness, `import { runCli } from "${cliImport}"
 
 await runCli(["--generate", "--silent"])
+`)
+
+    await execa(cli, [harness], { cwd })
+    const rootHashPath = join(globalThis.tmpRoot, ".hash")
+    // oxlint-disable-next-line no-unsafe-type-assertion
+    const firstContent = JSON.parse(await readFile(rootHashPath, "utf8")) as Record<string, string>
+    const pkgAKey = [ "packages", "pkg-a" ].join("/")
+    const pkgBKey = [ "packages", "pkg-b" ].join("/")
+    const firstA = firstContent[pkgAKey]
+    const firstB = firstContent[pkgBKey]
+
+    await remove(rootHashPath)
+    await execa(cli, [harness], { cwd })
+    // oxlint-disable-next-line no-unsafe-type-assertion
+    const secondContent = JSON.parse(await readFile(rootHashPath, "utf8")) as Record<string, string>
+    const secondA = secondContent[pkgAKey]
+    const secondB = secondContent[pkgBKey]
+
+    expect(secondA)
+      .toBe(firstA)
+    expect(secondB)
+      .toBe(firstB)
+  })
+
+  it("produces deterministic hashes across consecutive --generate runs (per workspace)", async () => {
+    if (!globalThis.tmpRoot) {
+      throw new Error("tmpRoot is not set")
+    }
+
+    const harness = join(cwd, "generate.mjs")
+
+    created.push(harness)
+
+    await writeFile(harness, `import { runCli } from "${cliImport}"
+
+await runCli(["--generate", "--silent", "--workspaces"])
 `)
 
     await execa(cli, [harness], { cwd })

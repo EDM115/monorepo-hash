@@ -58,7 +58,7 @@ let mode: "generate" | "compare" | null = null
 let targets: string[] | null = null
 let silent = false
 let debug = false
-let unified = false
+let unified = true
 let pmOption: PackageManager | null = null
 
 let packageManager: PackageManager | null = null
@@ -87,7 +87,7 @@ function log(message: string, overwrite = false) {
   }
 }
 
-function zeroPad(num: number, places: number){
+function zeroPad(num: number, places: number) {
   return String(num)
     .padStart(places, "0")
 }
@@ -139,8 +139,10 @@ async function getWorkspaceFileList(
   const pkgIgnore = ignore()
   const pkgGit = join(dir, ".gitignore")
 
-  if (await Bun.file(pkgGit).exists()) {
-    const pkgContents = await Bun.file(pkgGit).text()
+  if (await Bun.file(pkgGit)
+    .exists()) {
+    const pkgContents = await Bun.file(pkgGit)
+      .text()
 
     pkgIgnore.add(pkgContents)
   }
@@ -170,13 +172,15 @@ async function detectPNPM(): Promise<{
 } | null> {
   const wsYaml = await findUp("pnpm-workspace.yaml")
 
-  if (!wsYaml || !(await Bun.file(wsYaml).exists())) {
+  if (!wsYaml || !(await Bun.file(wsYaml)
+    .exists())) {
     return null
   }
 
   const root = dirname(wsYaml)
   // oxlint-disable-next-line no-unsafe-type-assertion
-  const config = load(await Bun.file(wsYaml).text()) as PnpmWorkspaceConfig
+  const config = load(await Bun.file(wsYaml)
+    .text()) as PnpmWorkspaceConfig
   const globs: string[] = Array.isArray(config.packages)
     ? config.packages
     : []
@@ -195,17 +199,20 @@ async function detectDeno(): Promise<{
 } | null> {
   let denoPath = await findUp("deno.json")
 
-  if (!denoPath || !(await Bun.file(denoPath).exists())) {
+  if (!denoPath || !(await Bun.file(denoPath)
+    .exists())) {
     denoPath = await findUp("deno.jsonc")
 
-    if (!denoPath || !(await Bun.file(denoPath).exists())) {
+    if (!denoPath || !(await Bun.file(denoPath)
+      .exists())) {
       return null
     }
   }
 
   const root = dirname(denoPath)
   // oxlint-disable-next-line no-unsafe-type-assertion
-  const config = await Bun.file(denoPath).json() as { workspace?: string[] }
+  const config = await Bun.file(denoPath)
+    .json() as { workspace?: string[] }
   const globs: string[] = Array.isArray(config.workspace)
     ? config.workspace
     : []
@@ -225,9 +232,11 @@ async function detectPkgJson(): Promise<{
   const pkgPath = await findUp(async (dir) => {
     const pkgFile = join(dir, "package.json")
 
-    if (await Bun.file(pkgFile).exists()) {
+    if (await Bun.file(pkgFile)
+      .exists()) {
       // oxlint-disable-next-line no-unsafe-type-assertion
-      const data = await Bun.file(pkgFile).json() as { workspaces?: unknown }
+      const data = await Bun.file(pkgFile)
+        .json() as { workspaces?: unknown }
 
       if (data.workspaces) {
         return pkgFile
@@ -243,7 +252,8 @@ async function detectPkgJson(): Promise<{
 
   const root = dirname(pkgPath)
   // oxlint-disable-next-line no-unsafe-type-assertion
-  const pkg = await Bun.file(pkgPath).json() as { workspaces?: string[] | { packages?: string[] } }
+  const pkg = await Bun.file(pkgPath)
+    .json() as { workspaces?: string[] | { packages?: string[] } }
   let globs: string[] = []
 
   if (Array.isArray(pkg.workspaces)) {
@@ -256,25 +266,30 @@ async function detectPkgJson(): Promise<{
     return null
   }
 
-  if (await Bun.file(join(root, "bun.lock")).exists() || await Bun.file(join(root, "bun.lockb")).exists()) {
+  if (await Bun.file(join(root, "bun.lock"))
+    .exists() || await Bun.file(join(root, "bun.lockb"))
+    .exists()) {
     return {
       pm: "bun", root, globs,
     }
   }
 
-  if (await Bun.file(join(root, "deno.lock")).exists()) {
+  if (await Bun.file(join(root, "deno.lock"))
+    .exists()) {
     return {
       pm: "deno", root, globs,
     }
   }
 
-  if (await Bun.file(join(root, "yarn.lock")).exists()) {
+  if (await Bun.file(join(root, "yarn.lock"))
+    .exists()) {
     return {
       pm: "yarn", root, globs,
     }
   }
 
-  if (await Bun.file(join(root, "package-lock.json")).exists()) {
+  if (await Bun.file(join(root, "package-lock.json"))
+    .exists()) {
     return {
       pm: "npm", root, globs,
     }
@@ -323,11 +338,13 @@ async function writeDebugFile(
 async function loadDebugFile(dir: string) {
   const debugPath = join(dir, ".debug-hash")
 
-  if (!(await Bun.file(debugPath).exists())) {
+  if (!(await Bun.file(debugPath)
+    .exists())) {
     return null
   }
 
-  const text = await Bun.file(debugPath).text()
+  const text = await Bun.file(debugPath)
+    .text()
 
   // oxlint-disable-next-line no-unsafe-type-assertion
   return JSON.parse(text) as Record<string, string>
@@ -345,12 +362,14 @@ async function writeRootDebugFile(
 async function loadRootDebugFile(rootDir: string) {
   const p = join(rootDir, ".debug-hash")
 
-  if (!(await Bun.file(p).exists())) {
+  if (!(await Bun.file(p)
+    .exists())) {
     return null
   }
 
   // oxlint-disable-next-line no-unsafe-type-assertion
-  return await Bun.file(p).json() as Record<string, Record<string, string>>
+  return await Bun.file(p)
+    .json() as Record<string, Record<string, string>>
 }
 
 async function generateDebug(
@@ -414,7 +433,8 @@ async function computePerFileHashes(
     // oxlint-disable-next-line no-await-in-loop : Needed to not blow up memory with too many concurrent reads
     const partial = await Promise.all(batch.map(async ([ rel, norm ]) => {
       const fullPath = join(dir, rel)
-      const content = await Bun.file(fullPath).arrayBuffer()
+      const content = await Bun.file(fullPath)
+        .arrayBuffer()
       const fileHash = hasher.update(norm)
         .update(content)
         .digest("hex")
@@ -492,12 +512,14 @@ async function writeRootHashFile(
 async function loadRootHashFile(rootDir: string) {
   const p = join(rootDir, ".hash")
 
-  if (!(await Bun.file(p).exists())) {
+  if (!(await Bun.file(p)
+    .exists())) {
     return null
   }
 
   // oxlint-disable-next-line no-unsafe-type-assertion
-  return await Bun.file(p).json() as Record<string, string>
+  return await Bun.file(p)
+    .json() as Record<string, string>
 }
 
 async function generateHashes(
@@ -590,7 +612,8 @@ async function compareHashes(pkgs: Record<string, PackageInfo>, finalCache: Reco
         }
       } else {
         const hashPath = join(info.dir, ".hash")
-        const existsHash = await Bun.file(hashPath).exists()
+        const existsHash = await Bun.file(hashPath)
+          .exists()
 
         if (!existsHash) {
           return {
@@ -598,7 +621,8 @@ async function compareHashes(pkgs: Record<string, PackageInfo>, finalCache: Reco
           }
         }
 
-        const oldHex = (await Bun.file(hashPath).text()).trim()
+        const oldHex = (await Bun.file(hashPath)
+          .text()).trim()
 
         return {
           pkgName, missing: false, changed: oldHex !== currentHex,
@@ -684,11 +708,13 @@ async function compareHashes(pkgs: Record<string, PackageInfo>, finalCache: Reco
       } else {
         const hashPath = join(info.dir, ".hash")
 
-        if (!(await Bun.file(hashPath).exists())) {
+        if (!(await Bun.file(hashPath)
+          .exists())) {
           return null
         }
 
-        const oldHex = (await Bun.file(hashPath).text()).trim()
+        const oldHex = (await Bun.file(hashPath)
+          .text()).trim()
 
         return [ pkgName, oldHex ] as [string, string]
       }
@@ -862,7 +888,8 @@ async function hash() {
     const relDir = relative(repoRoot, dir)
 
     // oxlint-disable-next-line no-unsafe-type-assertion
-    const pkgData = await Bun.file(absJson).json() as PackageManifest
+    const pkgData = await Bun.file(absJson)
+      .json() as PackageManifest
     const pkgName: string = pkgData.name
 
     meta[pkgName] = {
@@ -1017,7 +1044,7 @@ async function runCli(customArgv?: string[]) {
   targets = null
   silent = false
   debug = false
-  unified = false
+  unified = true
   pmOption = null
 
   // Parse CLI flags
@@ -1045,8 +1072,8 @@ async function runCli(customArgv?: string[]) {
       silent = true
     } else if (arg === "--debug" || arg === "-d") {
       debug = true
-    } else if (arg === "--unified" || arg === "-u") {
-      unified = true
+    } else if (arg === "--workspaces" || arg === "-w") {
+      unified = false
     } else if (arg.startsWith("--packagemanager=") || arg.startsWith("-pm=")) {
       const [ , val ] = arg.split("=")
 
@@ -1070,7 +1097,7 @@ Arguments :
   --target="<path>" (-t)  Specify one or more targets to generate/compare (comma-separated)
   --silent          (-s)  Suppress output messages
   --debug           (-d)  Enable debug mode (per-file hashes)
-  --unified         (-u)  Use a single root .hash file instead of per-workspace files
+  --workspaces      (-w)  Use per-workspace .hash files instead of a single root one
   --packagemanager  (-pm) Force the package manager (${PACKAGE_MANAGERS.join(", ")})
   --help            (-h)  Show this help message
 `)
@@ -1113,8 +1140,8 @@ Arguments :
       log("ℹ️  Debug mode enabled\n")
     }
 
-    if (unified) {
-      log("ℹ️  Unified mode enabled\n")
+    if (!unified) {
+      log("ℹ️  Per-workspace mode enabled\n")
     }
   }
 
@@ -1149,8 +1176,10 @@ Arguments :
   rootIgnore = ignore()
   const rootGit: string = join(repoRoot, ".gitignore")
 
-  if (await Bun.file(rootGit).exists()) {
-    const rootGitContents = await Bun.file(rootGit).text()
+  if (await Bun.file(rootGit)
+    .exists()) {
+    const rootGitContents = await Bun.file(rootGit)
+      .text()
 
     rootIgnore = ignore()
       .add(rootGitContents)

@@ -8,10 +8,13 @@
   - some helper functions have been removed as well as docs, nothing is exported anymore since it's self-contained
   - the entrypoints and separate build steps have also been removed, reducing a bit the binaries file size
 
+🔒️ security : releases are made immutables so no binary asset can be swapped at any point in time  
 ✅ tests : also test the behavior of the binary version  
 🔥 build : remove the separate entrypoints  
 🔧 config : no longer build separate entrypoints and drop the CJS version  
 🔧 config : tweak the TS config
+
+**Full Changelog**: https://github.com/EDM115/monorepo-hash/compare/1.8.0...1.9.0
 
 ---
 

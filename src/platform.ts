@@ -1,4 +1,7 @@
+import type { PathLike } from "node:fs"
+
 import { spawnSync } from "node:child_process"
+import { access } from "node:fs/promises"
 import { join } from "node:path"
 import {
   arch,
@@ -6,10 +9,30 @@ import {
   report,
 } from "node:process"
 
-import { exists } from "./monorepo-hash"
-
+/**
+ * The detected libc family on Linux systems.
+ */
 export type LibcFamily = "glibc" | "musl" | "unknown"
 
+/**
+ * Check if a file or directory exists
+ * @param f The path to check
+ * @returns A promise that resolves to true if the path exists, false otherwise
+ */
+export async function exists(f: PathLike): Promise<boolean> {
+  try {
+    await access(f)
+
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Detect the libc family on Linux systems
+ * @returns A promise that resolves to the detected libc family
+ */
 export async function detectLibcFamily(): Promise<LibcFamily> {
   // First, try Node.js report API (if available)
   try {
@@ -81,6 +104,9 @@ export async function detectLibcFamily(): Promise<LibcFamily> {
   return "unknown"
 }
 
+/**
+ * The supported platform identifiers for prebuilt binaries.
+ */
 export type PlatformId
   = | "linux-x64"
     | "linux-x64-musl"
@@ -90,6 +116,10 @@ export type PlatformId
     | "darwin-x64"
     | "windows-x64"
 
+/**
+ * Detect the current platform identifier.
+ * @returns A promise that resolves to the detected platform identifier, or null if unsupported.
+ */
 export async function detectPlatformId(): Promise<PlatformId | null> {
   if (platform === "linux") {
     const libc = await detectLibcFamily()
@@ -127,6 +157,11 @@ export async function detectPlatformId(): Promise<PlatformId | null> {
   return null
 }
 
+/**
+ * Get the binary filename for a given platform identifier.
+ * @param id The platform identifier
+ * @returns The corresponding binary filename
+ */
 export function getBinaryBasename(id: PlatformId): string {
   if (id === "windows-x64") {
     return "monorepo-hash-windows-x64.exe"
@@ -135,6 +170,12 @@ export function getBinaryBasename(id: PlatformId): string {
   return `monorepo-hash-${id}`
 }
 
+/**
+ * Resolve the full path to a binary file.
+ * @param baseDir The base directory
+ * @param name The binary filename
+ * @returns The full path to the binary file
+ */
 export function resolveBinaryPath(baseDir: string, name: string): string {
   return join(baseDir, name)
 }
