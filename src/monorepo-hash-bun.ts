@@ -400,7 +400,7 @@ async function generateDebug(
     }
 
     if (diverged.length > 0) {
-      log(`⚠️ <debug> ${displayPath(info.relDir)} diverging files :`)
+      log(`⚠️  <debug> ${displayPath(info.relDir)} diverging files :`)
       diverged.forEach((f) => log(`  • ${displayPath(f)}`))
       log("")
     }
@@ -822,7 +822,7 @@ async function compareHashes(pkgs: Record<string, PackageInfo>, finalCache: Reco
   }
 
   if (changedTargets.length > 0) {
-    log(`⚠️ Changed (${changedTargets.length}) :`)
+    log(`⚠️  Changed (${changedTargets.length}) :`)
 
     for (const {
       name, oldHash, newHash, changedDeps,
@@ -1124,24 +1124,24 @@ Arguments :
   } else {
     if (mode === "generate") {
       if (targets) {
-        log(`ℹ️ Generating hashes for specified targets... (${targets.join(", ")})\n`)
+        log(`ℹ️  Generating hashes for specified targets... (${targets.join(", ")})\n`)
       } else {
-        log("ℹ️ Generating hashes for all workspaces...\n")
+        log("ℹ️  Generating hashes for all workspaces...\n")
       }
     } else {
       if (targets) {
-        log(`ℹ️ Comparing hashes for specified targets... (${targets.join(", ")})\n`)
+        log(`ℹ️  Comparing hashes for specified targets... (${targets.join(", ")})\n`)
       } else if (targets === null) {
-        log("ℹ️ Comparing hashes for all workspaces...\n")
+        log("ℹ️  Comparing hashes for all workspaces...\n")
       }
     }
 
     if (debug) {
-      log("ℹ️ Debug mode enabled\n")
+      log("ℹ️  Debug mode enabled\n")
     }
 
     if (!unified) {
-      log("ℹ️ Per-workspace mode enabled\n")
+      log("ℹ️  Per-workspace mode enabled\n")
     }
   }
 
@@ -1170,7 +1170,7 @@ Arguments :
   repoRoot = detected?.root ?? ""
   workspaceGlobs = detected?.globs ?? []
 
-  log(`ℹ️ Using ${packageManager} workspaces from ${repoRoot}\n`)
+  log(`ℹ️  Using ${packageManager} workspaces from ${repoRoot}\n`)
 
   // Compile root .gitignore
   rootIgnore = ignore()
