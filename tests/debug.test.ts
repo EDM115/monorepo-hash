@@ -43,7 +43,7 @@ describe("debug mode", () => {
     )
 
     expect(result.all)
-      .toMatch(new RegExp(`⚠️\\s+<debug>\\s+packages\\/pkg-b\\s+diverging files\\s*:`))
+      .toMatch(new RegExp("⚠️\\s+<debug>\\s+packages\\/pkg-b\\s+diverging files\\s*:"))
     expect(result.all)
       .toContain("• index.js")
     expect(result.exitCode)
@@ -74,7 +74,7 @@ describe("debug mode", () => {
     )
 
     expect(result.all)
-      .toMatch(new RegExp(`⚠️\\s+<debug>\\s+packages\\/pkg-b\\s+diverging files\\s*:`))
+      .toMatch(new RegExp("⚠️\\s+<debug>\\s+packages\\/pkg-b\\s+diverging files\\s*:"))
     expect(result.all)
       .toContain("• index.js")
     expect(result.exitCode)

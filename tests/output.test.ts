@@ -36,11 +36,11 @@ describe("monorepo-hash CLI output", () => {
     expect(result.all)
       .toMatch(/✅ Unchanged \(3\) :/m)
     expect(result.all)
-      .toMatch(new RegExp(`• packages/pkg-a`, "m"))
+      .toMatch(new RegExp("• packages/pkg-a", "m"))
     expect(result.all)
-      .toMatch(new RegExp(`• packages/pkg-b`, "m"))
+      .toMatch(new RegExp("• packages/pkg-b", "m"))
     expect(result.all)
-      .toMatch(new RegExp(`• packages/pkg-c`, "m"))
+      .toMatch(new RegExp("• packages/pkg-c", "m"))
   })
 
   it("detects a file change and exits with non-zero, listing the changed workspace", async () => {
@@ -57,12 +57,12 @@ describe("monorepo-hash CLI output", () => {
 
     const expectedPattern = new RegExp(
       "✅ Unchanged \\(1\\) :\\s*"
-      + `• packages/pkg-c\\s*`
+      + "• packages/pkg-c\\s*"
       + "⚠️  Changed \\(2\\) :\\s*"
-      + `• packages/pkg-a[\\s\\S]*?`
+      + "• packages/pkg-a[\\s\\S]*?"
       + "🚧 changed dependency\\(s\\) :[\\s\\S]*?"
-      + `• packages/pkg-b[\\s\\S]*?`
-      + `• packages/pkg-b`,
+      + "• packages/pkg-b[\\s\\S]*?"
+      + "• packages/pkg-b",
       "ms",
     )
 
@@ -88,7 +88,7 @@ describe("monorepo-hash CLI output", () => {
     expect(result.all)
       .toContain("❓ Missing .hash files (1) :")
     expect(result.all)
-      .toContain(`• packages/pkg-a`)
+      .toContain("• packages/pkg-a")
   })
 
   it("reports missing .hash if you delete a hash file and run --compare (per workspace)", async () => {
@@ -105,7 +105,7 @@ describe("monorepo-hash CLI output", () => {
     expect(result.all)
       .toContain("❓ Missing .hash files (1) :")
     expect(result.all)
-      .toContain(`• packages/pkg-a`)
+      .toContain("• packages/pkg-a")
   })
 
   it("produces deterministic hashes across consecutive --generate runs", async () => {
@@ -201,11 +201,11 @@ console.log(JSON.stringify(result))
     expect(parsed?.unchangedTargets)
       .toHaveLength(3)
     expect(parsed?.unchangedTargets)
-      .toContain(`packages/pkg-a`)
+      .toContain("packages/pkg-a")
     expect(parsed?.unchangedTargets)
-      .toContain(`packages/pkg-b`)
+      .toContain("packages/pkg-b")
     expect(parsed?.unchangedTargets)
-      .toContain(`packages/pkg-c`)
+      .toContain("packages/pkg-c")
   })
 
   it("detects a file change and lists the changed workspace", async () => {
@@ -242,15 +242,15 @@ console.log(JSON.stringify(result))
     expect(parsed?.unchangedTargets)
       .toHaveLength(1)
     expect(parsed?.unchangedTargets)
-      .toContain(`packages/pkg-c`)
+      .toContain("packages/pkg-c")
     expect(parsed?.changedTargets)
       .toHaveLength(2)
     const changedNames = parsed?.changedTargets.map((t) => t.name) ?? []
 
     expect(changedNames)
-      .toContain(`packages/pkg-a`)
+      .toContain("packages/pkg-a")
     expect(changedNames)
-      .toContain(`packages/pkg-b`)
+      .toContain("packages/pkg-b")
   })
 
   it("reports missing .hash if you delete an entry and run --compare", async () => {
@@ -291,7 +291,7 @@ console.log(JSON.stringify(result))
     expect(parsed?.missingTargets)
       .toHaveLength(1)
     expect(parsed?.missingTargets?.[0].name)
-      .toBe(`packages/pkg-a`)
+      .toBe("packages/pkg-a")
   })
 
   it("reports missing .hash if you delete a hash file and run --compare (per workspace)", async () => {
@@ -328,7 +328,7 @@ console.log(JSON.stringify(result))
     expect(parsed?.missingTargets)
       .toHaveLength(1)
     expect(parsed?.missingTargets?.[0].name)
-      .toBe(`packages/pkg-a`)
+      .toBe("packages/pkg-a")
   })
 
   it("produces deterministic hashes across consecutive --generate runs", async () => {

@@ -441,9 +441,7 @@ async function computePerFileHashes(
   const CONCURRENCY = 100
 
   // Pre-normalize paths to avoid repeated split/join
-  const normalized = fileList.map((rel) => [
-    rel, displayPath(rel),
-  ] as const)
+  const normalized = fileList.map((rel) => [ rel, displayPath(rel) ] as const)
 
   for (let i = 0; i < normalized.length; i += CONCURRENCY) {
     const batch = normalized.slice(i, i + CONCURRENCY)
@@ -453,7 +451,8 @@ async function computePerFileHashes(
       const fullPath = join(dir, rel)
       const content = await Bun.file(fullPath)
         .arrayBuffer()
-      const fileHash = new Bun.CryptoHasher("sha256").update(norm)
+      const fileHash = new Bun.CryptoHasher("sha256")
+        .update(norm)
         .update(content)
         .digest("hex")
 
