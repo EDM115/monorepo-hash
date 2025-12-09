@@ -32,7 +32,7 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
 /**
- * Get the current version of the monorepo-hash package.
+ * Get the current version of the monorepo-hash package
  * @returns A promise that resolves to the version string
  */
 export async function getVersion(): Promise<string> {
@@ -53,7 +53,7 @@ export async function getVersion(): Promise<string> {
 }
 
 /**
- * Download a file from a URL to a destination path.
+ * Download a file from a URL to a destination path
  * @param url The URL to download from
  * @param dest The destination file path
  * @returns A promise that resolves when the download is complete
@@ -102,7 +102,7 @@ export function download(url: string, dest: string): Promise<void> {
 }
 
 /**
- * The main function to download the native binary for the current platform.
+ * The main function to download the native binary for the current platform
  * @returns A promise that resolves when the process is complete
  */
 export async function main(): Promise<void> {

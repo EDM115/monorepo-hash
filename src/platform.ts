@@ -10,7 +10,7 @@ import {
 } from "node:process"
 
 /**
- * The detected libc family on Linux systems.
+ * The detected libc family on Linux systems
  */
 export type LibcFamily = "glibc" | "musl" | "unknown"
 
@@ -105,7 +105,7 @@ export async function detectLibcFamily(): Promise<LibcFamily> {
 }
 
 /**
- * The supported platform identifiers for prebuilt binaries.
+ * The supported platform identifiers for prebuilt binaries
  */
 export type PlatformId
   = | "linux-x64"
@@ -117,8 +117,8 @@ export type PlatformId
     | "windows-x64"
 
 /**
- * Detect the current platform identifier.
- * @returns A promise that resolves to the detected platform identifier, or null if unsupported.
+ * Detect the current platform identifier
+ * @returns A promise that resolves to the detected platform identifier, or null if unsupported
  */
 export async function detectPlatformId(): Promise<PlatformId | null> {
   if (platform === "linux") {
@@ -158,7 +158,7 @@ export async function detectPlatformId(): Promise<PlatformId | null> {
 }
 
 /**
- * Get the binary filename for a given platform identifier.
+ * Get the binary filename for a given platform identifier
  * @param id The platform identifier
  * @returns The corresponding binary filename
  */
@@ -171,7 +171,7 @@ export function getBinaryBasename(id: PlatformId): string {
 }
 
 /**
- * Resolve the full path to a binary file.
+ * Resolve the full path to a binary file
  * @param baseDir The base directory
  * @param name The binary filename
  * @returns The full path to the binary file
