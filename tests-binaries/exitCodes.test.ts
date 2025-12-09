@@ -58,11 +58,7 @@ describe("exit codes", () => {
   })
 
   it("returns 4 when no workspaces can be found", async () => {
-    if (!globalThis.tmpRoot) {
-      throw new Error("tmpRoot is not set")
-    }
-
-    const workspaceFilePath = join(globalThis.tmpRoot, "pnpm-workspace.yaml")
+    const workspaceFilePath = join(cwd, "pnpm-workspace.yaml")
     const workspaceContent = await readFile(workspaceFilePath, "utf8")
 
     await remove(workspaceFilePath)
@@ -86,12 +82,8 @@ describe("exit codes", () => {
   })
 
   it("returns 99 on unexpected error", async () => {
-    if (!globalThis.tmpRoot) {
-      throw new Error("tmpRoot is not set")
-    }
-
     // Corrupt pkg-a package.json to trigger a parse error
-    const packageJsonPath = join(globalThis.tmpRoot, "packages", "pkg-a", "package.json")
+    const packageJsonPath = join(cwd, "packages", "pkg-a", "package.json")
     const packageJsonContent = await readFile(packageJsonPath, "utf8")
 
     await writeFile(packageJsonPath, "{ invalid json }")

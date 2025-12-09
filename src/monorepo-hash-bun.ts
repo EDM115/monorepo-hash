@@ -132,9 +132,9 @@ async function getWorkspaceFileList(
   })
 
   // Convert to POSIX paths for consistent processing
-  const posixFiles = rawFiles.map((f) => f.split(sep)
-    .join("/"))
-  const repoPaths = posixFiles.map((f) => posix.join(relDir, f))
+  const posixFiles = rawFiles.map((f) => displayPath(f))
+  const relDirPosix = displayPath(relDir)
+  const repoPaths = posixFiles.map((f) => posix.join(relDirPosix, f))
 
   // 1) Apply root .gitignore
   const rootFiltered = rootIgnore.filter(repoPaths)
@@ -156,7 +156,7 @@ async function getWorkspaceFileList(
   pkgIgnore.add(".debug-hash")
 
   // Convert back to package‐relative POSIX paths
-  const pkgRelativePOSIX = rootFiltered.map((rp) => posix.relative(relDir, rp))
+  const pkgRelativePOSIX = rootFiltered.map((rp) => posix.relative(relDirPosix, rp))
   const pkgFilteredPOSIX = pkgIgnore.filter(pkgRelativePOSIX)
 
   // Convert to OS‐specific separators and sort
@@ -335,8 +335,13 @@ async function writeDebugFile(
   debugMap: Record<string, string>,
 ) {
   const debugPath = join(dir, ".debug-hash")
+  const normalizedMap: Record<string, string> = {}
 
-  await Bun.write(debugPath, JSON.stringify(debugMap, null, 2))
+  for (const [ key, value ] of Object.entries(debugMap)) {
+    normalizedMap[displayPath(key)] = value
+  }
+
+  await Bun.write(debugPath, JSON.stringify(normalizedMap, null, 2))
 }
 
 async function loadDebugFile(dir: string) {
@@ -359,8 +364,20 @@ async function writeRootDebugFile(
   map: Record<string, Record<string, string>>,
 ) {
   const p = join(rootDir, ".debug-hash")
+  const normalizedMap: Record<string, Record<string, string>> = {}
 
-  await Bun.write(p, JSON.stringify(map, null, 2))
+  for (const [ wsKey, perFile ] of Object.entries(map)) {
+    const normWsKey = displayPath(wsKey)
+    const normPerFile: Record<string, string> = {}
+
+    for (const [ fileKey, hash ] of Object.entries(perFile)) {
+      normPerFile[displayPath(fileKey)] = hash
+    }
+
+    normalizedMap[normWsKey] = normPerFile
+  }
+
+  await Bun.write(p, JSON.stringify(normalizedMap, null, 2))
 }
 
 async function loadRootDebugFile(rootDir: string) {
@@ -425,9 +442,8 @@ async function computePerFileHashes(
 
   // Pre-normalize paths to avoid repeated split/join
   const normalized = fileList.map((rel) => [
-    rel, rel.split(sep)
-      .join("/"),
-  ])
+    rel, displayPath(rel),
+  ] as const)
 
   for (let i = 0; i < normalized.length; i += CONCURRENCY) {
     const batch = normalized.slice(i, i + CONCURRENCY)
@@ -505,8 +521,13 @@ async function writeRootHashFile(
   map: Record<string, string>,
 ) {
   const p = join(rootDir, ".hash")
+  const normalized: Record<string, string> = {}
 
-  await Bun.write(p, JSON.stringify(map, null, 2))
+  for (const [ key, value ] of Object.entries(map)) {
+    normalized[displayPath(key)] = value
+  }
+
+  await Bun.write(p, JSON.stringify(normalized, null, 2))
 }
 
 async function loadRootHashFile(rootDir: string) {
@@ -534,8 +555,7 @@ async function generateHashes(
     let map: Record<string, string> = {}
 
     for (const [ name, { relDir }] of entries) {
-      const posixRel = relDir.split(sep)
-        .join("/")
+      const posixRel = displayPath(relDir)
 
       map[posixRel] = finalCache[name]
     }
@@ -563,7 +583,7 @@ async function generateHashes(
       await Bun.write(hashPath, current)
 
       return {
-        relDir, hash: current,
+        relDir: displayPath(relDir), hash: current,
       }
     })
     let results = await Promise.all(writes)
@@ -595,8 +615,7 @@ async function compareHashes(pkgs: Record<string, PackageInfo>, finalCache: Reco
       const currentHex = finalCache[pkgName]
 
       if (unified) {
-        const posixRel = info.relDir.split(sep)
-          .join("/")
+        const posixRel = displayPath(info.relDir)
         const oldHex = rootHashes
           ? rootHashes[posixRel]
           : undefined
@@ -694,8 +713,7 @@ async function compareHashes(pkgs: Record<string, PackageInfo>, finalCache: Reco
   const oldMapEntries = await Promise.all(Object.entries(pkgs)
     .map(async ([ pkgName, info ]) => {
       if (unified) {
-        const posixRel = info.relDir.split(sep)
-          .join("/")
+        const posixRel = displayPath(info.relDir)
         const oldHex = rootHashes
           ? rootHashes[posixRel]
           : undefined
@@ -737,8 +755,7 @@ async function compareHashes(pkgs: Record<string, PackageInfo>, finalCache: Reco
 
   const checkResults = await Promise.all(toCheck.map(async ([ pkgName, info ]) => {
     const newHash = finalCache[pkgName]
-    const posixRel = info.relDir.split(sep)
-      .join("/")
+    const posixRel = displayPath(info.relDir)
     const oldHash = pkgName in oldHashMap
       ? oldHashMap[pkgName]
       : undefined
@@ -746,11 +763,11 @@ async function compareHashes(pkgs: Record<string, PackageInfo>, finalCache: Reco
 
     if (!existsHash) {
       return {
-        type: "missing",
-        name: info.relDir,
+        type: "missing" as const,
+        name: posixRel,
         newHash,
         oldHash: newHash,
-        changedDeps: [],
+        changedDeps: [] as string[],
       }
     }
 
@@ -772,8 +789,8 @@ async function compareHashes(pkgs: Record<string, PackageInfo>, finalCache: Reco
 
     if (oldHash !== newHash || depsChanged.length > 0) {
       return {
-        type: "changed",
-        name: info.relDir,
+        type: "changed" as const,
+        name: posixRel,
         oldHash,
         newHash,
         changedDeps: changedDepsRelDir,
@@ -781,11 +798,11 @@ async function compareHashes(pkgs: Record<string, PackageInfo>, finalCache: Reco
     }
 
     return {
-      type: "unchanged",
-      name: info.relDir,
+      type: "unchanged" as const,
+      name: posixRel,
       newHash,
       oldHash: newHash,
-      changedDeps: [],
+      changedDeps: [] as string[],
     }
   }))
 
@@ -981,8 +998,7 @@ async function hash() {
 
       if (debug && mode === "generate") {
         if (unified) {
-          const posixRel = relDir.split(sep)
-            .join("/")
+          const posixRel = displayPath(relDir)
 
           debugOutput[posixRel] = perFileMap
         } else {

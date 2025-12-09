@@ -8,10 +8,7 @@ import {
   writeFile,
   writeJson,
 } from "fs-extra"
-import {
-  join,
-  sep,
-} from "node:path"
+import { join } from "node:path"
 import {
   afterAll,
   beforeAll,
@@ -97,7 +94,7 @@ packages:
     }, { spaces: 2 })
     await writeFile(join(frontend, "index.js"), "export const render = () => {}\n")
 
-    await copyFile(join(globalThis.tmpRoot, "monorepo-hash.mjs"), join(demoDir, "monorepo-hash.mjs"))
+    await copyFile(join(cwd, "monorepo-hash.mjs"), join(demoDir, "monorepo-hash.mjs"))
   })
 
   afterAll(async () => {
@@ -108,10 +105,10 @@ packages:
 
   const pkgs = [
     "database",
-    join("packages", "linter"),
-    join("packages", "cli-tools"),
-    join("services", "backend"),
-    join("services", "frontend"),
+    "packages/linter",
+    "packages/cli-tools",
+    "services/backend",
+    "services/frontend",
   ]
 
   it("generates all hashes and matches snapshot", async () => {
@@ -121,16 +118,7 @@ packages:
     // oxlint-disable-next-line no-unsafe-type-assertion
     const content = JSON.parse(await readFile(rootPath, "utf8")) as Record<string, string>
 
-    const normalizedEntries = pkgs.map((rel) => {
-      const posixRel = rel.split(sep)
-        .join("/")
-
-      return [ posixRel, content[posixRel] ] as const
-    })
-
-    const hashes: Record<string, string> = Object.fromEntries(normalizedEntries)
-
-    expect(hashes)
+    expect(content)
       .toMatchSnapshot()
   })
 
@@ -144,16 +132,13 @@ packages:
     })
 
     const hashEntries = await Promise.all(hashPromises)
-    const normalizedEntries = hashEntries.map(([ rel, hash ]) => {
-      const posixRel = rel.split(sep)
-        .join("/")
+    const hashObj: Record<string, string> = {}
 
-      return [ posixRel, hash ] as const
-    })
+    for (const [ rel, hash ] of hashEntries) {
+      hashObj[rel] = hash
+    }
 
-    const hashes: Record<string, string> = Object.fromEntries(normalizedEntries)
-
-    expect(hashes)
+    expect(hashObj)
       .toMatchSnapshot()
   })
 
@@ -171,10 +156,8 @@ packages:
     const content = JSON.parse(await readFile(rootPath, "utf8")) as Record<string, string>
     const keys = Object.keys(content)
 
-    const cliToolsKey = [ "packages", "cli-tools" ].join("/")
-
     expect(keys)
-      .toContain(cliToolsKey)
+      .toContain("packages/cli-tools")
     expect(keys)
       .toHaveLength(1)
   })
@@ -201,7 +184,7 @@ packages:
     const existsResults = await Promise.all(existsPromises)
 
     for (const [ rel, exists ] of existsResults) {
-      if (rel === join("packages", "cli-tools")) {
+      if (rel === "packages/cli-tools") {
         expect(exists)
           .toBe(true)
       } else {
@@ -214,14 +197,13 @@ packages:
   it("produces the same hash for a workspace with transitive deps as in full generate", async () => {
     // full generate
     await execa(cli, [ cliScript, "--generate" ], { cwd: demoDir })
+    const rootPath = join(demoDir, ".hash")
     // oxlint-disable-next-line no-unsafe-type-assertion
-    const fullContent = JSON.parse(await readFile(join(demoDir, ".hash"), "utf8")) as Record<string, string>
-    const backendKey = [ "services", "backend" ].join("/")
+    const fullContent = JSON.parse(await readFile(rootPath, "utf8")) as Record<string, string>
+    const backendKey = "services/backend"
     const full = fullContent[backendKey]
 
     // remove root .hash
-    const rootPath = join(demoDir, ".hash")
-
     if (await pathExists(rootPath)) {
       await remove(rootPath)
     }
@@ -268,7 +250,7 @@ packages:
     const existsResults = await Promise.all(existsPromises)
 
     for (const [ rel, exists ] of existsResults) {
-      if (rel === join("services", "backend")) {
+      if (rel === "services/backend") {
         expect(exists)
           .toBe(true)
       } else {

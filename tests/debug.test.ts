@@ -4,10 +4,7 @@ import {
   remove,
   writeFile,
 } from "fs-extra"
-import {
-  join,
-  sep,
-} from "node:path"
+import { join } from "node:path"
 import {
   beforeAll,
   describe,
@@ -46,7 +43,7 @@ describe("debug mode", () => {
     )
 
     expect(result.all)
-      .toMatch(new RegExp(`⚠️\\s+<debug>\\s+packages\\${sep}pkg-b\\s+diverging files\\s*:`))
+      .toMatch(new RegExp(`⚠️\\s+<debug>\\s+packages\\/pkg-b\\s+diverging files\\s*:`))
     expect(result.all)
       .toContain("• index.js")
     expect(result.exitCode)
@@ -77,7 +74,7 @@ describe("debug mode", () => {
     )
 
     expect(result.all)
-      .toMatch(new RegExp(`⚠️\\s+<debug>\\s+packages\\${sep}pkg-b\\s+diverging files\\s*:`))
+      .toMatch(new RegExp(`⚠️\\s+<debug>\\s+packages\\/pkg-b\\s+diverging files\\s*:`))
     expect(result.all)
       .toContain("• index.js")
     expect(result.exitCode)

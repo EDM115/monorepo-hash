@@ -4,10 +4,7 @@ import {
   remove,
   writeFile,
 } from "fs-extra"
-import {
-  join,
-  sep,
-} from "node:path"
+import { join } from "node:path"
 import { pathToFileURL } from "node:url"
 import {
   afterEach,
@@ -38,20 +35,16 @@ describe("monorepo-hash CLI output", () => {
     expect(result.all)
       .toMatch(/✅ Unchanged \(3\) :/m)
     expect(result.all)
-      .toMatch(new RegExp(`• packages${sep.replace(/\\/g, "\\\\")}pkg-a`, "m"))
+      .toMatch(new RegExp(`• packages/pkg-a`, "m"))
     expect(result.all)
-      .toMatch(new RegExp(`• packages${sep.replace(/\\/g, "\\\\")}pkg-b`, "m"))
+      .toMatch(new RegExp(`• packages/pkg-b`, "m"))
     expect(result.all)
-      .toMatch(new RegExp(`• packages${sep.replace(/\\/g, "\\\\")}pkg-c`, "m"))
+      .toMatch(new RegExp(`• packages/pkg-c`, "m"))
   })
 
   it("detects a file change and exits with non-zero, listing the changed workspace", async () => {
-    if (!globalThis.tmpRoot) {
-      throw new Error("tmpRoot is not set")
-    }
-
     await execa(cli, ["--generate"], { cwd })
-    const pkgBIndex = join(globalThis.tmpRoot, "packages", "pkg-b", "index.js")
+    const pkgBIndex = join(cwd, "packages", "pkg-b", "index.js")
 
     await writeFile(pkgBIndex, "export const msg = \"pkg-b (edited)\"\n")
     const result = await execa(cli, ["--compare"], {
@@ -63,12 +56,12 @@ describe("monorepo-hash CLI output", () => {
 
     const expectedPattern = new RegExp(
       "✅ Unchanged \\(1\\) :\\s*"
-      + `• packages${sep.replace(/\\/g, "\\\\")}pkg-c\\s*`
+      + `• packages/pkg-c\\s*`
       + "⚠️  Changed \\(2\\) :\\s*"
-      + `• packages${sep.replace(/\\/g, "\\\\")}pkg-a[\\s\\S]*?`
+      + `• packages/pkg-a[\\s\\S]*?`
       + "🚧 changed dependency\\(s\\) :[\\s\\S]*?"
-      + `• packages${sep.replace(/\\/g, "\\\\")}pkg-b[\\s\\S]*?`
-      + `• packages${sep.replace(/\\/g, "\\\\")}pkg-b`,
+      + `• packages/pkg-b[\\s\\S]*?`
+      + `• packages/pkg-b`,
       "ms",
     )
 
@@ -77,15 +70,11 @@ describe("monorepo-hash CLI output", () => {
   })
 
   it("reports missing .hash if you delete an entry and run --compare", async () => {
-    if (!globalThis.tmpRoot) {
-      throw new Error("tmpRoot is not set")
-    }
-
     await execa(cli, ["--generate"], { cwd })
-    const rootHashPath = join(globalThis.tmpRoot, ".hash")
+    const rootHashPath = join(cwd, ".hash")
     // oxlint-disable-next-line no-unsafe-type-assertion
     const content = JSON.parse(await readFile(rootHashPath, "utf8")) as Record<string, string>
-    const pkgAKey = [ "packages", "pkg-a" ].join("/")
+    const pkgAKey = "packages/pkg-a"
 
     delete content[pkgAKey]
     await writeFile(rootHashPath, `${JSON.stringify(content, null, 2)}\n`)
@@ -98,16 +87,12 @@ describe("monorepo-hash CLI output", () => {
     expect(result.all)
       .toContain("❓ Missing .hash files (1) :")
     expect(result.all)
-      .toContain(`• packages${sep}pkg-a`)
+      .toContain(`• packages/pkg-a`)
   })
 
   it("reports missing .hash if you delete a hash file and run --compare (per workspace)", async () => {
-    if (!globalThis.tmpRoot) {
-      throw new Error("tmpRoot is not set")
-    }
-
     await execa(cli, [ "--generate", "--workspaces" ], { cwd })
-    const hashAPath = join(globalThis.tmpRoot, "packages", "pkg-a", ".hash")
+    const hashAPath = join(cwd, "packages", "pkg-a", ".hash")
 
     await remove(hashAPath)
     const result = await execa(cli, [ "--compare", "--workspaces" ], {
@@ -119,20 +104,16 @@ describe("monorepo-hash CLI output", () => {
     expect(result.all)
       .toContain("❓ Missing .hash files (1) :")
     expect(result.all)
-      .toContain(`• packages${sep}pkg-a`)
+      .toContain(`• packages/pkg-a`)
   })
 
   it("produces deterministic hashes across consecutive --generate runs", async () => {
-    if (!globalThis.tmpRoot) {
-      throw new Error("tmpRoot is not set")
-    }
-
     await execa(cli, ["--generate"], { cwd })
-    const rootHashPath = join(globalThis.tmpRoot, ".hash")
+    const rootHashPath = join(cwd, ".hash")
     // oxlint-disable-next-line no-unsafe-type-assertion
     const firstContent = JSON.parse(await readFile(rootHashPath, "utf8")) as Record<string, string>
-    const pkgAKey = [ "packages", "pkg-a" ].join("/")
-    const pkgBKey = [ "packages", "pkg-b" ].join("/")
+    const pkgAKey = "packages/pkg-a"
+    const pkgBKey = "packages/pkg-b"
     const firstA = firstContent[pkgAKey]
     const firstB = firstContent[pkgBKey]
 
@@ -150,13 +131,9 @@ describe("monorepo-hash CLI output", () => {
   })
 
   it("produces deterministic hashes across consecutive --generate runs (per workspace)", async () => {
-    if (!globalThis.tmpRoot) {
-      throw new Error("tmpRoot is not set")
-    }
-
     await execa(cli, [ "--generate", "--workspaces" ], { cwd })
-    const aPath = join(globalThis.tmpRoot, "packages", "pkg-a", ".hash")
-    const bPath = join(globalThis.tmpRoot, "packages", "pkg-b", ".hash")
+    const aPath = join(cwd, "packages", "pkg-a", ".hash")
+    const bPath = join(cwd, "packages", "pkg-b", ".hash")
     const firstA = (await readFile(aPath, "utf8")).trim()
     const firstB = (await readFile(bPath, "utf8")).trim()
 
@@ -225,20 +202,16 @@ console.log(JSON.stringify(result))
     expect(parsed?.unchangedTargets)
       .toHaveLength(3)
     expect(parsed?.unchangedTargets)
-      .toContain(`packages${sep}pkg-a`)
+      .toContain(`packages/pkg-a`)
     expect(parsed?.unchangedTargets)
-      .toContain(`packages${sep}pkg-b`)
+      .toContain(`packages/pkg-b`)
     expect(parsed?.unchangedTargets)
-      .toContain(`packages${sep}pkg-c`)
+      .toContain(`packages/pkg-c`)
   })
 
   it("detects a file change and lists the changed workspace", async () => {
-    if (!globalThis.tmpRoot) {
-      throw new Error("tmpRoot is not set")
-    }
-
     await execa(cliBinary, ["--generate"], { cwd })
-    const pkgBIndex = join(globalThis.tmpRoot, "packages", "pkg-b", "index.js")
+    const pkgBIndex = join(cwd, "packages", "pkg-b", "index.js")
 
     await writeFile(pkgBIndex, "export const msg = \"pkg-b (edited again)\"\n")
 
@@ -270,27 +243,23 @@ console.log(JSON.stringify(result))
     expect(parsed?.unchangedTargets)
       .toHaveLength(1)
     expect(parsed?.unchangedTargets)
-      .toContain(`packages${sep}pkg-c`)
+      .toContain(`packages/pkg-c`)
     expect(parsed?.changedTargets)
       .toHaveLength(2)
     const changedNames = parsed?.changedTargets.map((t) => t.name) ?? []
 
     expect(changedNames)
-      .toContain(`packages${sep}pkg-a`)
+      .toContain(`packages/pkg-a`)
     expect(changedNames)
-      .toContain(`packages${sep}pkg-b`)
+      .toContain(`packages/pkg-b`)
   })
 
   it("reports missing .hash if you delete an entry and run --compare", async () => {
-    if (!globalThis.tmpRoot) {
-      throw new Error("tmpRoot is not set")
-    }
-
     await execa(cli, [ cliScript, "--generate" ], { cwd })
-    const rootHashPath = join(globalThis.tmpRoot, ".hash")
+    const rootHashPath = join(cwd, ".hash")
     // oxlint-disable-next-line no-unsafe-type-assertion
     const content = JSON.parse(await readFile(rootHashPath, "utf8")) as Record<string, string>
-    const pkgAKey = [ "packages", "pkg-a" ].join("/")
+    const pkgAKey = "packages/pkg-a"
 
     delete content[pkgAKey]
     await writeFile(rootHashPath, `${JSON.stringify(content, null, 2)}\n`)
@@ -323,16 +292,12 @@ console.log(JSON.stringify(result))
     expect(parsed?.missingTargets)
       .toHaveLength(1)
     expect(parsed?.missingTargets?.[0].name)
-      .toBe(`packages${sep}pkg-a`)
+      .toBe(`packages/pkg-a`)
   })
 
   it("reports missing .hash if you delete a hash file and run --compare (per workspace)", async () => {
-    if (!globalThis.tmpRoot) {
-      throw new Error("tmpRoot is not set")
-    }
-
     await execa(cliBinary, [ "--generate", "--workspaces" ], { cwd })
-    const hashAPath = join(globalThis.tmpRoot, "packages", "pkg-a", ".hash")
+    const hashAPath = join(cwd, "packages", "pkg-a", ".hash")
 
     await remove(hashAPath)
 
@@ -364,14 +329,10 @@ console.log(JSON.stringify(result))
     expect(parsed?.missingTargets)
       .toHaveLength(1)
     expect(parsed?.missingTargets?.[0].name)
-      .toBe(`packages${sep}pkg-a`)
+      .toBe(`packages/pkg-a`)
   })
 
   it("produces deterministic hashes across consecutive --generate runs", async () => {
-    if (!globalThis.tmpRoot) {
-      throw new Error("tmpRoot is not set")
-    }
-
     const harness = join(cwd, "generate.mjs")
 
     created.push(harness)
@@ -382,11 +343,11 @@ await runCli(["--generate", "--silent"])
 `)
 
     await execa(cli, [harness], { cwd })
-    const rootHashPath = join(globalThis.tmpRoot, ".hash")
+    const rootHashPath = join(cwd, ".hash")
     // oxlint-disable-next-line no-unsafe-type-assertion
     const firstContent = JSON.parse(await readFile(rootHashPath, "utf8")) as Record<string, string>
-    const pkgAKey = [ "packages", "pkg-a" ].join("/")
-    const pkgBKey = [ "packages", "pkg-b" ].join("/")
+    const pkgAKey = "packages/pkg-a"
+    const pkgBKey = "packages/pkg-b"
     const firstA = firstContent[pkgAKey]
     const firstB = firstContent[pkgBKey]
 
@@ -404,10 +365,6 @@ await runCli(["--generate", "--silent"])
   })
 
   it("produces deterministic hashes across consecutive --generate runs (per workspace)", async () => {
-    if (!globalThis.tmpRoot) {
-      throw new Error("tmpRoot is not set")
-    }
-
     const harness = join(cwd, "generate.mjs")
 
     created.push(harness)
@@ -418,8 +375,8 @@ await runCli(["--generate", "--silent", "--workspaces"])
 `)
 
     await execa(cli, [harness], { cwd })
-    const aPath = join(globalThis.tmpRoot, "packages", "pkg-a", ".hash")
-    const bPath = join(globalThis.tmpRoot, "packages", "pkg-b", ".hash")
+    const aPath = join(cwd, "packages", "pkg-a", ".hash")
+    const bPath = join(cwd, "packages", "pkg-b", ".hash")
     const firstA = (await readFile(aPath, "utf8")).trim()
     const firstB = (await readFile(bPath, "utf8")).trim()
 

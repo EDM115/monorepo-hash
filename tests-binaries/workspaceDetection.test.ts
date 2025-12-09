@@ -21,12 +21,12 @@ describe("workspace detection", () => {
   const cli = "bun"
   let cliScript: string
   let cliImport: string
-  let tmpRoot: string
+  let cwd: string
   const created: string[] = []
 
   beforeAll(() => {
-    tmpRoot = globalThis.tmpRoot
-    cliScript = join(tmpRoot, "monorepo-hash-bun.ts")
+    cwd = globalThis.tmpRoot
+    cliScript = join(cwd, "monorepo-hash-bun.ts")
     cliImport = pathToFileURL(cliScript).href
   })
 
