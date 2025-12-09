@@ -22,7 +22,7 @@ importers:
         version: 4.0.9
       '@types/node':
         specifier: latest
-        version: 24.10.1
+        version: 24.10.2
       '@typescript-eslint/parser':
         specifier: ~8.49.0
         version: 8.49.0(eslint@9.39.1(jiti@2.6.0))(typescript@5.9.3)
@@ -60,8 +60,8 @@ importers:
         specifier: ~0.8.4
         version: 0.8.4
       tsdown:
-        specifier: ~0.17.1
-        version: 0.17.1(@typescript/native-preview@7.0.0-dev.20251208.1)(typescript@5.9.3)(unplugin-unused@0.5.6)
+        specifier: ~0.17.2
+        version: 0.17.2(@typescript/native-preview@7.0.0-dev.20251208.1)(typescript@5.9.3)(unplugin-unused@0.5.6)
       typescript:
         specifier: ~5.9.3
         version: 5.9.3
@@ -70,7 +70,7 @@ importers:
         version: 0.5.6
       vitest:
         specifier: ~4.0.15
-        version: 4.0.15(@types/node@24.10.1)(jiti@2.6.0)(tsx@4.19.4)
+        version: 4.0.15(@types/node@24.10.2)(jiti@2.6.0)(tsx@4.19.4)
 
 packages:
 
@@ -344,10 +344,6 @@ packages:
   '@nodelib/fs.walk@1.2.8':
     resolution: {integrity: sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg==}
     engines: {node: '>= 8'}
-
-  '@oxc-project/runtime@0.101.0':
-    resolution: {integrity: sha512-t3qpfVZIqSiLQ5Kqt/MC4Ge/WCOGrrcagAdzTcDaggupjiGxUx4nJF2v6wUCXWSzWHn5Ns7XLv13fCJEwCOERQ==}
-    engines: {node: ^20.19.0 || >=22.12.0}
 
   '@oxc-project/types@0.101.0':
     resolution: {integrity: sha512-nuFhqlUzJX+gVIPPfuE6xurd4lST3mdcWOhyK/rZO0B9XWMKm79SuszIQEnSMmmDhq1DC8WWVYGVd+6F93o1gQ==}
@@ -658,8 +654,8 @@ packages:
   '@types/jsonfile@6.1.4':
     resolution: {integrity: sha512-D5qGUYwjvnNNextdU59/+fI+spnwtTFmyQP0h+PfIOSkNfpU6AOICUOkm4i0OnSk+NyjdPJrxCDro0sJsWlRpQ==}
 
-  '@types/node@24.10.1':
-    resolution: {integrity: sha512-GNWcUTRBgIRJD5zj+Tq0fKOJ5XZajIiBroOF0yvj2bSU1WvNdYS/dn9UxwsujGW4JX06dnHyjV2y9rRaybH0iQ==}
+  '@types/node@24.10.2':
+    resolution: {integrity: sha512-WOhQTZ4G8xZ1tjJTvKOpyEVSGgOTvJAfDK3FNFgELyaTpzhdgHVHeqW8V+UJvzF5BT+/B54T/1S2K6gd9c7bbA==}
 
   '@typescript-eslint/parser@8.49.0':
     resolution: {integrity: sha512-N9lBGA9o9aqb1hVMc9hzySbhKibHmB+N3IpoShyV6HyQYRGIhlrO5rQgttypi+yEeKsKI4idxC8Jw6gXKD4THA==}
@@ -1375,8 +1371,8 @@ packages:
     peerDependencies:
       typescript: '>=4.8.4'
 
-  tsdown@0.17.1:
-    resolution: {integrity: sha512-SqRyd/wliY0CgOhxbE3gJVUQioHVWMibeiswOruBa9XxJuFTy7xEuC9vqCCkuJ6Owqt2/F7S3vG9tXCQWQN+Fg==}
+  tsdown@0.17.2:
+    resolution: {integrity: sha512-SuU+0CWm/95KfXqojHTVuwcouIsdn7HpYcwDyOdKktJi285NxKwysjFUaxYLxpCNqqPvcFvokXLO4dZThRwzkw==}
     engines: {node: '>=20.19.0'}
     hasBin: true
     peerDependencies:
@@ -1439,8 +1435,8 @@ packages:
     resolution: {integrity: sha512-5uKD0nqiYVzlmCRs01Fhs2BdkEgBS3SAVP6ndrBsuK42iC2+JHyxM05Rm9G8+5mkmRtzMZGY8Ct5+mliZxU/Ww==}
     engines: {node: '>=18.12.0'}
 
-  unrun@0.2.18:
-    resolution: {integrity: sha512-nvnZ+3l/mCtN0XELCS7wIimS/S6XHmpf2BaojKdShHdPRi2fLNv+aLlVFEFhGNxe3Tjr37mKLqFElr4W+J5X7g==}
+  unrun@0.2.19:
+    resolution: {integrity: sha512-DbwbJ9BvPEb3BeZnIpP9S5tGLO/JIgPQ3JrpMRFIfZMZfMG19f26OlLbC2ml8RRdrI2ZA7z2t+at5tsIHbh6Qw==}
     engines: {node: '>=20.19.0'}
     hasBin: true
     peerDependencies:
@@ -1767,8 +1763,6 @@ snapshots:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.19.1
 
-  '@oxc-project/runtime@0.101.0': {}
-
   '@oxc-project/types@0.101.0': {}
 
   '@oxlint-tsgolint/darwin-arm64@0.8.4':
@@ -1963,7 +1957,7 @@ snapshots:
   '@types/fs-extra@11.0.4':
     dependencies:
       '@types/jsonfile': 6.1.4
-      '@types/node': 24.10.1
+      '@types/node': 24.10.2
 
   '@types/js-yaml@4.0.9': {}
 
@@ -1971,9 +1965,9 @@ snapshots:
 
   '@types/jsonfile@6.1.4':
     dependencies:
-      '@types/node': 24.10.1
+      '@types/node': 24.10.2
 
-  '@types/node@24.10.1':
+  '@types/node@24.10.2':
     dependencies:
       undici-types: 7.16.0
 
@@ -2070,13 +2064,13 @@ snapshots:
       chai: 6.2.1
       tinyrainbow: 3.0.3
 
-  '@vitest/mocker@4.0.15(vite@7.2.7(@types/node@24.10.1)(jiti@2.6.0)(tsx@4.19.4))':
+  '@vitest/mocker@4.0.15(vite@7.2.7(@types/node@24.10.2)(jiti@2.6.0)(tsx@4.19.4))':
     dependencies:
       '@vitest/spy': 4.0.15
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 7.2.7(@types/node@24.10.1)(jiti@2.6.0)(tsx@4.19.4)
+      vite: 7.2.7(@types/node@24.10.2)(jiti@2.6.0)(tsx@4.19.4)
 
   '@vitest/pretty-format@4.0.15':
     dependencies:
@@ -2147,7 +2141,7 @@ snapshots:
 
   bun-types@1.3.4:
     dependencies:
-      '@types/node': 24.10.1
+      '@types/node': 24.10.2
 
   cac@6.7.14: {}
 
@@ -2708,7 +2702,7 @@ snapshots:
     dependencies:
       typescript: 5.9.3
 
-  tsdown@0.17.1(@typescript/native-preview@7.0.0-dev.20251208.1)(typescript@5.9.3)(unplugin-unused@0.5.6):
+  tsdown@0.17.2(@typescript/native-preview@7.0.0-dev.20251208.1)(typescript@5.9.3)(unplugin-unused@0.5.6):
     dependencies:
       ansis: 4.2.0
       cac: 6.7.14
@@ -2723,7 +2717,7 @@ snapshots:
       tinyglobby: 0.2.15
       tree-kill: 1.2.2
       unconfig-core: 7.4.2
-      unrun: 0.2.18
+      unrun: 0.2.19
     optionalDependencies:
       typescript: 5.9.3
       unplugin-unused: 0.5.6
@@ -2776,16 +2770,15 @@ snapshots:
       picomatch: 4.0.3
       webpack-virtual-modules: 0.6.2
 
-  unrun@0.2.18:
+  unrun@0.2.19:
     dependencies:
-      '@oxc-project/runtime': 0.101.0
       rolldown: 1.0.0-beta.53
 
   uri-js@4.4.1:
     dependencies:
       punycode: 2.3.1
 
-  vite@7.2.7(@types/node@24.10.1)(jiti@2.6.0)(tsx@4.19.4):
+  vite@7.2.7(@types/node@24.10.2)(jiti@2.6.0)(tsx@4.19.4):
     dependencies:
       esbuild: 0.25.12
       fdir: 6.5.0(picomatch@4.0.3)
@@ -2794,15 +2787,15 @@ snapshots:
       rollup: 4.53.3
       tinyglobby: 0.2.15
     optionalDependencies:
-      '@types/node': 24.10.1
+      '@types/node': 24.10.2
       fsevents: 2.3.3
       jiti: 2.6.0
       tsx: 4.19.4
 
-  vitest@4.0.15(@types/node@24.10.1)(jiti@2.6.0)(tsx@4.19.4):
+  vitest@4.0.15(@types/node@24.10.2)(jiti@2.6.0)(tsx@4.19.4):
     dependencies:
       '@vitest/expect': 4.0.15
-      '@vitest/mocker': 4.0.15(vite@7.2.7(@types/node@24.10.1)(jiti@2.6.0)(tsx@4.19.4))
+      '@vitest/mocker': 4.0.15(vite@7.2.7(@types/node@24.10.2)(jiti@2.6.0)(tsx@4.19.4))
       '@vitest/pretty-format': 4.0.15
       '@vitest/runner': 4.0.15
       '@vitest/snapshot': 4.0.15
@@ -2819,10 +2812,10 @@ snapshots:
       tinyexec: 1.0.2
       tinyglobby: 0.2.15
       tinyrainbow: 3.0.3
-      vite: 7.2.7(@types/node@24.10.1)(jiti@2.6.0)(tsx@4.19.4)
+      vite: 7.2.7(@types/node@24.10.2)(jiti@2.6.0)(tsx@4.19.4)
       why-is-node-running: 2.3.0
     optionalDependencies:
-      '@types/node': 24.10.1
+      '@types/node': 24.10.2
     transitivePeerDependencies:
       - jiti
       - less
