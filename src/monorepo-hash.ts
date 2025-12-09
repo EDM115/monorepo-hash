@@ -7,7 +7,7 @@ import {
   readFile,
   writeFile,
 } from "node:fs/promises"
-import { cpus } from "node:os"
+import { availableParallelism } from "node:os"
 import {
   dirname,
   join,
@@ -520,7 +520,7 @@ export async function generateDebug(
     }
 
     if (diverged.length > 0) {
-      log(`⚠️  <debug> ${displayPath(info.relDir)} diverging files :`)
+      log(`⚠️ <debug> ${displayPath(info.relDir)} diverging files :`)
       diverged.forEach((f) => log(`  • ${displayPath(f)}`))
       log("")
     }
@@ -624,7 +624,7 @@ export function computeFinalHash(
   }
 
   // Start the chain
-  let chain = createHash("sha256")
+  const chain = createHash("sha256")
     .update(pkg.ownHash)
 
   // Then incorporate each dependency's final hash (as Buffer)
@@ -632,14 +632,12 @@ export function computeFinalHash(
     const depHex = computeFinalHash(dep, pkgs, cache)
     const depBuf = Buffer.from(depHex, "hex")
 
-    chain = chain.update(depBuf)
+    chain.update(depBuf)
   }
 
-  const finalHex = chain.digest("hex")
+  cache[pkgName] = chain.digest("hex")
 
-  cache[pkgName] = finalHex
-
-  return finalHex
+  return cache[pkgName]
 }
 
 /**
@@ -991,7 +989,7 @@ export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCach
   }
 
   if (changedTargets.length > 0) {
-    log(`⚠️  Changed (${changedTargets.length}) :`)
+    log(`⚠️ Changed (${changedTargets.length}) :`)
 
     for (const {
       name, oldHash, newHash, changedDeps,
@@ -1129,7 +1127,7 @@ export async function hash(): Promise<Awaited<ReturnType<typeof generateHashes>>
 
   log(`\r🔄 Computing hashes (${zeroPad(count, pad)}/${total})`, true)
 
-  const concurrency = Math.max(1, cpus().length)
+  const concurrency = Math.max(2, availableParallelism())
   const debugOutput: Record<string, Record<string, string>> = {}
   const pkgInfos = await mapLimit<string, [string, PackageInfo]>(
     toHash,
@@ -1305,24 +1303,24 @@ Arguments :
   } else {
     if (mode === "generate") {
       if (targets) {
-        log(`ℹ️  Generating hashes for specified targets... (${targets.join(", ")})\n`)
+        log(`ℹ️ Generating hashes for specified targets... (${targets.join(", ")})\n`)
       } else {
-        log("ℹ️  Generating hashes for all workspaces...\n")
+        log("ℹ️ Generating hashes for all workspaces...\n")
       }
     } else {
       if (targets) {
-        log(`ℹ️  Comparing hashes for specified targets... (${targets.join(", ")})\n`)
+        log(`ℹ️ Comparing hashes for specified targets... (${targets.join(", ")})\n`)
       } else if (targets === null) {
-        log("ℹ️  Comparing hashes for all workspaces...\n")
+        log("ℹ️ Comparing hashes for all workspaces...\n")
       }
     }
 
     if (debug) {
-      log("ℹ️  Debug mode enabled\n")
+      log("ℹ️ Debug mode enabled\n")
     }
 
     if (!unified) {
-      log("ℹ️  Per-workspace mode enabled\n")
+      log("ℹ️ Per-workspace mode enabled\n")
     }
   }
 
@@ -1351,7 +1349,7 @@ Arguments :
   repoRoot = detected?.root ?? ""
   workspaceGlobs = detected?.globs ?? []
 
-  log(`ℹ️  Using ${packageManager} workspaces from ${repoRoot}\n`)
+  log(`ℹ️ Using ${packageManager} workspaces from ${repoRoot}\n`)
 
   // Compile root .gitignore
   rootIgnore = ignore()
@@ -1368,9 +1366,7 @@ Arguments :
   }
 
   try {
-    const result = await hash()
-
-    return result
+    return await hash()
   } catch (err) {
     console.error("❌ Unexpected error :")
     console.error(err instanceof Error
