@@ -1,12 +1,35 @@
 # monorepo-hash changelog
 
 ## v2.0.0
-...
+### Breaking changes
+💥✨⚡️ feat/perf : the Bun binary is now made the default, accessed with the `monorepo-hash` command. the pure Node version is still available either from the `monorepo-hash-js` command or the programmatic API, with the same exports than before  
+💥✨⚡️🗑️ feat/perf/deprecate : the unified mode is now the default. this means faster runs and less VCS clutter. to revert to the older behavior, use the `--workspaces`/`-w` flag. to migrate, while on the older version delete every `.hash` file and run `pnpm monorepo-hash -g -u`. the `--unified`/`-u` flag has been removed  
+💥🚑️ hotfix : the Bun version no longer produce different hashes due to a mistake in the `CryptoHasher` initialization  
+💥🩹🔊 small fix/logs : the logged/returned paths are always POSIX-style
+
+⚡️ perf : properly get the available parallelism (CPU count) and minimum of 2 instead of 1  
+⚡️ perf : optimize the transitive dependencies hashing  
+⚡️ perf : reduce the amount of declared variables  
+📝 docs : update the README with informations about the binary, the older usage, the default mode change and new flag, a better explanation of the transitive dep management, how to use the other exported file, refresh the examples and disclaimer on the benchmarks  
+📦️ package : export functions and types from binary install and platform scripts in one endpoint  
+♻️ refactor : move the `exists()` helper to the platform script to not pack `monorepo-hash` again inside, drastically reducing the postinstall script size  
+🦺 types : lock in-place more things  
+📦️ build : binaries are built with Bun `1.3.4` instead of `1.3.3`  
+✅ tests : update the tests to use POSIX-style paths  
+✅ tests : update the tests to be conformant with the new default unified mode and change older tests to use the workspaces mode  
+✅🩹 tests : no longer use `globalThis`  
+💡 docs : add missing functions documentation and unify it  
+🔧 config : update the package keywords  
+🔧 config : add missing folder to the TS config  
+🔧 config : don't auto-update the exports and build types for the new endpoint  
+🔨 scripts : fix the binaries test prepare script + enable PNPM shell emulation  
+🎨 format : new format pass  
+⬆️ deps : bump all deps
 
 ---
 
 ## v1.9.0
-🚑️🐛 hotfix : the binaries no longer segfault on platforms other than Windows as they are now built each directly in their target OS (see [#18](https://github.com/EDM115/monorepo-hash/issues/18)). Binaries from [v1.8.0](#v180) have been rebuilt & republished since (except for `musl` variants which still crashes)  
+🚑️🐛 hotfix : the binaries no longer segfault on platforms other than Windows as they are now built each directly in their target OS (see [#18](https://github.com/EDM115/monorepo-hash/issues/18)). binaries from [v1.8.0](#v180) have been rebuilt & republished since (except for `musl` variants which still crashes on that version)  
 ✨⚡️ feat/perf : the binaries now ship Bun-optimized code
   - separate file just for Bun
   - most Node functions (especially I/O ones) have been swapped to Bun native ones, which should improve peformance even further
@@ -43,7 +66,7 @@
 🐛 fix : don't throw an error when using in a programmatic way and the exit code is 0  
 🐛 fix : the postinstall script now properly runs for all package managers and don't rely on NPM internals  
 🔥 qol : redeclare all deps as dev deps so they won't be resolved and installed in your node_modules 😉  
-📝 docs : document the types as well  
+💡 docs : document the types as well  
 📝 docs : document the release process  
 📝 docs : add informations about the postinstall script  
 📝 docs : add install and usage examples for Bun, NPM, Yarn and Deno  
