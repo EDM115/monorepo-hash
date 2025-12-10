@@ -492,7 +492,7 @@ export async function writeDebugFile(
   debugMap: Record<string, string>,
 ): Promise<void> {
   const debugPath = join(dir, ".debug-hash")
-  const normalizedMap: Record<string, string> = {}
+  const normalizedMap: Record<string, string> = Object.create(null)
 
   for (const [ key, value ] of Object.entries(debugMap)) {
     normalizedMap[displayPath(key)] = value
@@ -528,11 +528,11 @@ export async function writeRootDebugFile(
   map: Record<string, Record<string, string>>,
 ): Promise<void> {
   const p = join(rootDir, ".debug-hash")
-  const normalizedMap: Record<string, Record<string, string>> = {}
+  const normalizedMap: Record<string, Record<string, string>> = Object.create(null)
 
   for (const [ wsKey, perFile ] of Object.entries(map)) {
     const normWsKey = displayPath(wsKey)
-    const normPerFile: Record<string, string> = {}
+    const normPerFile: Record<string, string> = Object.create(null)
 
     for (const [ fileKey, hash ] of Object.entries(perFile)) {
       normPerFile[displayPath(fileKey)] = hash
@@ -601,7 +601,7 @@ export async function computePerFileHashes(
   dir: string,
   fileList: string[],
 ): Promise<Record<string, string>> {
-  const result: Record<string, string> = {}
+  const result: Record<string, string> = Object.create(null)
   const CONCURRENCY = 100
 
   const entries = await mapLimit(fileList, CONCURRENCY, async (rel) => {
@@ -616,8 +616,8 @@ export async function computePerFileHashes(
     return [ norm, fileHash ] as const
   })
 
-  for (const [ norm, partialHash ] of entries) {
-    result[norm] = partialHash
+  for (let i = 0; i < entries.length; i++) {
+    result[entries[i][0]] = entries[i][1]
   }
 
   return result
@@ -711,7 +711,7 @@ export async function writeRootHashFile(
   map: Record<string, string>,
 ): Promise<void> {
   const p = join(rootDir, ".hash")
-  const normalized: Record<string, string> = {}
+  const normalized: Record<string, string> = Object.create(null)
   const existing = await loadRootHashFile(rootDir)
 
   // Preserve existing entries not in the new map
@@ -745,7 +745,7 @@ export async function generateHashes(
     .filter(([ _, { relDir }]) => !targets || targets.includes(relDir))
 
   if (unified) {
-    const map: Record<string, string> = {}
+    const map: Record<string, string> = Object.create(null)
 
     for (const [ name, { relDir }] of entries) {
       map[displayPath(relDir)] = finalCache[name]
@@ -855,7 +855,7 @@ export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCach
     .map((r) => r.pkgName))
 
   // 2) build a quick adjacency map from packageName to its internal deps
-  const adjacency: Record<string, string[]> = {}
+  const adjacency: Record<string, string[]> = Object.create(null)
 
   for (const [ name, info ] of Object.entries(pkgs)) {
     // deps only includes other workspaces
@@ -863,7 +863,7 @@ export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCach
   }
 
   // 3) given a pkgName, returns the set of all workspace names it (transitively) depends on
-  const transitiveDepsCache: Record<string, Set<string>> = {}
+  const transitiveDepsCache: Record<string, Set<string>> = Object.create(null)
 
   function getTransitiveDeps(pkgName: string): Set<string> {
     if (transitiveDepsCache[pkgName]) {
@@ -936,7 +936,7 @@ export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCach
         return [ pkgName, oldHex ] as [string, string]
       }
     }))
-  const oldHashMap: Record<string, string> = {}
+  const oldHashMap: Record<string, string> = Object.create(null)
 
   oldMapEntries.forEach((entry) => {
     if (entry) {
@@ -1099,8 +1099,8 @@ export async function hash(): Promise<Awaited<ReturnType<typeof generateHashes>>
     deps: string[];
   }
 
-  const meta: Record<string, Meta> = {}
-  const relToName: Record<string, string> = {}
+  const meta: Map<string, Meta> = new Map()
+  const relToName: Map<string, string> = new Map()
 
   // Read all package.json files in parallel
   const pkgDataList = await Promise.all(pkgJsonPaths.map(async (pkgJson) => {
@@ -1121,29 +1121,47 @@ export async function hash(): Promise<Awaited<ReturnType<typeof generateHashes>>
   } of pkgDataList) {
     const pkgName: string = pkgData.name
 
-    meta[pkgName] = {
+    meta.set(pkgName, {
       dir, relDir, manifest: pkgData, deps: [],
-    }
-    relToName[relDir] = pkgName
+    })
+    relToName.set(relDir, pkgName)
   }
 
   // Resolve internal deps for all packages
-  const metaKeys = new Set(Object.keys(meta))
-
-  for (const info of Object.values(meta)) {
+  for (const info of meta.values()) {
     const {
       dependencies, devDependencies, peerDependencies,
     } = info.manifest
-    const allDeps = {
-      ...dependencies,
-      ...devDependencies,
-      ...peerDependencies,
+
+    // Collect dep keys without creating intermediate merged object
+    const depKeys: string[] = []
+
+    if (dependencies) {
+      for (const d of Object.keys(dependencies)) {
+        if (meta.has(d)) {
+          depKeys.push(d)
+        }
+      }
     }
 
-    info.deps = Object.keys(allDeps)
-      .filter((d) => metaKeys.has(d))
-      // oxlint-disable-next-line no-array-sort
-      .sort()
+    if (devDependencies) {
+      for (const d of Object.keys(devDependencies)) {
+        if (meta.has(d) && !depKeys.includes(d)) {
+          depKeys.push(d)
+        }
+      }
+    }
+
+    if (peerDependencies) {
+      for (const d of Object.keys(peerDependencies)) {
+        if (meta.has(d) && !depKeys.includes(d)) {
+          depKeys.push(d)
+        }
+      }
+    }
+
+    // oxlint-disable-next-line no-array-sort
+    info.deps = depKeys.sort()
   }
 
   // Determine which packages actually need hashing
@@ -1155,22 +1173,25 @@ export async function hash(): Promise<Awaited<ReturnType<typeof generateHashes>>
     }
 
     namesToProcess.add(pkgName)
+    const pkgMeta = meta.get(pkgName)
 
-    for (const dep of meta[pkgName].deps) {
-      addWithDeps(dep)
+    if (pkgMeta) {
+      for (const dep of pkgMeta.deps) {
+        addWithDeps(dep)
+      }
     }
   }
 
   if (targets) {
     for (const t of targets) {
-      const name = relToName[t]
+      const name = relToName.get(t)
 
       if (name) {
         addWithDeps(name)
       }
     }
   } else {
-    for (const n of Object.keys(meta)) {
+    for (const n of meta.keys()) {
       namesToProcess.add(n)
     }
   }
@@ -1191,14 +1212,20 @@ export async function hash(): Promise<Awaited<ReturnType<typeof generateHashes>>
   log(`\r🔄 Computing hashes (${zeroPad(count, pad)}/${total})`, true)
 
   const concurrency = Math.max(2, availableParallelism())
-  const debugOutput: Record<string, Record<string, string>> = {}
+  const debugOutput: Record<string, Record<string, string>> = Object.create(null)
   const pkgInfos = await mapLimit<string, [string, PackageInfo]>(
     toHash,
     concurrency,
     async (pkgName): Promise<[string, PackageInfo]> => {
+      const pkgMeta = meta.get(pkgName)
+
+      if (!pkgMeta) {
+        throw new Error(`Metadata missing for package ${pkgName}`)
+      }
+
       const {
         dir, relDir, manifest, deps,
-      } = meta[pkgName]
+      } = pkgMeta
 
       // Get file list after ignores
       const fileList = await getWorkspaceFileList(dir, relDir, rootIgnore)
@@ -1245,7 +1272,7 @@ export async function hash(): Promise<Awaited<ReturnType<typeof generateHashes>>
   log("\n")
 
   // 4) recursively compute final hash (aggregate) for needed packages
-  const finalCache: Record<string, string> = {}
+  const finalCache: Record<string, string> = Object.create(null)
 
   for (const pkgName of toHash) {
     computeFinalHash(pkgName, pkgs, finalCache)

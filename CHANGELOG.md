@@ -17,7 +17,10 @@
 ⚡️ perf : optimize the transitive dependencies hashing  
 ⚡️ perf : revert the change from `sort()` to `toSorted()` since the arrays benefited from being mutated in-place  
 ⚡️ perf : don't convert to POSIX when not needed  
-⚡️ perf : reduce the amount of declared variables  
+⚡️ perf : reduce the amount of declared variables and objects  
+⚡️ perf : avoid prototype chain lookups in hot paths  
+⚡️ perf : use maps where possible for faster lookups  
+⚡️ perf : use indexed loops where possible  
 ⚡️ perf : cache the need to convert the path separator  
 ⚡️ perf : early exit from the files listing when no files are found  
 📝 docs : update the README with informations about the binary, the older usage, the default mode change and new flag, a better explanation of the transitive dep management, how to use the other exported file, refresh the examples and disclaimer on the benchmarks  
