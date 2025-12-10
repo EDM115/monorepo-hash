@@ -5,11 +5,36 @@
   "[typescript]": {
     "editor.defaultFormatter": "vscode.typescript-language-features"
   },
+  "editor.tabSize": 2,
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.patterns": {
+    ".oxlintrc.json": "eslint.*",
+    "tsdown.config.*": "tsconfig.*",
+    "package.json": ".node-version, pnpm*",
+    "README.md": "LICENSE, .gitignore, CHANGELOG.md, logo.*",
+    "vitest.config.*": "vitest.*"
+  },
+  "files.eol": "\n",
+  "files.insertFinalNewline": true,
+  "gremlins.showInProblemPane": true,
+  "importCost.fontStyle": "italic",
+  "importCost.largePackageDarkColor": "#FF5555",
+  "importCost.largePackageLightColor": "#FF5555",
+  "importCost.mediumPackageLightColor": "#50FA7B",
+  "importCost.smallPackageDarkColor": "#50FA7B",
+  "importCost.smallPackageLightColor": "#50FA7B",
   "javascript.inlayHints.functionLikeReturnTypes.enabled": true,
   "javascript.inlayHints.parameterNames.enabled": "all",
   "javascript.updateImportsOnFileMove.enabled": "always",
+  "oxc.enable": true,
+  "oxc.typeAware": true,
+  "oxc.unusedDisableDirectives": "warn",
+  "search.exclude": {
+    "pnpm-lock.yaml": true
+  },
   "typescript.inlayHints.enumMemberValues.enabled": true,
   "typescript.inlayHints.functionLikeReturnTypes.enabled": true,
   "typescript.inlayHints.parameterNames.enabled": "all",
-  "typescript.inlayHints.propertyDeclarationTypes.enabled": true
+  "typescript.inlayHints.propertyDeclarationTypes.enabled": true,
+  "typescript.tsdk": "node_modules\\typescript\\lib"
 }
