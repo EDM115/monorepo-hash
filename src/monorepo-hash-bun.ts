@@ -446,28 +446,21 @@ async function computePerFileHashes(
   const result: Record<string, string> = {}
   const CONCURRENCY = 100
 
-  // Pre-normalize paths to avoid repeated split/join
-  const normalized = fileList.map((rel) => [ rel, displayPath(rel) ] as const)
+  const entries = await mapLimit(fileList, CONCURRENCY, async (rel) => {
+    const norm = displayPath(rel)
+    const fullPath = join(dir, rel)
+    const content = await file(fullPath)
+      .arrayBuffer()
+    const fileHash = new CryptoHasher("sha256")
+      .update(norm)
+      .update(content)
+      .digest("hex")
 
-  for (let i = 0; i < normalized.length; i += CONCURRENCY) {
-    const batch = normalized.slice(i, i + CONCURRENCY)
+    return [ norm, fileHash ] as const
+  })
 
-    // oxlint-disable-next-line no-await-in-loop : Needed to not blow up memory with too many concurrent reads
-    const partial = await Promise.all(batch.map(async ([ rel, norm ]) => {
-      const fullPath = join(dir, rel)
-      const content = await file(fullPath)
-        .arrayBuffer()
-      const fileHash = new CryptoHasher("sha256")
-        .update(norm)
-        .update(content)
-        .digest("hex")
-
-      return [ norm, fileHash ] as [string, string]
-    }))
-
-    for (const [ norm, partialHash ] of partial) {
-      result[norm] = partialHash
-    }
+  for (const [ norm, partialHash ] of entries) {
+    result[norm] = partialHash
   }
 
   return result
