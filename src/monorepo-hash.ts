@@ -92,6 +92,10 @@ let repoRoot = ""
 let workspaceGlobs: string[] = []
 
 let rootIgnore: Ignore = ignore()
+
+const displayPathCache = new Map<string, string>()
+const existsCache = new Map<string, boolean>()
+const needsPathConversion = sep !== "/"
 // #endregion
 
 // #region utils
@@ -119,25 +123,44 @@ export function log(message: string, overwrite = false): void {
 }
 
 /**
- * Normalize a path for display purposes (always POSIX-style separators)
+ * Normalize a path for display purposes (always POSIX-style separators) and cache the result
  */
 export function displayPath(p: string): string {
-  return sep === "/"
-    ? p
-    : p.replace(/\\/g, "/")
+  if (!needsPathConversion) {
+    return p
+  }
+
+  let cached = displayPathCache.get(p)
+
+  if (cached === undefined) {
+    cached = p.replace(/\\/g, "/")
+    displayPathCache.set(p, cached)
+  }
+
+  return cached
 }
 
 /**
- * Check if a file or directory exists
+ * Check if a file or directory exists and cache the result
  * @param f The path to check
  * @returns A promise that resolves to true if the path exists, false otherwise
  */
 export async function exists(f: PathLike): Promise<boolean> {
+  const key = String(f)
+  const cached = existsCache.get(key)
+
+  if (cached !== undefined) {
+    return cached
+  }
+
   try {
     await access(f)
+    existsCache.set(key, true)
 
     return true
   } catch {
+    existsCache.set(key, false)
+
     return false
   }
 }
@@ -192,10 +215,7 @@ export async function mapLimit<T, R>(
     }
   }
 
-  const workers = Array.from({ length: limit })
-    .map(() => worker())
-
-  await Promise.all(workers)
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
 
   return results
 }
@@ -212,6 +232,8 @@ export async function getWorkspaceFileList(
   relDir: string,
   rootIgnore: Ignore,
 ): Promise<string[]> {
+  const relDirPosix = displayPath(relDir)
+
   // Gather all files under `dir`
   const rawFiles = await fg("**/*", {
     cwd: dir,
@@ -221,34 +243,45 @@ export async function getWorkspaceFileList(
     ignore: [ "**/node_modules/**", "**/.git/**", "**/.hash", "**/.debug-hash" ],
   })
 
-  // Convert to POSIX paths for consistent processing
-  const posixFiles = rawFiles.map((f) => displayPath(f))
-  const relDirPosix = displayPath(relDir)
-  const repoPaths = posixFiles.map((f) => posix.join(relDirPosix, f))
+  // Early exit if no files
+  if (rawFiles.length === 0) {
+    return []
+  }
+
+  // Convert to POSIX paths for consistent processing (already POSIX from fast-glob)
+  const repoPaths = rawFiles.map((f) => posix.join(relDirPosix, f))
 
   // 1) Apply root .gitignore
   const rootFiltered = rootIgnore.filter(repoPaths)
 
   // 2) Apply package‐level .gitignore if present
-  const pkgIgnore = ignore()
   const pkgGit = join(dir, ".gitignore")
+  let pkgFilteredPOSIX: string[]
 
   if (await exists(pkgGit)) {
+    const pkgIgnore = ignore()
     const pkgContents = await readFile(pkgGit, "utf8")
 
     pkgIgnore.add(pkgContents)
+
+    // Convert back to package‐relative POSIX paths
+    const pkgRelativePOSIX = rootFiltered.map((rp) => posix.relative(relDirPosix, rp))
+
+    pkgFilteredPOSIX = pkgIgnore.filter(pkgRelativePOSIX)
+  } else {
+    // No package .gitignore, just convert paths
+    pkgFilteredPOSIX = rootFiltered.map((rp) => posix.relative(relDirPosix, rp))
   }
 
-  // Convert back to package‐relative POSIX paths
-  const pkgRelativePOSIX = rootFiltered.map((rp) => posix.relative(relDirPosix, rp))
-  const pkgFilteredPOSIX = pkgIgnore.filter(pkgRelativePOSIX)
+  // Sort and convert to OS‐specific separators if needed
+  pkgFilteredPOSIX.sort()
 
-  // Convert to OS‐specific separators and sort
-  return sep === "/"
-    ? pkgFilteredPOSIX.toSorted()
-    : pkgFilteredPOSIX.map((f) => f.split("/")
-        .join(sep))
-        .toSorted()
+  if (!needsPathConversion) {
+    return pkgFilteredPOSIX
+  }
+
+  return pkgFilteredPOSIX.map((f) => f.split("/")
+    .join(sep))
 }
 
 /**
@@ -430,6 +463,25 @@ export async function detectSpecified(pm: PackageManager): Promise<{
 
 // #region debug
 /**
+ * Load the existing `.debug-hash` JSON from `dir`, if present
+ * Otherwise returns null
+ * @param dir The directory to load the debug file from
+ * @returns A promise that resolves to a record mapping POSIX relative file paths to their SHA-256 hex hashes, or null if the file does not exist
+ */
+export async function loadDebugFile(dir: string): Promise<Record<string, string> | null> {
+  const debugPath = join(dir, ".debug-hash")
+
+  if (!(await exists(debugPath))) {
+    return null
+  }
+
+  const text = await readFile(debugPath, "utf8")
+
+  // oxlint-disable-next-line no-unsafe-type-assertion
+  return JSON.parse(text) as Record<string, string>
+}
+
+/**
  * Write a JSON-serialized debug map to `.debug-hash` in `dir`
  * @param dir The directory to write the debug file in
  * @param debugMap A record mapping POSIX relative file paths to their SHA-256 hex hashes
@@ -450,22 +502,19 @@ export async function writeDebugFile(
 }
 
 /**
- * Load the existing `.debug-hash` JSON from `dir`, if present
- * Otherwise returns null
- * @param dir The directory to load the debug file from
- * @returns A promise that resolves to a record mapping POSIX relative file paths to their SHA-256 hex hashes, or null if the file does not exist
+ * Load the root `.debug-hash` file if present
+ * @param rootDir The root directory of the monorepo
+ * @returns A promise that resolves to a record mapping workspace relative paths to their per-file hash maps, or null if the file does not exist
  */
-export async function loadDebugFile(dir: string): Promise<Record<string, string> | null> {
-  const debugPath = join(dir, ".debug-hash")
+export async function loadRootDebugFile(rootDir: string): Promise<Record<string, Record<string, string>> | null> {
+  const p = join(rootDir, ".debug-hash")
 
-  if (!(await exists(debugPath))) {
+  if (!(await exists(p))) {
     return null
   }
 
-  const text = await readFile(debugPath, "utf8")
-
   // oxlint-disable-next-line no-unsafe-type-assertion
-  return JSON.parse(text) as Record<string, string>
+  return JSON.parse(await readFile(p, "utf8")) as Record<string, Record<string, string>>
 }
 
 /**
@@ -493,22 +542,6 @@ export async function writeRootDebugFile(
   }
 
   await writeFile(p, JSON.stringify(normalizedMap, null, 2), "utf8")
-}
-
-/**
- * Load the root `.debug-hash` file if present
- * @param rootDir The root directory of the monorepo
- * @returns A promise that resolves to a record mapping workspace relative paths to their per-file hash maps, or null if the file does not exist
- */
-export async function loadRootDebugFile(rootDir: string): Promise<Record<string, Record<string, string>> | null> {
-  const p = join(rootDir, ".debug-hash")
-
-  if (!(await exists(p))) {
-    return null
-  }
-
-  // oxlint-disable-next-line no-unsafe-type-assertion
-  return JSON.parse(await readFile(p, "utf8")) as Record<string, Record<string, string>>
 }
 
 /**
@@ -652,26 +685,6 @@ export function computeFinalHash(
 }
 
 /**
- * Write the mapping of workspace hashes to the root `.hash` file
- * @param rootDir The root directory of the monorepo
- * @param map A record mapping workspace relative paths to their final hashes
- * @returns A promise that resolves when the file has been written
- */
-export async function writeRootHashFile(
-  rootDir: string,
-  map: Record<string, string>,
-): Promise<void> {
-  const p = join(rootDir, ".hash")
-  const normalized: Record<string, string> = {}
-
-  for (const [ key, value ] of Object.entries(map)) {
-    normalized[displayPath(key)] = value
-  }
-
-  await writeFile(p, JSON.stringify(normalized, null, 2), "utf8")
-}
-
-/**
  * Load the mapping of workspace hashes from the root `.hash` file
  * @param rootDir The root directory of the monorepo
  * @returns A promise that resolves to a record mapping workspace relative paths to their final hashes, or null if the file does not exist
@@ -685,6 +698,34 @@ export async function loadRootHashFile(rootDir: string): Promise<Record<string, 
 
   // oxlint-disable-next-line no-unsafe-type-assertion
   return JSON.parse(await readFile(p, "utf8")) as Record<string, string>
+}
+
+/**
+ * Write the mapping of workspace hashes to the root `.hash` file
+ * @param rootDir The root directory of the monorepo
+ * @param map A record mapping workspace relative paths to their final hashes
+ * @returns A promise that resolves when the file has been written
+ */
+export async function writeRootHashFile(
+  rootDir: string,
+  map: Record<string, string>,
+): Promise<void> {
+  const p = join(rootDir, ".hash")
+  const normalized: Record<string, string> = {}
+  const existing = await loadRootHashFile(rootDir)
+
+  // Preserve existing entries not in the new map
+  if (existing) {
+    for (const [ key, value ] of Object.entries(existing)) {
+      normalized[displayPath(key)] = value
+    }
+  }
+
+  for (const [ key, value ] of Object.entries(map)) {
+    normalized[displayPath(key)] = value
+  }
+
+  await writeFile(p, JSON.stringify(normalized, null, 2), "utf8")
 }
 
 /**
@@ -704,27 +745,25 @@ export async function generateHashes(
     .filter(([ _, { relDir }]) => !targets || targets.includes(relDir))
 
   if (unified) {
-    let map: Record<string, string> = {}
+    const map: Record<string, string> = {}
 
     for (const [ name, { relDir }] of entries) {
-      const posixRel = displayPath(relDir)
-
-      map[posixRel] = finalCache[name]
+      map[displayPath(relDir)] = finalCache[name]
     }
 
     await writeRootHashFile(repoRoot, map)
 
-    map = Object.fromEntries(Object.entries(map)
-      .toSorted((a, b) => a[0].localeCompare(b[0])))
+    const sortedEntries = Object.entries(map)
+      // oxlint-disable-next-line no-array-sort
+      .sort((a, b) => a[0].localeCompare(b[0]))
 
-    Object.entries(map)
-      .forEach(([ rel, hash ]) => {
-        log(`✅ ${displayPath(rel)} (${hash} written to .hash)`)
-      })
+    for (const [ rel, hash ] of sortedEntries) {
+      log(`✅ ${displayPath(rel)} (${hash} written to .hash)`)
+    }
 
-    return map
+    return Object.fromEntries(sortedEntries)
   } else {
-    const writes = entries.map(async ([
+    const results = await Promise.all(entries.map(async ([
       name, {
         dir, relDir,
       },
@@ -737,17 +776,15 @@ export async function generateHashes(
       return {
         relDir: displayPath(relDir), hash: current,
       }
-    })
-    let results = await Promise.all(writes)
+    }))
 
-    results = results.toSorted((a, b) => a.relDir.localeCompare(b.relDir))
+    results.sort((a, b) => a.relDir.localeCompare(b.relDir))
 
-    results
-      .forEach(({
-        relDir, hash,
-      }) => {
-        log(`✅ ${displayPath(relDir)} (${hash} written to .hash)`)
-      })
+    for (const {
+      relDir, hash,
+    } of results) {
+      log(`✅ ${displayPath(relDir)} (${hash} written to .hash)`)
+    }
 
     return results
   }
@@ -1065,23 +1102,35 @@ export async function hash(): Promise<Awaited<ReturnType<typeof generateHashes>>
   const meta: Record<string, Meta> = {}
   const relToName: Record<string, string> = {}
 
-  await Promise.all(pkgJsonPaths.map(async (pkgJson) => {
+  // Read all package.json files in parallel
+  const pkgDataList = await Promise.all(pkgJsonPaths.map(async (pkgJson) => {
     const absJson = resolve(repoRoot, pkgJson)
     const dir = dirname(absJson)
     const relDir = relative(repoRoot, dir)
-
+    const content = await readFile(absJson, "utf8")
     // oxlint-disable-next-line no-unsafe-type-assertion
-    const pkgData = JSON.parse(await readFile(absJson, "utf8")) as PackageManifest
+    const pkgData = JSON.parse(content) as PackageManifest
+
+    return {
+      dir, relDir, pkgData,
+    }
+  }))
+
+  for (const {
+    dir, relDir, pkgData,
+  } of pkgDataList) {
     const pkgName: string = pkgData.name
 
     meta[pkgName] = {
       dir, relDir, manifest: pkgData, deps: [],
     }
     relToName[relDir] = pkgName
-  }))
+  }
 
   // Resolve internal deps for all packages
-  for (const [ , info ] of Object.entries(meta)) {
+  const metaKeys = new Set(Object.keys(meta))
+
+  for (const info of Object.values(meta)) {
     const {
       dependencies, devDependencies, peerDependencies,
     } = info.manifest
@@ -1092,8 +1141,9 @@ export async function hash(): Promise<Awaited<ReturnType<typeof generateHashes>>
     }
 
     info.deps = Object.keys(allDeps)
-      .filter((d) => meta[d])
-      .toSorted()
+      .filter((d) => metaKeys.has(d))
+      // oxlint-disable-next-line no-array-sort
+      .sort()
   }
 
   // Determine which packages actually need hashing
@@ -1120,8 +1170,9 @@ export async function hash(): Promise<Awaited<ReturnType<typeof generateHashes>>
       }
     }
   } else {
-    Object.keys(meta)
-      .forEach((n) => namesToProcess.add(n))
+    for (const n of Object.keys(meta)) {
+      namesToProcess.add(n)
+    }
   }
 
   const toHash = Array.from(namesToProcess)
@@ -1155,7 +1206,8 @@ export async function hash(): Promise<Awaited<ReturnType<typeof generateHashes>>
       // Compute per-file hashes & ownHash
       const perFileMap = await computePerFileHashes(dir, fileList)
       const sortedKeys = Object.keys(perFileMap)
-        .toSorted()
+        // oxlint-disable-next-line no-array-sort
+        .sort()
       const ownBuffer = computeOwnHashFromPerFile(perFileMap, sortedKeys)
 
       count++
@@ -1163,9 +1215,7 @@ export async function hash(): Promise<Awaited<ReturnType<typeof generateHashes>>
 
       if (debug && mode === "generate") {
         if (unified) {
-          const posixRel = displayPath(relDir)
-
-          debugOutput[posixRel] = perFileMap
+          debugOutput[displayPath(relDir)] = perFileMap
         } else {
           await writeDebugFile(dir, perFileMap)
         }
@@ -1189,11 +1239,7 @@ export async function hash(): Promise<Awaited<ReturnType<typeof generateHashes>>
     await writeRootDebugFile(repoRoot, debugOutput)
   }
 
-  const pkgs: Record<string, PackageInfo> = {}
-
-  for (const [ pkgName, info ] of pkgInfos) {
-    pkgs[pkgName] = info
-  }
+  const pkgs = Object.fromEntries(pkgInfos)
 
   log(`\r✅ Computed all hashes (${total})`, true)
   log("\n")
@@ -1205,16 +1251,12 @@ export async function hash(): Promise<Awaited<ReturnType<typeof generateHashes>>
     computeFinalHash(pkgName, pkgs, finalCache)
   }
 
-  let result: Awaited<ReturnType<typeof generateHashes>> | Awaited<ReturnType<typeof compareHashes>> | null = null
-
   // 5) perform generate or compare
   if (mode === "generate") {
-    result = await generateHashes(pkgs, finalCache)
+    return await generateHashes(pkgs, finalCache)
   } else {
-    result = await compareHashes(pkgs, finalCache)
+    return await compareHashes(pkgs, finalCache)
   }
-
-  return result
 }
 // #endregion
 
@@ -1234,6 +1276,10 @@ export async function runCli(customArgv?: string[]): Promise<Awaited<ReturnType<
   unified = true
   pmOption = null
   cliUsage = customArgv === undefined
+
+  // Clear caches for fresh runs
+  existsCache.clear()
+  displayPathCache.clear()
 
   const args = customArgv ?? argv.slice(2)
 
@@ -1301,7 +1347,7 @@ Arguments :
   }
 
   // Normalize targets from forward-slash to platform-specific separators
-  if (targets && sep !== "/") {
+  if (targets && needsPathConversion) {
     targets = targets.map((t) => t.replace(/\/+$/, "")
       .split("/")
       .join(sep))
@@ -1314,13 +1360,13 @@ Arguments :
   } else {
     if (mode === "generate") {
       if (targets) {
-        log(`ℹ️  Generating hashes for specified targets... (${targets.join(", ")})\n`)
+        log(`ℹ️  Generating hashes for specified targets... (${displayPath(targets.join(", "))})\n`)
       } else {
         log("ℹ️  Generating hashes for all workspaces...\n")
       }
     } else {
       if (targets) {
-        log(`ℹ️  Comparing hashes for specified targets... (${targets.join(", ")})\n`)
+        log(`ℹ️  Comparing hashes for specified targets... (${displayPath(targets.join(", "))})\n`)
       } else if (targets === null) {
         log("ℹ️  Comparing hashes for all workspaces...\n")
       }

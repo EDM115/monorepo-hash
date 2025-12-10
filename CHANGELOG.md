@@ -7,12 +7,19 @@
 💥🚑️ hotfix : the Bun version no longer produce different hashes due to a mistake in the `CryptoHasher` initialization  
 💥🩹🔊 small fix/logs : the logged/returned paths are always POSIX-style
 
+🐛 fix : generating targeted hashes on unified mode won't delete existing hashes from workspaces outside of the specified targets  
 ⚡️ perf : when computing the file hashes, properly process 100 in parallel instead of batches of 100  
 ⚡️ perf : pre-ignore hash files as well as node_modules and .git when getting the workspace files list  
 ⚡️ perf : only run path normalization on Windows  
 ⚡️ perf : properly get the available parallelism (CPU count) and minimum of 2 instead of 1  
+⚡️ perf : cache the converted paths  
+⚡️ perf : cache the existence of files  
 ⚡️ perf : optimize the transitive dependencies hashing  
+⚡️ perf : revert the change from `sort()` to `toSorted()` since the arrays benefited from being mutated in-place  
+⚡️ perf : don't convert to POSIX when not needed  
 ⚡️ perf : reduce the amount of declared variables  
+⚡️ perf : cache the need to convert the path separator  
+⚡️ perf : early exit from the files listing when no files are found  
 📝 docs : update the README with informations about the binary, the older usage, the default mode change and new flag, a better explanation of the transitive dep management, how to use the other exported file, refresh the examples and disclaimer on the benchmarks  
 📦️ package : export functions and types from binary install and platform scripts in one endpoint  
 ♻️ refactor : move the `exists()` helper to the platform script to not pack `monorepo-hash` again inside, drastically reducing the postinstall script size  
