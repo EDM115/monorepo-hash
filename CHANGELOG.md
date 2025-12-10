@@ -9,6 +9,7 @@
 
 ⚡️ perf : when computing the file hashes, properly process 100 in parallel instead of batches of 100  
 ⚡️ perf : pre-ignore hash files as well as node_modules and .git when getting the workspace files list  
+⚡️ perf : only run path normalization on Windows  
 ⚡️ perf : properly get the available parallelism (CPU count) and minimum of 2 instead of 1  
 ⚡️ perf : optimize the transitive dependencies hashing  
 ⚡️ perf : reduce the amount of declared variables  

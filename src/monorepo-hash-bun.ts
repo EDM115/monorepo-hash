@@ -94,7 +94,9 @@ function log(message: string, overwrite = false) {
 }
 
 function displayPath(p: string) {
-  return p.replace(/\\/g, "/")
+  return sep === "/"
+    ? p
+    : p.replace(/\\/g, "/")
 }
 
 function zeroPad(num: number, places: number) {
@@ -166,9 +168,11 @@ async function getWorkspaceFileList(
   const pkgFilteredPOSIX = pkgIgnore.filter(pkgRelativePOSIX)
 
   // Convert to OS‐specific separators and sort
-  return pkgFilteredPOSIX.map((f) => f.split("/")
-    .join(sep))
-    .toSorted()
+  return sep === "/"
+    ? pkgFilteredPOSIX.toSorted()
+    : pkgFilteredPOSIX.map((f) => f.split("/")
+        .join(sep))
+        .toSorted()
 }
 
 function isPackageManager(value: string): value is PackageManager {
@@ -1125,7 +1129,7 @@ Arguments :
   }
 
   // Normalize targets from forward-slash to platform-specific separators
-  if (targets) {
+  if (targets && sep !== "/") {
     targets = targets.map((t) => t.replace(/\/+$/, "")
       .split("/")
       .join(sep))
