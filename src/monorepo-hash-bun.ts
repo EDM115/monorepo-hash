@@ -1,4 +1,10 @@
 // #region imports
+import {
+  argv,
+  CryptoHasher,
+  file,
+  write,
+} from "bun"
 import { availableParallelism } from "node:os"
 import {
   dirname,
@@ -147,9 +153,9 @@ async function getWorkspaceFileList(
   const pkgIgnore = ignore()
   const pkgGit = join(dir, ".gitignore")
 
-  if (await Bun.file(pkgGit)
+  if (await file(pkgGit)
     .exists()) {
-    const pkgContents = await Bun.file(pkgGit)
+    const pkgContents = await file(pkgGit)
       .text()
 
     pkgIgnore.add(pkgContents)
@@ -176,14 +182,14 @@ async function detectPNPM(): Promise<{
 } | null> {
   const wsYaml = await findUp("pnpm-workspace.yaml")
 
-  if (!wsYaml || !(await Bun.file(wsYaml)
+  if (!wsYaml || !(await file(wsYaml)
     .exists())) {
     return null
   }
 
   const root = dirname(wsYaml)
   // oxlint-disable-next-line no-unsafe-type-assertion
-  const config = load(await Bun.file(wsYaml)
+  const config = load(await file(wsYaml)
     .text()) as PnpmWorkspaceConfig
   const globs: string[] = Array.isArray(config.packages)
     ? config.packages
@@ -203,11 +209,11 @@ async function detectDeno(): Promise<{
 } | null> {
   let denoPath = await findUp("deno.json")
 
-  if (!denoPath || !(await Bun.file(denoPath)
+  if (!denoPath || !(await file(denoPath)
     .exists())) {
     denoPath = await findUp("deno.jsonc")
 
-    if (!denoPath || !(await Bun.file(denoPath)
+    if (!denoPath || !(await file(denoPath)
       .exists())) {
       return null
     }
@@ -215,7 +221,7 @@ async function detectDeno(): Promise<{
 
   const root = dirname(denoPath)
   // oxlint-disable-next-line no-unsafe-type-assertion
-  const config = await Bun.file(denoPath)
+  const config = await file(denoPath)
     .json() as { workspace?: string[] }
   const globs: string[] = Array.isArray(config.workspace)
     ? config.workspace
@@ -236,10 +242,10 @@ async function detectPkgJson(): Promise<{
   const pkgPath = await findUp(async (dir) => {
     const pkgFile = join(dir, "package.json")
 
-    if (await Bun.file(pkgFile)
+    if (await file(pkgFile)
       .exists()) {
       // oxlint-disable-next-line no-unsafe-type-assertion
-      const data = await Bun.file(pkgFile)
+      const data = await file(pkgFile)
         .json() as { workspaces?: unknown }
 
       if (data.workspaces) {
@@ -256,7 +262,7 @@ async function detectPkgJson(): Promise<{
 
   const root = dirname(pkgPath)
   // oxlint-disable-next-line no-unsafe-type-assertion
-  const pkg = await Bun.file(pkgPath)
+  const pkg = await file(pkgPath)
     .json() as { workspaces?: string[] | { packages?: string[] } }
   let globs: string[] = []
 
@@ -270,29 +276,29 @@ async function detectPkgJson(): Promise<{
     return null
   }
 
-  if (await Bun.file(join(root, "bun.lock"))
-    .exists() || await Bun.file(join(root, "bun.lockb"))
+  if (await file(join(root, "lock"))
+    .exists() || await file(join(root, "lockb"))
     .exists()) {
     return {
       pm: "bun", root, globs,
     }
   }
 
-  if (await Bun.file(join(root, "deno.lock"))
+  if (await file(join(root, "deno.lock"))
     .exists()) {
     return {
       pm: "deno", root, globs,
     }
   }
 
-  if (await Bun.file(join(root, "yarn.lock"))
+  if (await file(join(root, "yarn.lock"))
     .exists()) {
     return {
       pm: "yarn", root, globs,
     }
   }
 
-  if (await Bun.file(join(root, "package-lock.json"))
+  if (await file(join(root, "package-lock.json"))
     .exists()) {
     return {
       pm: "npm", root, globs,
@@ -341,18 +347,18 @@ async function writeDebugFile(
     normalizedMap[displayPath(key)] = value
   }
 
-  await Bun.write(debugPath, JSON.stringify(normalizedMap, null, 2))
+  await write(debugPath, JSON.stringify(normalizedMap, null, 2))
 }
 
 async function loadDebugFile(dir: string) {
   const debugPath = join(dir, ".debug-hash")
 
-  if (!(await Bun.file(debugPath)
+  if (!(await file(debugPath)
     .exists())) {
     return null
   }
 
-  const text = await Bun.file(debugPath)
+  const text = await file(debugPath)
     .text()
 
   // oxlint-disable-next-line no-unsafe-type-assertion
@@ -377,19 +383,19 @@ async function writeRootDebugFile(
     normalizedMap[normWsKey] = normPerFile
   }
 
-  await Bun.write(p, JSON.stringify(normalizedMap, null, 2))
+  await write(p, JSON.stringify(normalizedMap, null, 2))
 }
 
 async function loadRootDebugFile(rootDir: string) {
   const p = join(rootDir, ".debug-hash")
 
-  if (!(await Bun.file(p)
+  if (!(await file(p)
     .exists())) {
     return null
   }
 
   // oxlint-disable-next-line no-unsafe-type-assertion
-  return await Bun.file(p)
+  return await file(p)
     .json() as Record<string, Record<string, string>>
 }
 
@@ -449,9 +455,9 @@ async function computePerFileHashes(
     // oxlint-disable-next-line no-await-in-loop : Needed to not blow up memory with too many concurrent reads
     const partial = await Promise.all(batch.map(async ([ rel, norm ]) => {
       const fullPath = join(dir, rel)
-      const content = await Bun.file(fullPath)
+      const content = await file(fullPath)
         .arrayBuffer()
-      const fileHash = new Bun.CryptoHasher("sha256")
+      const fileHash = new CryptoHasher("sha256")
         .update(norm)
         .update(content)
         .digest("hex")
@@ -471,7 +477,7 @@ function computeOwnHashFromPerFile(
   perFileMap: Record<string, string>,
   sortedKeys: string[],
 ) {
-  const h = new Bun.CryptoHasher("sha256")
+  const h = new CryptoHasher("sha256")
 
   for (const key of sortedKeys) {
     // Each entry in perFileMap[key] is a hex string, convert to Buffer
@@ -499,7 +505,7 @@ function computeFinalHash(
   }
 
   // Start the chain
-  const chain = new Bun.CryptoHasher("sha256")
+  const chain = new CryptoHasher("sha256")
     .update(pkg.ownHash)
 
   // Then incorporate each dependency's final hash (as Buffer)
@@ -526,19 +532,19 @@ async function writeRootHashFile(
     normalized[displayPath(key)] = value
   }
 
-  await Bun.write(p, JSON.stringify(normalized, null, 2))
+  await write(p, JSON.stringify(normalized, null, 2))
 }
 
 async function loadRootHashFile(rootDir: string) {
   const p = join(rootDir, ".hash")
 
-  if (!(await Bun.file(p)
+  if (!(await file(p)
     .exists())) {
     return null
   }
 
   // oxlint-disable-next-line no-unsafe-type-assertion
-  return await Bun.file(p)
+  return await file(p)
     .json() as Record<string, string>
 }
 
@@ -579,7 +585,7 @@ async function generateHashes(
       const current = finalCache[name]
       const hashPath = join(dir, ".hash")
 
-      await Bun.write(hashPath, current)
+      await write(hashPath, current)
 
       return {
         relDir: displayPath(relDir), hash: current,
@@ -630,7 +636,7 @@ async function compareHashes(pkgs: Record<string, PackageInfo>, finalCache: Reco
         }
       } else {
         const hashPath = join(info.dir, ".hash")
-        const existsHash = await Bun.file(hashPath)
+        const existsHash = await file(hashPath)
           .exists()
 
         if (!existsHash) {
@@ -639,7 +645,7 @@ async function compareHashes(pkgs: Record<string, PackageInfo>, finalCache: Reco
           }
         }
 
-        const oldHex = (await Bun.file(hashPath)
+        const oldHex = (await file(hashPath)
           .text()).trim()
 
         return {
@@ -725,12 +731,12 @@ async function compareHashes(pkgs: Record<string, PackageInfo>, finalCache: Reco
       } else {
         const hashPath = join(info.dir, ".hash")
 
-        if (!(await Bun.file(hashPath)
+        if (!(await file(hashPath)
           .exists())) {
           return null
         }
 
-        const oldHex = (await Bun.file(hashPath)
+        const oldHex = (await file(hashPath)
           .text()).trim()
 
         return [ pkgName, oldHex ] as [string, string]
@@ -904,7 +910,7 @@ async function hash() {
     const relDir = relative(repoRoot, dir)
 
     // oxlint-disable-next-line no-unsafe-type-assertion
-    const pkgData = await Bun.file(absJson)
+    const pkgData = await file(absJson)
       .json() as PackageManifest
     const pkgName: string = pkgData.name
 
@@ -1063,7 +1069,7 @@ async function runCli(customArgv?: string[]) {
   pmOption = null
 
   // Parse CLI flags
-  for (const arg of (customArgv ?? Bun.argv.slice(2))) {
+  for (const arg of (customArgv ?? argv.slice(2))) {
     if (arg === "--generate" || arg === "-g") {
       if (mode === "compare") {
         console.error("❌ Cannot specify both --generate and --compare")
@@ -1191,9 +1197,9 @@ Arguments :
   rootIgnore = ignore()
   const rootGit: string = join(repoRoot, ".gitignore")
 
-  if (await Bun.file(rootGit)
+  if (await file(rootGit)
     .exists()) {
-    const rootGitContents = await Bun.file(rootGit)
+    const rootGitContents = await file(rootGit)
       .text()
 
     rootIgnore = ignore()
