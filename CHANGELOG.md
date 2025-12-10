@@ -10,6 +10,7 @@
 ⚡️ perf : properly get the available parallelism (CPU count) and minimum of 2 instead of 1  
 ⚡️ perf : optimize the transitive dependencies hashing  
 ⚡️ perf : reduce the amount of declared variables  
+⚡️ perf : pre-ignore hash files as well as node_modules and .git when getting the workspace files list  
 📝 docs : update the README with informations about the binary, the older usage, the default mode change and new flag, a better explanation of the transitive dep management, how to use the other exported file, refresh the examples and disclaimer on the benchmarks  
 📦️ package : export functions and types from binary install and platform scripts in one endpoint  
 ♻️ refactor : move the `exists()` helper to the platform script to not pack `monorepo-hash` again inside, drastically reducing the postinstall script size  

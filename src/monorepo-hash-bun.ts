@@ -128,7 +128,11 @@ async function getWorkspaceFileList(
 ) {
   // Gather all files under `dir`
   const rawFiles = await fg("**/*", {
-    cwd: dir, onlyFiles: true, dot: true,
+    cwd: dir,
+    onlyFiles: true,
+    dot: true,
+    // Always ignore .hash and .debug-hash as well as common ignores
+    ignore: [ "**/node_modules/**", "**/.git/**", "**/.hash", "**/.debug-hash" ],
   })
 
   // Convert to POSIX paths for consistent processing
@@ -150,10 +154,6 @@ async function getWorkspaceFileList(
 
     pkgIgnore.add(pkgContents)
   }
-
-  // Always ignore .hash and .debug-hash
-  pkgIgnore.add(".hash")
-  pkgIgnore.add(".debug-hash")
 
   // Convert back to package‐relative POSIX paths
   const pkgRelativePOSIX = rootFiltered.map((rp) => posix.relative(relDirPosix, rp))
