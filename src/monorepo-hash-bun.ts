@@ -276,8 +276,8 @@ async function detectPkgJson(): Promise<{
     return null
   }
 
-  if (await file(join(root, "lock"))
-    .exists() || await file(join(root, "lockb"))
+  if (await file(join(root, "bun.lock"))
+    .exists() || await file(join(root, "bun.lockb"))
     .exists()) {
     return {
       pm: "bun", root, globs,
