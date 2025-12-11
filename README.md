@@ -48,7 +48,7 @@ npm install -D monorepo-hash
 deno install -D npm:monorepo-hash --allow-scripts=npm:monorepo-hash
 ```
 > [!IMPORTANT]  
-> Since `v2.0.0`, the `monorepo-hash` cli command is a direct binary made with Bun that cut the Node.js overhead and enables faster I/O. To enable this, the postinstall script needs to be run, which is disabled by default in PNPM for security reasons.  
+> Since `v2.0.0`, the `monorepo-hash` cli command is a direct binary made with Bun that cut the Node.js overhead and enables faster I/O. To enable this, the postinstall script needs to be run, which is disabled by default in PNPM/Bun/Deno for security reasons.  
 > You can totally refuse to use it (whether it is for security reasons or size constraints). In such case, either run the older Node + plain JS version (`monorepo-hash-js`) or use the [programmatic API](#usage-outside-of-the-cli).  
 > If you added `monorepo-hash` without allowing the postinstall script to run, you can do it later at anytime with `pnpm approve-scripts` or `bun pm trust monorepo-hash`.
 

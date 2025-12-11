@@ -332,13 +332,9 @@ async function detectPkgJson(): Promise<{
     }
   }
 
-  if (await exists(join(root, "package-lock.json"))) {
-    return {
-      pm: "npm", root, globs,
-    }
+  return {
+    pm: "npm", root, globs,
   }
-
-  return null
 }
 
 async function autoDetect(): Promise<{
