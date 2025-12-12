@@ -21,7 +21,6 @@
 ⚡️ perf : reduce the amount of declared variables and objects  
 ⚡️ perf : avoid prototype chain lookups in hot paths  
 ⚡️ perf : use maps where possible for faster lookups  
-⚡️ perf : use indexed loops where possible  
 ⚡️ perf : cache the need to convert the path separator  
 ⚡️ perf : early exit from the files listing when no files are found  
 ⚡️ perf : don't even check for NPM's lockfile when it is the last option to check  

@@ -615,6 +615,11 @@ export async function computePerFileHashes(
   fileList: string[],
 ): Promise<Record<string, string>> {
   const result: Record<string, string> = Object.create(null)
+
+  if (fileList.length === 0) {
+    return result
+  }
+
   const CONCURRENCY = 100
 
   const entries = await mapLimit(fileList, CONCURRENCY, async (rel) => {
@@ -629,8 +634,8 @@ export async function computePerFileHashes(
     return [ norm, fileHash ] as const
   })
 
-  for (let i = 0; i < entries.length; i++) {
-    result[entries[i][0]] = entries[i][1]
+  for (const [ norm, partialHash ] of entries) {
+    result[norm] = partialHash
   }
 
   return result
