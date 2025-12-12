@@ -15,6 +15,7 @@
     "@types/fs-extra": "~11.0.4",
     "@types/js-yaml": "~4.0.9",
     "@types/node": "latest",
+    "@typescript/native-preview": "latest",
     "@typescript-eslint/parser": "~8.49.0",
     "edm115-lint": "~0.1.6",
     "eslint": "~9.39.1",
@@ -28,7 +29,6 @@
     "oxlint": "~1.32.0",
     "oxlint-tsgolint": "~0.8.6",
     "tsdown": "~0.17.3",
-    "typescript": "~5.9.3",
     "unplugin-unused": "~0.5.6",
     "vitest": "~4.0.15"
   },
@@ -101,7 +101,7 @@
     "test": "pnpm build && vitest",
     "test:binaries": "pnpm build:bun && pnpm test:binaries:prepare && (vitest --config vitest.binaries.config.ts; code=$?; git restore src/monorepo-hash-bun.ts; exit $code)",
     "test:binaries:prepare": "node -e \"const fs=require('fs');const p='src/monorepo-hash-bun.ts';let t=fs.readFileSync(p,'utf8');t=t.replace(/async function detectPNPM/g,'export async function detectPNPM').replace(/async function detectDeno/g,'export async function detectDeno').replace(/async function detectPkgJson/g,'export async function detectPkgJson').replace(/async function runCli/g,'export async function runCli').replace(/\\(async \\(\\) => {[\\s\\S]*?\\/\\/ #endregion[\\r\\n]*/g,'').replace(/exit\\(\\s*(\\d+)\\s*\\)/g,(_,x)=>'if(![0,1].includes('+x+'))throw new Error(\\\"Exit with code '+x+'\\\")');fs.writeFileSync(p,t);\"",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsgo --noEmit"
   },
   "type": "module",
   "types": "./dist/monorepo-hash.d.mts",

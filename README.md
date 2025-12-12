@@ -94,7 +94,7 @@ pnpm monorepo-hash --compare --target="packages/example"
 ```
 
 ### Run in silent mode
-This will suppress all output except for errors. This can be useful for example in CI where only the exit code matters.
+This will suppress all output. This can be useful for example in CI where only the exit code matters.
 ```bash
 pnpm monorepo-hash --compare --silent
 ```
@@ -439,9 +439,9 @@ For the very first run, you might need to create a workflow which will only chec
 
 ## :rocket: Benchmarks
 These benchmarks have been realised on Standard GitHub-hosted runner that you can get by running any Action.  
-The specs as I'm writing this are an AMD EPYC 7763 64-Core (4) @ 3.24 GHz CPU, 15.62 GiB of RAM and 71.61 GiB of SSD storage. Keep in mind that since the servers are shared between multiple users, the performance may vary slightly. between runs.  
+The specs as I'm writing this are an AMD EPYC 7763 64-Core (4) @ 3.24 GHz CPU, 15.62 GiB of RAM and 71.61 GiB of SSD storage. Keep in mind that since the servers are shared between multiple users, the performance may vary slightly between runs.  
 They have been reproduced 10 times with a cold disk cache thanks to [hyperfine](https://github.com/sharkdp/hyperfine).  
-Warm cache usage is usually 2/3 times faster than cold cache, so these results are more representative of a first run in CI or on a fresh boot. The script run speed doesn't really change, the only performance overhead on a cold cache is the time it takes to run Node.js (and reading files from the disk).  
+Warm cache usage is usually 2 to 3 times faster than cold cache, so these results are more representative of a first run in CI or on a fresh boot. The script run speed doesn't really change, the only performance overhead on a cold cache is the time it takes to run Node.js (and reading files from the disk).  
 The versions denoted with `(bun)` are using the Bun binary build of `monorepo-hash`, which removes the Node.js overhead, uses Bun internal replacements and is generally faster. This build is the default one since `v2.0.0`.
 > [!NOTE]  
 > Here are the details of each demo monorepo used for the benchmarks :
