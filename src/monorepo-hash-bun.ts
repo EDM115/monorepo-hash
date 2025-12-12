@@ -516,12 +516,12 @@ function computeOwnHashFromPerFile(
   sortedKeys: string[],
 ) {
   const h = new CryptoHasher("sha256")
+  // Reuse a single buffer for hex decoding to reduce allocations, SHA-256 produces 32 bytes (64 hex chars)
+  const rawBuffer = Buffer.allocUnsafe(32)
 
   for (const key of sortedKeys) {
-    // Each entry in perFileMap[key] is a hex string, convert to Buffer
-    const raw = Buffer.from(perFileMap[key], "hex")
-
-    h.update(raw)
+    rawBuffer.write(perFileMap[key], "hex")
+    h.update(rawBuffer)
   }
 
   return h.digest()
