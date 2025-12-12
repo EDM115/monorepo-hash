@@ -22,7 +22,7 @@ importers:
         version: 4.0.9
       '@types/node':
         specifier: latest
-        version: 24.10.2
+        version: 25.0.1
       '@typescript-eslint/parser':
         specifier: ~8.49.0
         version: 8.49.0(eslint@9.39.1(jiti@2.6.0))(typescript@5.9.3)
@@ -55,13 +55,13 @@ importers:
         version: 4.1.1
       oxlint:
         specifier: ~1.32.0
-        version: 1.32.0(oxlint-tsgolint@0.8.5)
+        version: 1.32.0(oxlint-tsgolint@0.8.6)
       oxlint-tsgolint:
-        specifier: ~0.8.5
-        version: 0.8.5
+        specifier: ~0.8.6
+        version: 0.8.6
       tsdown:
-        specifier: ~0.17.2
-        version: 0.17.2(@typescript/native-preview@7.0.0-dev.20251208.1)(typescript@5.9.3)(unplugin-unused@0.5.6)
+        specifier: ~0.17.3
+        version: 0.17.3(@typescript/native-preview@7.0.0-dev.20251208.1)(typescript@5.9.3)(unplugin-unused@0.5.6)
       typescript:
         specifier: ~5.9.3
         version: 5.9.3
@@ -70,7 +70,7 @@ importers:
         version: 0.5.6
       vitest:
         specifier: ~4.0.15
-        version: 4.0.15(@types/node@24.10.2)(jiti@2.6.0)(tsx@4.19.4)
+        version: 4.0.15(@types/node@25.0.1)(jiti@2.6.0)(tsx@4.19.4)
 
 packages:
 
@@ -348,33 +348,33 @@ packages:
   '@oxc-project/types@0.101.0':
     resolution: {integrity: sha512-nuFhqlUzJX+gVIPPfuE6xurd4lST3mdcWOhyK/rZO0B9XWMKm79SuszIQEnSMmmDhq1DC8WWVYGVd+6F93o1gQ==}
 
-  '@oxlint-tsgolint/darwin-arm64@0.8.5':
-    resolution: {integrity: sha512-6Fmcrk33+PbA8fEeuz8AGD7G3KoGWTJfvCflQD8zgY8AYK8OIs7bh4WUfZiRLVJdZ0PLY6y85J2IbfXy5dTrjQ==}
+  '@oxlint-tsgolint/darwin-arm64@0.8.6':
+    resolution: {integrity: sha512-khvQiNpPVNkyz6vmN50v5j1X6r9anRDXy3htDBpObx4V5bp33BK94onh46e91GTEbBevmeUG/Zm/U3+np4gehw==}
     cpu: [arm64]
     os: [darwin]
 
-  '@oxlint-tsgolint/darwin-x64@0.8.5':
-    resolution: {integrity: sha512-vaB8oNS1gkJYpGq09UfpF62kPew3Ia7WHYQeD9IIOnUHWW1LNyZdNHuB6h99Kn9irMLj/uhbl7HtDzP+Lk4BNg==}
+  '@oxlint-tsgolint/darwin-x64@0.8.6':
+    resolution: {integrity: sha512-AardvXBLB0m05BGcubXTqWSpNv2aD68QyY7BB/u2AqKzMoEtvzSB710FL06vOTPpaVpl3GvSVHCFw2juo35lTQ==}
     cpu: [x64]
     os: [darwin]
 
-  '@oxlint-tsgolint/linux-arm64@0.8.5':
-    resolution: {integrity: sha512-avfdBAcvqGacG78I919wMl4Cv3wT/to0u7CwyvFC/8vvIpPq983xmiPjMqFt1m/6ADtvRQfmSMK18C9l8uew7A==}
+  '@oxlint-tsgolint/linux-arm64@0.8.6':
+    resolution: {integrity: sha512-oSgMIilQBUVSOGdWIm4/5GJV4QmqwBQYpsGtRUpTAd3BZTWVuo40//n/ogJFnlCVd+i4yhsGLtwexd/7YlJ9sw==}
     cpu: [arm64]
     os: [linux]
 
-  '@oxlint-tsgolint/linux-x64@0.8.5':
-    resolution: {integrity: sha512-CvUc+0iCLBUKRiIzFIMhPJQpGI1JA29hiFWlLU/qBtf3V/IanxSbcgOm8zaO2/agg0yfS/oHrL/u8SR9xdcIvA==}
+  '@oxlint-tsgolint/linux-x64@0.8.6':
+    resolution: {integrity: sha512-EhR2TejCW5gBPEs6ASgfFFgdveHvpKOHQC2zbO3HoFT/xNU0DvYbEsScKM8SUDWFMQlHU67A7bynNGRY2kFSSg==}
     cpu: [x64]
     os: [linux]
 
-  '@oxlint-tsgolint/win32-arm64@0.8.5':
-    resolution: {integrity: sha512-2opjh8Vev+Z1dsi0lTYeGeI+Pbm6JgLT2U7l3+t8Ww3d/lhXgxUP9l+nX3ioCQd8auUy198MoWYice3OhjCX1w==}
+  '@oxlint-tsgolint/win32-arm64@0.8.6':
+    resolution: {integrity: sha512-PQeV8YitT2HR/uJV8ugERIpA4WHDem7i5TuPtgYrp7wvKS98G9ILpnPgATrOup/VdBMIzCDl02c23z4+I5NSTw==}
     cpu: [arm64]
     os: [win32]
 
-  '@oxlint-tsgolint/win32-x64@0.8.5':
-    resolution: {integrity: sha512-HGsTFdQDbXJ6VP9smhQyv3Pi/Vybabad57vT/SH12xYBYaIt1A0YO9ioQN36iYOb+971G9lo+YZjifa3vwDilA==}
+  '@oxlint-tsgolint/win32-x64@0.8.6':
+    resolution: {integrity: sha512-JDlyJSOnJXahee9xL55gT02kmQGSP0hR/5OP5asXvr7q6dj9t4skltcwYiA+D4HthF04oaW1F0+6pJnNTfDE0w==}
     cpu: [x64]
     os: [win32]
 
@@ -654,8 +654,8 @@ packages:
   '@types/jsonfile@6.1.4':
     resolution: {integrity: sha512-D5qGUYwjvnNNextdU59/+fI+spnwtTFmyQP0h+PfIOSkNfpU6AOICUOkm4i0OnSk+NyjdPJrxCDro0sJsWlRpQ==}
 
-  '@types/node@24.10.2':
-    resolution: {integrity: sha512-WOhQTZ4G8xZ1tjJTvKOpyEVSGgOTvJAfDK3FNFgELyaTpzhdgHVHeqW8V+UJvzF5BT+/B54T/1S2K6gd9c7bbA==}
+  '@types/node@25.0.1':
+    resolution: {integrity: sha512-czWPzKIAXucn9PtsttxmumiQ9N0ok9FrBwgRWrwmVLlp86BrMExzvXRLFYRJ+Ex3g6yqj+KuaxfX1JTgV2lpfg==}
 
   '@typescript-eslint/parser@8.49.0':
     resolution: {integrity: sha512-N9lBGA9o9aqb1hVMc9hzySbhKibHmB+N3IpoShyV6HyQYRGIhlrO5rQgttypi+yEeKsKI4idxC8Jw6gXKD4THA==}
@@ -855,6 +855,9 @@ packages:
   deep-is@0.1.4:
     resolution: {integrity: sha512-oIPzksmTg4/MriiaYGO+okXDT7ztn/w3Eptv/+gSIdMdKsJo0u4CfYNFJPy+4SKMuCqGw2wxnA+URMg3t8a/bQ==}
 
+  defu@6.1.4:
+    resolution: {integrity: sha512-mEQCMmwJu317oSz8CwdIOdwf3xMif1ttiM8LTufzc3g6kR+9Pe236twL8j3IYT1F7GfRgGcW6MWxzZjLIkuHIg==}
+
   dts-resolver@2.1.3:
     resolution: {integrity: sha512-bihc7jPC90VrosXNzK0LTE2cuLP6jr0Ro8jk+kMugHReJVLIpHz/xadeq3MhuwyO4TD4OA3L1Q8pBBFRc08Tsw==}
     engines: {node: '>=20.19.0'}
@@ -1050,8 +1053,8 @@ packages:
     resolution: {integrity: sha512-TR3KfrTZTYLPB6jUjfx6MF9WcWrHL9su5TObK4ZkYgBdWKPOFoSoQIdEuTuR82pmtxH2spWG9h6etwfr1pLBqQ==}
     engines: {node: '>=6'}
 
-  import-without-cache@0.2.2:
-    resolution: {integrity: sha512-4TTuRrZ0jBULXzac3EoX9ZviOs8Wn9iAbNhJEyLhTpAGF9eNmYSruaMMN/Tec/yqaO7H6yS2kALfQDJ5FxfatA==}
+  import-without-cache@0.2.3:
+    resolution: {integrity: sha512-roCvX171VqJ7+7pQt1kSRfwaJvFAC2zhThJWXal1rN8EqzPS3iapkAoNpHh4lM8Na1BDen+n9rVfo73RN+Y87g==}
     engines: {node: '>=20.19.0'}
 
   imurmurhash@0.1.4:
@@ -1171,8 +1174,8 @@ packages:
     resolution: {integrity: sha512-6IpQ7mKUxRcZNLIObR0hz7lxsapSSIYNZJwXPGeF0mTVqGKFIXj1DQcMoT22S3ROcLyY/rz0PWaWZ9ayWmad9g==}
     engines: {node: '>= 0.8.0'}
 
-  oxlint-tsgolint@0.8.5:
-    resolution: {integrity: sha512-QpUm0kMilACiEQEgPa/APIvCMmVZOtiSne7kK6iLCcJb/5DvQD5ggyrYXkQLbUiEZj6ouV4XSnpvG/BzuPRnYw==}
+  oxlint-tsgolint@0.8.6:
+    resolution: {integrity: sha512-DC9rqwFyEb5RlxOjvXdqaqxM5PwK01002oh/fcdC05mNPiI04d6CPWtReHqX6Ig1dc5LYuVeh3wuPrrp6WTjtw==}
     hasBin: true
 
   oxlint@1.32.0:
@@ -1371,8 +1374,8 @@ packages:
     peerDependencies:
       typescript: '>=4.8.4'
 
-  tsdown@0.17.2:
-    resolution: {integrity: sha512-SuU+0CWm/95KfXqojHTVuwcouIsdn7HpYcwDyOdKktJi285NxKwysjFUaxYLxpCNqqPvcFvokXLO4dZThRwzkw==}
+  tsdown@0.17.3:
+    resolution: {integrity: sha512-bgLgTog+oyadDTr9SZ57jZtb+A4aglCjo3xgJrkCDxbzcQl2l2iDDr4b06XHSQHwyDNIhYFDgPRhuu1wL3pNsw==}
     engines: {node: '>=20.19.0'}
     hasBin: true
     peerDependencies:
@@ -1765,22 +1768,22 @@ snapshots:
 
   '@oxc-project/types@0.101.0': {}
 
-  '@oxlint-tsgolint/darwin-arm64@0.8.5':
+  '@oxlint-tsgolint/darwin-arm64@0.8.6':
     optional: true
 
-  '@oxlint-tsgolint/darwin-x64@0.8.5':
+  '@oxlint-tsgolint/darwin-x64@0.8.6':
     optional: true
 
-  '@oxlint-tsgolint/linux-arm64@0.8.5':
+  '@oxlint-tsgolint/linux-arm64@0.8.6':
     optional: true
 
-  '@oxlint-tsgolint/linux-x64@0.8.5':
+  '@oxlint-tsgolint/linux-x64@0.8.6':
     optional: true
 
-  '@oxlint-tsgolint/win32-arm64@0.8.5':
+  '@oxlint-tsgolint/win32-arm64@0.8.6':
     optional: true
 
-  '@oxlint-tsgolint/win32-x64@0.8.5':
+  '@oxlint-tsgolint/win32-x64@0.8.6':
     optional: true
 
   '@oxlint/darwin-arm64@1.32.0':
@@ -1957,7 +1960,7 @@ snapshots:
   '@types/fs-extra@11.0.4':
     dependencies:
       '@types/jsonfile': 6.1.4
-      '@types/node': 24.10.2
+      '@types/node': 25.0.1
 
   '@types/js-yaml@4.0.9': {}
 
@@ -1965,9 +1968,9 @@ snapshots:
 
   '@types/jsonfile@6.1.4':
     dependencies:
-      '@types/node': 24.10.2
+      '@types/node': 25.0.1
 
-  '@types/node@24.10.2':
+  '@types/node@25.0.1':
     dependencies:
       undici-types: 7.16.0
 
@@ -2064,13 +2067,13 @@ snapshots:
       chai: 6.2.1
       tinyrainbow: 3.0.3
 
-  '@vitest/mocker@4.0.15(vite@7.2.7(@types/node@24.10.2)(jiti@2.6.0)(tsx@4.19.4))':
+  '@vitest/mocker@4.0.15(vite@7.2.7(@types/node@25.0.1)(jiti@2.6.0)(tsx@4.19.4))':
     dependencies:
       '@vitest/spy': 4.0.15
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 7.2.7(@types/node@24.10.2)(jiti@2.6.0)(tsx@4.19.4)
+      vite: 7.2.7(@types/node@25.0.1)(jiti@2.6.0)(tsx@4.19.4)
 
   '@vitest/pretty-format@4.0.15':
     dependencies:
@@ -2141,7 +2144,7 @@ snapshots:
 
   bun-types@1.3.4:
     dependencies:
-      '@types/node': 24.10.2
+      '@types/node': 25.0.1
 
   cac@6.7.14: {}
 
@@ -2173,6 +2176,8 @@ snapshots:
       ms: 2.1.3
 
   deep-is@0.1.4: {}
+
+  defu@6.1.4: {}
 
   dts-resolver@2.1.3: {}
 
@@ -2402,7 +2407,7 @@ snapshots:
       parent-module: 1.0.1
       resolve-from: 4.0.0
 
-  import-without-cache@0.2.2: {}
+  import-without-cache@0.2.3: {}
 
   imurmurhash@0.1.4: {}
 
@@ -2505,16 +2510,16 @@ snapshots:
       type-check: 0.4.0
       word-wrap: 1.2.5
 
-  oxlint-tsgolint@0.8.5:
+  oxlint-tsgolint@0.8.6:
     optionalDependencies:
-      '@oxlint-tsgolint/darwin-arm64': 0.8.5
-      '@oxlint-tsgolint/darwin-x64': 0.8.5
-      '@oxlint-tsgolint/linux-arm64': 0.8.5
-      '@oxlint-tsgolint/linux-x64': 0.8.5
-      '@oxlint-tsgolint/win32-arm64': 0.8.5
-      '@oxlint-tsgolint/win32-x64': 0.8.5
+      '@oxlint-tsgolint/darwin-arm64': 0.8.6
+      '@oxlint-tsgolint/darwin-x64': 0.8.6
+      '@oxlint-tsgolint/linux-arm64': 0.8.6
+      '@oxlint-tsgolint/linux-x64': 0.8.6
+      '@oxlint-tsgolint/win32-arm64': 0.8.6
+      '@oxlint-tsgolint/win32-x64': 0.8.6
 
-  oxlint@1.32.0(oxlint-tsgolint@0.8.5):
+  oxlint@1.32.0(oxlint-tsgolint@0.8.6):
     optionalDependencies:
       '@oxlint/darwin-arm64': 1.32.0
       '@oxlint/darwin-x64': 1.32.0
@@ -2524,7 +2529,7 @@ snapshots:
       '@oxlint/linux-x64-musl': 1.32.0
       '@oxlint/win32-arm64': 1.32.0
       '@oxlint/win32-x64': 1.32.0
-      oxlint-tsgolint: 0.8.5
+      oxlint-tsgolint: 0.8.6
 
   p-limit@3.1.0:
     dependencies:
@@ -2702,13 +2707,14 @@ snapshots:
     dependencies:
       typescript: 5.9.3
 
-  tsdown@0.17.2(@typescript/native-preview@7.0.0-dev.20251208.1)(typescript@5.9.3)(unplugin-unused@0.5.6):
+  tsdown@0.17.3(@typescript/native-preview@7.0.0-dev.20251208.1)(typescript@5.9.3)(unplugin-unused@0.5.6):
     dependencies:
       ansis: 4.2.0
       cac: 6.7.14
+      defu: 6.1.4
       empathic: 2.0.0
       hookable: 5.5.3
-      import-without-cache: 0.2.2
+      import-without-cache: 0.2.3
       obug: 2.1.1
       rolldown: 1.0.0-beta.53
       rolldown-plugin-dts: 0.18.3(@typescript/native-preview@7.0.0-dev.20251208.1)(rolldown@1.0.0-beta.53)(typescript@5.9.3)
@@ -2778,7 +2784,7 @@ snapshots:
     dependencies:
       punycode: 2.3.1
 
-  vite@7.2.7(@types/node@24.10.2)(jiti@2.6.0)(tsx@4.19.4):
+  vite@7.2.7(@types/node@25.0.1)(jiti@2.6.0)(tsx@4.19.4):
     dependencies:
       esbuild: 0.25.12
       fdir: 6.5.0(picomatch@4.0.3)
@@ -2787,15 +2793,15 @@ snapshots:
       rollup: 4.53.3
       tinyglobby: 0.2.15
     optionalDependencies:
-      '@types/node': 24.10.2
+      '@types/node': 25.0.1
       fsevents: 2.3.3
       jiti: 2.6.0
       tsx: 4.19.4
 
-  vitest@4.0.15(@types/node@24.10.2)(jiti@2.6.0)(tsx@4.19.4):
+  vitest@4.0.15(@types/node@25.0.1)(jiti@2.6.0)(tsx@4.19.4):
     dependencies:
       '@vitest/expect': 4.0.15
-      '@vitest/mocker': 4.0.15(vite@7.2.7(@types/node@24.10.2)(jiti@2.6.0)(tsx@4.19.4))
+      '@vitest/mocker': 4.0.15(vite@7.2.7(@types/node@25.0.1)(jiti@2.6.0)(tsx@4.19.4))
       '@vitest/pretty-format': 4.0.15
       '@vitest/runner': 4.0.15
       '@vitest/snapshot': 4.0.15
@@ -2812,10 +2818,10 @@ snapshots:
       tinyexec: 1.0.2
       tinyglobby: 0.2.15
       tinyrainbow: 3.0.3
-      vite: 7.2.7(@types/node@24.10.2)(jiti@2.6.0)(tsx@4.19.4)
+      vite: 7.2.7(@types/node@25.0.1)(jiti@2.6.0)(tsx@4.19.4)
       why-is-node-running: 2.3.0
     optionalDependencies:
-      '@types/node': 24.10.2
+      '@types/node': 25.0.1
     transitivePeerDependencies:
       - jiti
       - less
