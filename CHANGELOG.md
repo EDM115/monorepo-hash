@@ -17,6 +17,7 @@
 ⚡️ perf : cache the converted paths  
 ⚡️ perf : cache the existence of files  
 ⚡️ perf : optimize the transitive dependencies hashing  
+⚡️ perf : load hash files in parallel, read them only once and avoid concurrency issues  
 ⚡️ perf : revert the change from `sort()` to `toSorted()` since the arrays benefited from being mutated in-place  
 ⚡️ perf : don't convert to POSIX when not needed  
 ⚡️ perf : reduce the amount of declared variables and objects  

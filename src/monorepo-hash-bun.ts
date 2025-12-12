@@ -663,54 +663,62 @@ async function generateHashes(
 }
 
 async function compareHashes(pkgs: Record<string, PackageInfo>, finalCache: Record<string, string>) {
-  const rootHashes = unified
-    ? await loadRootHashFile(repoRoot)
-    : null
-  const rootDebug = debug && unified
-    ? await loadRootDebugFile(repoRoot)
-    : null
+  // Load root files in parallel when unified mode is enabled
+  const [ rootHashes, rootDebug ] = unified
+    ? await Promise.all([
+        loadRootHashFile(repoRoot),
+        debug
+          ? loadRootDebugFile(repoRoot)
+          : null,
+      ])
+    : [ null, null ]
 
-  // 1) figure out exactly which workspaces have changed without filtering by targets
-  const changeChecks = await Promise.all(Object.entries(pkgs)
-    .map(async ([ pkgName, info ]) => {
-      const currentHex = finalCache[pkgName]
+  // Build oldHashMap in a single pass, reading per-workspace files in parallel when not unified
+  const pkgEntries = Object.entries(pkgs)
+  const oldHashMap: Record<string, string> = Object.create(null)
 
-      if (unified) {
-        const posixRel = displayPath(info.relDir)
-        const oldHex = rootHashes
-          ? rootHashes[posixRel]
-          : undefined
+  if (unified) {
+    for (const [ pkgName, info ] of pkgEntries) {
+      const posixRel = displayPath(info.relDir)
+      const oldHex = rootHashes?.[posixRel]
 
-        if (!oldHex) {
-          return {
-            pkgName, missing: true,
-          }
-        }
-
-        return {
-          pkgName, missing: false, changed: oldHex !== currentHex,
-        }
-      } else {
-        const hashPath = join(info.dir, ".hash")
-
-        if (!await exists(hashPath)) {
-          return {
-            pkgName, missing: true,
-          }
-        }
-
-        const oldHex = (await file(hashPath)
-          .text()).trim()
-
-        return {
-          pkgName, missing: false, changed: oldHex !== currentHex,
-        }
+      if (oldHex) {
+        oldHashMap[pkgName] = oldHex
       }
+    }
+  } else {
+    // Read all per-workspace hash files in parallel
+    const hashResults = await Promise.all(pkgEntries.map(async ([ pkgName, info ]) => {
+      const hashPath = join(info.dir, ".hash")
+      const existsHash = await exists(hashPath)
+
+      if (!existsHash) {
+        return [ pkgName, undefined ] as const
+      }
+
+      const oldHex = (await file(hashPath).text()).trim()
+
+      return [ pkgName, oldHex ] as const
     }))
 
-  const allChanged = new Set(changeChecks
-    .filter((r) => !r.missing && r.changed)
-    .map((r) => r.pkgName))
+    for (const [ name, hash ] of hashResults) {
+      if (hash !== undefined) {
+        oldHashMap[name] = hash
+      }
+    }
+  }
+
+  // 1) figure out exactly which workspaces have changed without filtering by targets
+  const allChanged = new Set<string>()
+
+  for (const [pkgName] of pkgEntries) {
+    const currentHex = finalCache[pkgName]
+    const oldHex = oldHashMap[pkgName]
+
+    if (oldHex !== undefined && oldHex !== currentHex) {
+      allChanged.add(pkgName)
+    }
+  }
 
   // 2) build a quick adjacency map from packageName to its internal deps
   const adjacency: Record<string, string[]> = Object.create(null)
@@ -767,43 +775,6 @@ async function compareHashes(pkgs: Record<string, PackageInfo>, finalCache: Reco
   const missingTargets: Array<{
     name: string; newHash: string;
   }> = []
-
-  // We need a map pkgName to oldHash so we can report old when it changed
-  const oldMapEntries = await Promise.all(Object.entries(pkgs)
-    .map(async ([ pkgName, info ]) => {
-      if (unified) {
-        const posixRel = displayPath(info.relDir)
-        const oldHex = rootHashes
-          ? rootHashes[posixRel]
-          : undefined
-
-        if (!oldHex) {
-          return null
-        }
-
-        return [ pkgName, oldHex ] as [string, string]
-      } else {
-        const hashPath = join(info.dir, ".hash")
-
-        if (!(await exists(hashPath))) {
-          return null
-        }
-
-        const oldHex = (await file(hashPath)
-          .text()).trim()
-
-        return [ pkgName, oldHex ] as [string, string]
-      }
-    }))
-  const oldHashMap: Record<string, string> = Object.create(null)
-
-  oldMapEntries.forEach((entry) => {
-    if (entry) {
-      const [ name, hex ] = entry
-
-      oldHashMap[name] = hex
-    }
-  })
 
   // 5) finally, iterate only over the workspaces the user asked for
   const toCheck = targets
@@ -957,11 +928,21 @@ async function hash() {
   const meta: Map<string, Meta> = new Map()
   const relToName: Map<string, string> = new Map()
 
-  // Read all package.json files in parallel
-  const pkgDataList = await Promise.all(pkgJsonPaths.map(async (pkgJson) => {
+  // Pre-compute paths to avoid repeated path operations in the async loop
+  const pathInfos = pkgJsonPaths.map((pkgJson) => {
     const absJson = resolve(repoRoot, pkgJson)
     const dir = dirname(absJson)
     const relDir = relative(repoRoot, dir)
+
+    return {
+      absJson, dir, relDir,
+    }
+  })
+
+  // Read all package.json files in parallel
+  const pkgDataList = await Promise.all(pathInfos.map(async ({
+    absJson, dir, relDir,
+  }) => {
     // oxlint-disable-next-line no-unsafe-type-assertion
     const pkgData = await file(absJson)
       .json() as PackageManifest
