@@ -79,7 +79,7 @@ const needsPathConversion = sep !== "/"
 // #endregion
 
 // #region utils
-function log(message: string, overwrite = false, level: "log" | "error" = "log") {
+export function log(message: string, overwrite = false, level: "log" | "error" = "log"): void {
   if (!silent) {
     if (
       overwrite
@@ -131,16 +131,16 @@ export async function exists(f: string): Promise<boolean> {
   return result
 }
 
-function zeroPad(num: number, places: number) {
+export function zeroPad(num: number, places: number): string {
   return String(num)
     .padStart(places, "0")
 }
 
-async function mapLimit<T, R>(
+export async function mapLimit<T, R>(
   items: T[],
   limit: number,
   fn: (item: T) => Promise<R>,
-) {
+): Promise<R[]> {
   const results: R[] = Array.from({ length: items.length })
   let idx = 0
 
@@ -158,11 +158,11 @@ async function mapLimit<T, R>(
   return results
 }
 
-async function getWorkspaceFileList(
+export async function getWorkspaceFileList(
   dir: string,
   relDir: string,
   rootIgnore: Ignore,
-) {
+): Promise<string[]> {
   const relDirPosix = displayPath(relDir)
 
   // Gather all files under `dir`
@@ -216,13 +216,13 @@ async function getWorkspaceFileList(
     .join(sep))
 }
 
-function isPackageManager(value: string): value is PackageManager {
+export function isPackageManager(value: string): value is PackageManager {
   return (PACKAGE_MANAGERS as readonly string[]).includes(value)
 }
 // #endregion
 
 // #region Package manager
-async function detectPNPM(): Promise<{
+export async function detectPNPM(): Promise<{
   pm: PackageManager; root: string; globs: string[];
 } | null> {
   const wsYaml = await findUp("pnpm-workspace.yaml")
@@ -248,7 +248,7 @@ async function detectPNPM(): Promise<{
   }
 }
 
-async function detectDeno(): Promise<{
+export async function detectDeno(): Promise<{
   pm: PackageManager; root: string; globs: string[];
 } | null> {
   let denoPath = await findUp("deno.json")
@@ -278,7 +278,7 @@ async function detectDeno(): Promise<{
   }
 }
 
-async function detectPkgJson(): Promise<{
+export async function detectPkgJson(): Promise<{
   pm: PackageManager; root: string; globs: string[];
 } | null> {
   const pkgPath = await findUp(async (dir) => {
@@ -352,7 +352,7 @@ async function detectPkgJson(): Promise<{
   }
 }
 
-async function autoDetect(): Promise<{
+export async function autoDetect(): Promise<{
   pm: PackageManager; root: string; globs: string[];
 } | null> {
   return (await detectPNPM())
@@ -360,7 +360,7 @@ async function autoDetect(): Promise<{
     ?? (await detectPkgJson())
 }
 
-async function detectSpecified(pm: PackageManager): Promise<{
+export async function detectSpecified(pm: PackageManager): Promise<{
   pm: PackageManager; root: string; globs: string[];
 } | null> {
   if (pm === "pnpm") {
@@ -380,7 +380,7 @@ async function detectSpecified(pm: PackageManager): Promise<{
 // #endregion
 
 // #region debug
-async function loadDebugFile(dir: string) {
+export async function loadDebugFile(dir: string): Promise<Record<string, string> | null> {
   const debugPath = join(dir, ".debug-hash")
 
   if (!(await exists(debugPath))) {
@@ -392,10 +392,10 @@ async function loadDebugFile(dir: string) {
     .json() as Record<string, string>
 }
 
-async function writeDebugFile(
+export async function writeDebugFile(
   dir: string,
   debugMap: Record<string, string>,
-) {
+): Promise<void> {
   const debugPath = join(dir, ".debug-hash")
   const normalizedMap: Record<string, string> = Object.create(null)
 
@@ -406,7 +406,7 @@ async function writeDebugFile(
   await write(debugPath, JSON.stringify(normalizedMap, null, 2))
 }
 
-async function loadRootDebugFile(rootDir: string) {
+export async function loadRootDebugFile(rootDir: string): Promise<Record<string, Record<string, string>> | null> {
   const p = join(rootDir, ".debug-hash")
 
   if (!(await exists(p))) {
@@ -418,10 +418,10 @@ async function loadRootDebugFile(rootDir: string) {
     .json() as Record<string, Record<string, string>>
 }
 
-async function writeRootDebugFile(
+export async function writeRootDebugFile(
   rootDir: string,
   map: Record<string, Record<string, string>>,
-) {
+): Promise<void> {
   const p = join(rootDir, ".debug-hash")
   const normalizedMap: Record<string, Record<string, string>> = Object.create(null)
 
@@ -439,10 +439,10 @@ async function writeRootDebugFile(
   await write(p, JSON.stringify(normalizedMap, null, 2))
 }
 
-async function generateDebug(
+export async function generateDebug(
   info: PackageInfo,
   oldDebug?: Record<string, string> | null,
-) {
+): Promise<string[]> {
   if (oldDebug === undefined) {
     oldDebug = await loadDebugFile(info.dir)
   }
@@ -479,10 +479,10 @@ async function generateDebug(
 // #endregion
 
 // #region hash compute
-async function computePerFileHashes(
+export async function computePerFileHashes(
   dir: string,
   fileList: string[],
-) {
+): Promise<Record<string, string>> {
   const result: Record<string, string> = Object.create(null)
 
   if (fileList.length === 0) {
@@ -511,10 +511,10 @@ async function computePerFileHashes(
   return result
 }
 
-function computeOwnHashFromPerFile(
+export function computeOwnHashFromPerFile(
   perFileMap: Record<string, string>,
   sortedKeys: string[],
-) {
+): Buffer {
   const h = new CryptoHasher("sha256")
   // Reuse a single buffer for hex decoding to reduce allocations, SHA-256 produces 32 bytes (64 hex chars)
   const rawBuffer = Buffer.allocUnsafe(32)
@@ -527,12 +527,12 @@ function computeOwnHashFromPerFile(
   return h.digest()
 }
 
-function computeFinalHash(
+export function computeFinalHash(
   pkgName: string,
   pkgs: Record<string, PackageInfo>,
   cache: Record<string, string>,
   visiting: Set<string> = new Set(),
-) {
+): string {
   if (cache[pkgName]) {
     return cache[pkgName]
   }
@@ -574,7 +574,7 @@ function computeFinalHash(
   return cache[pkgName]
 }
 
-async function loadRootHashFile(rootDir: string) {
+export async function loadRootHashFile(rootDir: string): Promise<Record<string, string> | null> {
   const p = join(rootDir, ".hash")
 
   if (!(await exists(p))) {
@@ -586,10 +586,10 @@ async function loadRootHashFile(rootDir: string) {
     .json() as Record<string, string>
 }
 
-async function writeRootHashFile(
+export async function writeRootHashFile(
   rootDir: string,
   map: Record<string, string>,
-) {
+): Promise<void> {
   const p = join(rootDir, ".hash")
   const normalized: Record<string, string> = Object.create(null)
   const existing = await loadRootHashFile(rootDir)
@@ -608,10 +608,12 @@ async function writeRootHashFile(
   await write(p, JSON.stringify(normalized, null, 2))
 }
 
-async function generateHashes(
+export async function generateHashes(
   pkgs: Record<string, PackageInfo>,
   finalCache: Record<string, string>,
-) {
+): Promise<Record<string, string> | Array<{
+  relDir: string; hash: string;
+}>> {
   const entries = Object.entries(pkgs)
     // If the user passed --target, only write those relDirs
     .filter(([ _, { relDir }]) => !targets || targets.includes(relDir))
@@ -662,7 +664,15 @@ async function generateHashes(
   }
 }
 
-async function compareHashes(pkgs: Record<string, PackageInfo>, finalCache: Record<string, string>) {
+export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCache: Record<string, string>): Promise<{
+  unchangedTargets: string[];
+  changedTargets: Array<{
+    name: string; oldHash: string; newHash: string; changedDeps: string[];
+  }>;
+  missingTargets: Array<{
+    name: string; newHash: string;
+  }>;
+}> {
   // Load root files in parallel when unified mode is enabled
   const [ rootHashes, rootDebug ] = unified
     ? await Promise.all([
@@ -908,7 +918,7 @@ async function compareHashes(pkgs: Record<string, PackageInfo>, finalCache: Reco
   }
 }
 
-async function hash() {
+export async function hash(): Promise<Awaited<ReturnType<typeof generateHashes>> | Awaited<ReturnType<typeof compareHashes>>> {
   // 1) find every workspace's package.json
   const pkgJsonPaths = await fg(
     workspaceGlobs.map((glob) => posix.join(glob, "package.json")),
@@ -1125,7 +1135,7 @@ async function hash() {
 // #endregion
 
 // #region run
-async function runCli(customArgv?: string[]) {
+export async function runCli(customArgv?: string[]): Promise<Awaited<ReturnType<typeof hash>> | undefined> {
   // Reset CLI state for each invocation
   mode = null
   targets = null
