@@ -8,6 +8,7 @@
 💥🩹🔊 small fix/logs : the logged/returned paths are always POSIX-style
 
 🐛 fix : generating targeted hashes on unified mode won't delete existing hashes from workspaces outside of the specified targets  
+🐛🔊 fix : properly respects silent mode for all logs and especially errors, no longer manually throws  
 ⚡️ perf : when computing the file hashes, properly process 100 in parallel instead of batches of 100  
 ⚡️ perf : pre-ignore hash files as well as node_modules and .git when getting the workspace files list  
 ⚡️ perf : only run path normalization on Windows  
