@@ -668,16 +668,30 @@ export function computeOwnHashFromPerFile(
  * @param pkgName The name of the package to compute the final hash for
  * @param pkgs A record mapping package names to their PackageInfo
  * @param cache A record used to cache computed final hashes
+ * @param visiting A set of packages currently being visited (for cycle detection)
  * @returns The final hash as a hex string
  */
 export function computeFinalHash(
   pkgName: string,
   pkgs: Record<string, PackageInfo>,
   cache: Record<string, string>,
+  visiting: Set<string> = new Set(),
 ): string {
   if (cache[pkgName]) {
     return cache[pkgName]
   }
+
+  // Detect circular dependency
+  if (visiting.has(pkgName)) {
+    const cycle = Array.from(visiting)
+    const cycleStart = cycle.indexOf(pkgName)
+    const cyclePath = [ ...cycle.slice(cycleStart), pkgName ].join(" -> ")
+
+    log(`❌ Circular dependency detected : ${cyclePath}`, false, "error")
+    safeExit(6)
+  }
+
+  visiting.add(pkgName)
 
   const pkg = pkgs[pkgName]
 
@@ -692,13 +706,14 @@ export function computeFinalHash(
 
   // Then incorporate each dependency's final hash (as Buffer)
   for (const dep of pkg.deps) {
-    const depHex = computeFinalHash(dep, pkgs, cache)
+    const depHex = computeFinalHash(dep, pkgs, cache, visiting)
     const depBuf = Buffer.from(depHex, "hex")
 
     chain.update(depBuf)
   }
 
   cache[pkgName] = chain.digest("hex")
+  visiting.delete(pkgName)
 
   return cache[pkgName]
 }

@@ -7,6 +7,7 @@
 💥🚑️ hotfix : the Bun version no longer produce different hashes due to a mistake in the `CryptoHasher` initialization  
 💥🩹🔊 small fix/logs : the logged/returned paths are always POSIX-style
 
+✨ feat : circular dependencies detection, will error out with code `6` if found  
 🐛 fix : generating targeted hashes on unified mode won't delete existing hashes from workspaces outside of the specified targets  
 🐛🔊 fix : properly respects silent mode for all logs and especially errors, no longer manually throws  
 ⚡️ perf : when computing the file hashes, properly process 100 in parallel instead of batches of 100  

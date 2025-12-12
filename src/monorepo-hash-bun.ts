@@ -531,10 +531,23 @@ function computeFinalHash(
   pkgName: string,
   pkgs: Record<string, PackageInfo>,
   cache: Record<string, string>,
+  visiting: Set<string> = new Set(),
 ) {
   if (cache[pkgName]) {
     return cache[pkgName]
   }
+
+  // Detect circular dependency
+  if (visiting.has(pkgName)) {
+    const cycle = Array.from(visiting)
+    const cycleStart = cycle.indexOf(pkgName)
+    const cyclePath = [ ...cycle.slice(cycleStart), pkgName ].join(" -> ")
+
+    log(`❌ Circular dependency detected : ${cyclePath}`, false, "error")
+    exit(6)
+  }
+
+  visiting.add(pkgName)
 
   const pkg = pkgs[pkgName]
 
@@ -549,13 +562,14 @@ function computeFinalHash(
 
   // Then incorporate each dependency's final hash (as Buffer)
   for (const dep of pkg.deps) {
-    const depHex = computeFinalHash(dep, pkgs, cache)
+    const depHex = computeFinalHash(dep, pkgs, cache, visiting)
     const depBuf = Buffer.from(depHex, "hex")
 
     chain.update(depBuf)
   }
 
   cache[pkgName] = chain.digest("hex")
+  visiting.delete(pkgName)
 
   return cache[pkgName]
 }

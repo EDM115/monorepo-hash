@@ -159,6 +159,7 @@ Don't forget to delete these files afterwards !
 - `3` : Unknown arguments provided
 - `4` : No workspaces found or unsupported package manager
 - `5` : Package manager forced with `--packagemanager` not present in the repo
+- `6` : Circular dependency detected in the workspace packages
 - `99` : An unexpected error occurred, please open an issue with the logs
 
 ## :test_tube: Examples
