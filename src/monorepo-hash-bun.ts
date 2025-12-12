@@ -79,7 +79,7 @@ const needsPathConversion = sep !== "/"
 // #endregion
 
 // #region utils
-function log(message: string, overwrite = false) {
+function log(message: string, overwrite = false, level: "log" | "error" = "log") {
   if (!silent) {
     if (
       overwrite
@@ -92,7 +92,11 @@ function log(message: string, overwrite = false) {
       stdout.cursorTo(0)
       stdout.write(message)
     } else {
-      console.log(message)
+      if (level === "log") {
+        console.log(message)
+      } else {
+        console.error(message)
+      }
     }
   }
 }
@@ -519,7 +523,8 @@ function computeFinalHash(
   const pkg = pkgs[pkgName]
 
   if (!pkg.ownHash) {
-    throw new Error(`ownHash missing for package ${pkgName}`)
+    log(`❌ ownHash missing for package ${pkgName}`, false, "error")
+    exit(99)
   }
 
   // Start the chain
@@ -1040,7 +1045,8 @@ async function hash() {
       const pkgMeta = meta.get(pkgName)
 
       if (!pkgMeta) {
-        throw new Error(`Metadata missing for package ${pkgName}`)
+        log(`❌ Metadata missing for package ${pkgName}`, false, "error")
+        exit(99)
       }
 
       const {
@@ -1125,14 +1131,14 @@ async function runCli(customArgv?: string[]) {
   for (const arg of (customArgv ?? argv.slice(2))) {
     if (arg === "--generate" || arg === "-g") {
       if (mode === "compare") {
-        console.error("❌ Cannot specify both --generate and --compare")
+        log("❌ Cannot specify both --generate and --compare", false, "error")
         exit(2)
       }
 
       mode = "generate"
     } else if (arg === "--compare" || arg === "-c") {
       if (mode === "generate") {
-        console.error("❌ Cannot specify both --generate and --compare")
+        log("❌ Cannot specify both --generate and --compare", false, "error")
         exit(2)
       }
 
@@ -1152,7 +1158,7 @@ async function runCli(customArgv?: string[]) {
       const [ , val ] = arg.split("=")
 
       if (!isPackageManager(val)) {
-        console.error(`❌ Invalid package manager ("${val}"), supported values are : ${PACKAGE_MANAGERS.join(", ")}`)
+        log(`❌ Invalid package manager ("${val}"), supported values are : ${PACKAGE_MANAGERS.join(", ")}`, false, "error")
         exit(2)
       }
 
@@ -1160,7 +1166,7 @@ async function runCli(customArgv?: string[]) {
         ? val
         : null
     } else if (arg === "--help" || arg === "-h") {
-      console.log(`
+      log(`
 monorepo-hash by EDM115
 A simple script to generate or compare .hash files for monorepo workspaces
 Supports PNPM, Yarn, NPM, Bun and Deno
@@ -1175,11 +1181,9 @@ Arguments :
   --packagemanager  (-pm) Force the package manager (${PACKAGE_MANAGERS.join(", ")})
   --help            (-h)  Show this help message
 `)
-
       exit(0)
     } else {
-      console.error(`❌ Unknown option : ${arg}`)
-
+      log(`❌ Unknown option : ${arg}`, false, "error")
       exit(3)
     }
   }
@@ -1192,8 +1196,7 @@ Arguments :
   }
 
   if (!mode) {
-    console.error("❌ Must specify either --generate (-g) or --compare (-c)")
-
+    log("❌ Must specify either --generate (-g) or --compare (-c)", false, "error")
     exit(2)
   } else {
     if (mode === "generate") {
@@ -1228,15 +1231,15 @@ Arguments :
       const auto = await autoDetect()
 
       if (auto) {
-        console.error(`❌ ${pmOption} workspaces not found. Did you mean --packagemanager=${auto.pm}?`)
+        log(`❌ ${pmOption} workspaces not found. Did you mean --packagemanager=${auto.pm}?`, false, "error")
       } else {
-        console.error("❌ Specified package manager not found and no supported package manager detected")
+        log("❌ Specified package manager not found and no supported package manager detected", false, "error")
       }
 
       exit(5)
     }
 
-    console.error("❌ No workspaces found or unsupported package manager")
+    log("❌ No workspaces found or unsupported package manager", false, "error")
     exit(4)
   }
 
@@ -1264,10 +1267,10 @@ Arguments :
   try {
     return await hash()
   } catch (err) {
-    console.error("❌ Unexpected error :")
-    console.error(err instanceof Error
+    log("❌ Unexpected error :", false, "error")
+    log(err instanceof Error
       ? err.message
-      : String(err))
+      : String(err), false, "error")
     exit(99)
   }
 }
