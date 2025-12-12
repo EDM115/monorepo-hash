@@ -65,9 +65,7 @@ pnpm monorepo-hash --help
 bunx monorepo-hash --help
 yarn run monorepo-hash --help
 npx monorepo-hash --help
-# you cannot directly run binaries from deno, you can only define a shell script that runs from a task
-# so either do that or run the JS-based version
-deno run -A monorepo-hash-js --help
+dx monorepo-hash --help
 ```
 > [!TIP]  
 > Short versions of all arguments are also available.

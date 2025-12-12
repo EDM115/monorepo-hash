@@ -26,7 +26,7 @@
 ⚡️ perf : don't even check for NPM's lockfile when it is the last option to check  
 📝 docs : update the README with informations about the binary, the older usage, the default mode change and new flag, a better explanation of the transitive dep management, how to use the other exported file, refresh the examples and disclaimer on the benchmarks  
 📦️ package : export functions and types from binary install and platform scripts in one endpoint  
-♻️ refactor : move the `exists()` helper to the platform script to not pack `monorepo-hash` again inside, drastically reducing the postinstall script size  
+♻️ refactor : move the `exists()` helper to the platform script to not pack `monorepo-hash` again inside, drastically reducing the postinstall script size and avoiding a crash on install  
 🦺 types : lock in-place more things  
 📦️ build : binaries are built with Bun `1.3.4` instead of `1.3.3`  
 ✅ tests : update the tests to use POSIX-style paths  
@@ -43,6 +43,9 @@
 ---
 
 ## v1.9.0
+> [!CAUTION]  
+> The postinstall script will crash when run, you can ignore that. Upgrade to v2 asap !
+
 🚑️🐛 hotfix : the binaries no longer segfault on platforms other than Windows as they are now built each directly in their target OS (see [#18](https://github.com/EDM115/monorepo-hash/issues/18)). binaries from [v1.8.0](#v180) have been rebuilt & republished since (except for `musl` variants which still crashes on that version)  
 ✨⚡️ feat/perf : the binaries now ship Bun-optimized code
   - separate file just for Bun
