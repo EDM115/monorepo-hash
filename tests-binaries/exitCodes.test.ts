@@ -1,11 +1,15 @@
 import { execa } from "execa"
 import {
-  writeFile,
+  mkdirp,
+  pathExists,
   readFile,
   remove,
+  writeFile,
+  writeJson,
 } from "fs-extra"
 import { join } from "node:path"
 import {
+  afterAll,
   beforeAll,
   describe,
   expect,
@@ -79,6 +83,73 @@ describe("exit codes", () => {
 
     expect(result.exitCode)
       .toBe(5)
+  })
+
+  // technically an edge case but here since it throws an exit code
+  describe("circular dependency handling", () => {
+    let circularDir: string
+
+    beforeAll(async () => {
+      circularDir = join(cwd, "circular-test")
+      await mkdirp(circularDir)
+      const workspaceYaml = "packages:\n  - \"packages/*\""
+
+      await writeFile(join(circularDir, "pnpm-workspace.yaml"), workspaceYaml)
+
+      const pkgADir = join(circularDir, "packages", "pkg-circular-a")
+      const pkgBDir = join(circularDir, "packages", "pkg-circular-b")
+
+      await mkdirp(pkgADir)
+      await mkdirp(pkgBDir)
+      await writeJson(join(pkgADir, "package.json"), {
+        name: "pkg-circular-a",
+        version: "1.0.0",
+        dependencies: {
+          "pkg-circular-b": "workspace:*",
+        },
+      }, { spaces: 2 })
+      await writeFile(join(pkgADir, "index.js"), "import { b } from 'pkg-circular-b'\n")
+      await writeJson(join(pkgBDir, "package.json"), {
+        name: "pkg-circular-b",
+        version: "1.0.0",
+        dependencies: {
+          "pkg-circular-a": "workspace:*",
+        },
+      }, { spaces: 2 })
+      await writeFile(join(pkgBDir, "index.js"), "import { a } from 'pkg-circular-a'\n")
+    })
+
+    afterAll(async () => {
+      if (circularDir && (await pathExists(circularDir))) {
+        await remove(circularDir)
+      }
+    })
+
+    it("detects circular dependencies and exits with code 6", async () => {
+      const result = await execa(cli, [ "--generate" ], {
+        cwd: circularDir,
+        reject: false,
+        timeout: 30000,
+      })
+
+      expect(result.exitCode)
+        .toBe(6)
+      expect(result.stderr)
+        .toContain("Circular dependency detected")
+    })
+
+    it("reports the cycle path in the error message", async () => {
+      const result = await execa(cli, [ "--generate" ], {
+        cwd: circularDir,
+        reject: false,
+      })
+
+      expect(result.exitCode)
+        .toBe(6)
+      // The error should show the cycle path like "pkg-circular-a -> pkg-circular-b -> pkg-circular-a"
+      expect(result.stderr)
+        .toMatch(/pkg-circular-[ab] -> pkg-circular-[ab]/)
+    })
   })
 
   it("returns 99 on unexpected error", async () => {
