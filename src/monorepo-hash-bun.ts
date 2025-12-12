@@ -56,6 +56,13 @@ interface PackageInfo {
   manifest: PackageManifest;
   ownHash?: Buffer;
 }
+
+type Meta = {
+  dir: string;
+  relDir: string;
+  manifest: PackageManifest;
+  deps: string[];
+}
 // #endregion
 
 
@@ -928,13 +935,6 @@ export async function hash(): Promise<Awaited<ReturnType<typeof generateHashes>>
   )
 
   // 2) read package.json files to gather basic info (without hashing yet)
-  type Meta = {
-    dir: string;
-    relDir: string;
-    manifest: PackageManifest;
-    deps: string[];
-  }
-
   const meta: Map<string, Meta> = new Map()
   const relToName: Map<string, string> = new Map()
 
