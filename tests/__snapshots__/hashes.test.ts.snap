@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`hash generation > generates all hashes and matches snapshot (per workspace) 1`] = `
+exports[`hash generation > unified > generates all hashes and matches snapshot 1`] = `
 {
   "database": "4fd660d2b0881cf3554460f6fdbb49c6e0254e0734877409260576d22f8cd998",
   "packages/cli-tools": "3cb7ab8f6442d61e8672ec34c6bd90ebeb7c77c66a697e210cf39600605e599d",
@@ -10,7 +10,7 @@ exports[`hash generation > generates all hashes and matches snapshot (per worksp
 }
 `;
 
-exports[`hash generation > generates all hashes and matches snapshot 1`] = `
+exports[`hash generation > workspaces > generates all hashes and matches snapshot 1`] = `
 {
   "database": "4fd660d2b0881cf3554460f6fdbb49c6e0254e0734877409260576d22f8cd998",
   "packages/cli-tools": "3cb7ab8f6442d61e8672ec34c6bd90ebeb7c77c66a697e210cf39600605e599d",
