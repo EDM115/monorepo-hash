@@ -37,7 +37,12 @@ describe("utility functions", () => {
       const harness = join(cwd, "displayPath.mjs")
 
       created.push(harness)
-      await writeFile(harness, `import { displayPath } from "${cliImport}"
+      await writeFile(harness, `import { createRequire } from "node:module"        
+const require = createRequire(import.meta.url)
+// spoof Node's path.sep on Linux/Mac for testing
+const path = require("node:path")
+path.sep = "\\\\"
+const { displayPath } = await import("${cliImport}")
 console.log(displayPath("packages\\\\pkg-a\\\\src\\\\index.ts"))`)
       const { stdout } = await execa(cli, [harness], { cwd })
 

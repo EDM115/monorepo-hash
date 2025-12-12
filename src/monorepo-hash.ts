@@ -75,6 +75,16 @@ export interface PackageInfo {
   manifest: PackageManifest;
   ownHash?: Buffer;
 }
+
+/**
+ * Meta information about a package during processing
+ */
+export type Meta = {
+  dir: string;
+  relDir: string;
+  manifest: PackageManifest;
+  deps: string[];
+}
 // #endregion
 
 
@@ -129,6 +139,8 @@ export function log(message: string, overwrite = false, level: "log" | "error" =
 
 /**
  * Normalize a path for display purposes (always POSIX-style separators) and cache the result
+ * @param p The path to normalize
+ * @returns The normalized path
  */
 export function displayPath(p: string): string {
   if (!needsPathConversion) {
@@ -1098,13 +1110,6 @@ export async function hash(): Promise<Awaited<ReturnType<typeof generateHashes>>
   )
 
   // 2) read package.json files to gather basic info (without hashing yet)
-  type Meta = {
-    dir: string;
-    relDir: string;
-    manifest: PackageManifest;
-    deps: string[];
-  }
-
   const meta: Map<string, Meta> = new Map()
   const relToName: Map<string, string> = new Map()
 
