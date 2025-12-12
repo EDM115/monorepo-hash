@@ -309,7 +309,7 @@ export async function detectPNPM(): Promise<{
 } | null> {
   const wsYaml = await findUp("pnpm-workspace.yaml")
 
-  if (!wsYaml || !(await exists(wsYaml))) {
+  if (!wsYaml) {
     return null
   }
 
@@ -338,10 +338,10 @@ export async function detectDeno(): Promise<{
 } | null> {
   let denoPath = await findUp("deno.json")
 
-  if (!denoPath || !(await exists(denoPath))) {
+  if (!denoPath) {
     denoPath = await findUp("deno.jsonc")
 
-    if (!denoPath || !(await exists(denoPath))) {
+    if (!denoPath) {
       return null
     }
   }
@@ -403,19 +403,31 @@ export async function detectPkgJson(): Promise<{
     return null
   }
 
-  if (await exists(join(root, "bun.lock")) || await exists(join(root, "bun.lockb"))) {
+  const [
+    hasBunLock,
+    hasBunLockB,
+    hasDenoLock,
+    hasYarnLock,
+  ] = await Promise.all([
+    exists(join(root, "bun.lock")),
+    exists(join(root, "bun.lockb")),
+    exists(join(root, "deno.lock")),
+    exists(join(root, "yarn.lock")),
+  ])
+
+  if (hasBunLock || hasBunLockB) {
     return {
       pm: "bun", root, globs,
     }
   }
 
-  if (await exists(join(root, "deno.lock"))) {
+  if (hasDenoLock) {
     return {
       pm: "deno", root, globs,
     }
   }
 
-  if (await exists(join(root, "yarn.lock"))) {
+  if (hasYarnLock) {
     return {
       pm: "yarn", root, globs,
     }
