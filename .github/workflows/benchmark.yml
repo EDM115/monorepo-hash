@@ -12,6 +12,10 @@ on:
     types: [published]
   workflow_dispatch:
     inputs:
+      benchs:
+        description: 'Run specific benchmarks only (comma-separated values: small,medium,large,wide), leave empty to run all'
+        required: false
+        default: ''
       ref:
         description: 'Git reference (branch, tag, or SHA)'
         required: false
@@ -74,23 +78,33 @@ jobs:
           fastfetch -c all.jsonc
           echo "lshw :"
           sudo lshw -short
+      
+      - name: "Get the benchmarks to run"
+        id: get_benchs
+        run: |
+          if [[ "${{ github.event.inputs.benchs }}" != "" ]]; then
+            echo "benchs=${{ github.event.inputs.benchs }}" >> $GITHUB_OUTPUT
+          else
+            echo "benchs=small,medium,large,wide" >> $GITHUB_OUTPUT
+          fi
 
       - name: "Prepare the benchmarks"
         run: |
           pnpm build && pnpm build:bun:linux-x64
           chmod +x bun-build/monorepo-hash-linux-x64
           mkdir -p tests/benchmarks/node tests/benchmarks/bun
-          7z x tests/demo/small-monorepo.7z -o./tests/demo
-          cp dist/monorepo-hash.mjs tests/demo/small-monorepo/monorepo-hash.mjs
-          cp bun-build/monorepo-hash-linux-x64 tests/demo/small-monorepo/monorepo-hash
-          7z x tests/demo/medium-monorepo.7z -o./tests/demo
-          cp dist/monorepo-hash.mjs tests/demo/medium-monorepo/monorepo-hash.mjs
-          cp bun-build/monorepo-hash-linux-x64 tests/demo/medium-monorepo/monorepo-hash
-          7z x tests/demo/large-monorepo.7z -o./tests/demo
-          cp dist/monorepo-hash.mjs tests/demo/large-monorepo/monorepo-hash.mjs
-          cp bun-build/monorepo-hash-linux-x64 tests/demo/large-monorepo/monorepo-hash
+          IFS=',' read -ra BENCHES <<< "${{ steps.get_benchs.outputs.benchs }}"
+          for b in "${BENCHES[@]}"; do
+            b="$(echo "$b" | xargs)"
+            echo "Preparing $b..."
+
+            7z x "tests/demo/${b}-monorepo.7z" -o./tests/demo
+            cp dist/monorepo-hash.mjs "tests/demo/${b}-monorepo/monorepo-hash.mjs"
+            cp bun-build/monorepo-hash-linux-x64 "tests/demo/${b}-monorepo/monorepo-hash"
+          done
 
       - name: "Benchmark : small monorepo, bun"
+        if: contains(steps.get_benchs.outputs.benchs, 'small')
         run: |
           cd tests/demo/small-monorepo
           hyperfine \
@@ -101,6 +115,7 @@ jobs:
             './monorepo-hash --generate -pm=pnpm -s'
 
       - name: "Benchmark : medium monorepo, bun"
+        if: contains(steps.get_benchs.outputs.benchs, 'medium')
         run: |
           cd tests/demo/medium-monorepo
           hyperfine \
@@ -111,6 +126,7 @@ jobs:
             './monorepo-hash --generate -pm=pnpm -s'
 
       - name: "Benchmark : large monorepo, bun"
+        if: contains(steps.get_benchs.outputs.benchs, 'large')
         run: |
           cd tests/demo/large-monorepo
           hyperfine \
@@ -120,7 +136,19 @@ jobs:
             --export-markdown ../../benchmarks/bun/large-monorepo.md \
             './monorepo-hash --generate -pm=pnpm -s'
 
+      - name: "Benchmark : wide monorepo, bun"
+        if: contains(steps.get_benchs.outputs.benchs, 'wide')
+        run: |
+          cd tests/demo/wide-monorepo
+          hyperfine \
+            --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches' \
+            --warmup 2 \
+            --runs 10 \
+            --export-markdown ../../benchmarks/bun/wide-monorepo.md \
+            './monorepo-hash --generate -pm=pnpm -s'
+
       - name: "Benchmark : small monorepo, node"
+        if: contains(steps.get_benchs.outputs.benchs, 'small')
         run: |
           cd tests/demo/small-monorepo
           hyperfine \
@@ -131,6 +159,7 @@ jobs:
             'node monorepo-hash.mjs --generate -pm=pnpm -s'
 
       - name: "Benchmark : medium monorepo, node"
+        if: contains(steps.get_benchs.outputs.benchs, 'medium')
         run: |
           cd tests/demo/medium-monorepo
           hyperfine \
@@ -141,6 +170,7 @@ jobs:
             'node monorepo-hash.mjs --generate -pm=pnpm -s'
 
       - name: "Benchmark : large monorepo, node"
+        if: contains(steps.get_benchs.outputs.benchs, 'large')
         run: |
           cd tests/demo/large-monorepo
           hyperfine \
@@ -148,6 +178,17 @@ jobs:
             --warmup 2 \
             --runs 10 \
             --export-markdown ../../benchmarks/node/large-monorepo.md \
+            'node monorepo-hash.mjs --generate -pm=pnpm -s'
+
+      - name: "Benchmark : wide monorepo, node"
+        if: contains(steps.get_benchs.outputs.benchs, 'wide')
+        run: |
+          cd tests/demo/wide-monorepo
+          hyperfine \
+            --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches' \
+            --warmup 2 \
+            --runs 10 \
+            --export-markdown ../../benchmarks/node/wide-monorepo.md \
             'node monorepo-hash.mjs --generate -pm=pnpm -s'
 
       - name: "Upload benchmarks results"
