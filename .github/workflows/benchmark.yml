@@ -87,12 +87,21 @@ jobs:
           else
             echo "benchs=small,medium,large,wide" >> $GITHUB_OUTPUT
           fi
+          if grep -q '"build:bun"' package.json; then
+            echo "build_bun=true" >> $GITHUB_OUTPUT
+          else
+            echo "build_bun=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: "Prepare the benchmarks"
         run: |
-          pnpm build && pnpm build:bun:linux-x64
-          chmod +x bun-build/monorepo-hash-linux-x64
-          mkdir -p tests/benchmarks/node tests/benchmarks/bun
+          pnpm build
+          if [[ "${{ steps.get_benchs.outputs.build_bun }}" == "true" ]]; then
+            pnpm build:bun:linux-x64
+            chmod +x bun-build/monorepo-hash-linux-x64
+            mkdir -p tests/benchmarks/bun
+          fi
+          mkdir -p tests/benchmarks/node
           IFS=',' read -ra BENCHES <<< "${{ steps.get_benchs.outputs.benchs }}"
           for b in "${BENCHES[@]}"; do
             b="$(echo "$b" | xargs)"
@@ -100,11 +109,13 @@ jobs:
 
             7z x "tests/demo/${b}-monorepo.7z" -o./tests/demo
             cp dist/monorepo-hash.mjs "tests/demo/${b}-monorepo/monorepo-hash.mjs"
-            cp bun-build/monorepo-hash-linux-x64 "tests/demo/${b}-monorepo/monorepo-hash"
+            if [[ "${{ steps.get_benchs.outputs.build_bun }}" == "true" ]]; then
+              cp bun-build/monorepo-hash-linux-x64 "tests/demo/${b}-monorepo/monorepo-hash"
+            fi
           done
 
       - name: "Benchmark : small monorepo, bun"
-        if: contains(steps.get_benchs.outputs.benchs, 'small')
+        if: contains(steps.get_benchs.outputs.benchs, 'small') && steps.get_benchs.outputs.build_bun == 'true'
         run: |
           cd tests/demo/small-monorepo
           hyperfine \
@@ -115,7 +126,7 @@ jobs:
             './monorepo-hash --generate -pm=pnpm -s'
 
       - name: "Benchmark : medium monorepo, bun"
-        if: contains(steps.get_benchs.outputs.benchs, 'medium')
+        if: contains(steps.get_benchs.outputs.benchs, 'medium') && steps.get_benchs.outputs.build_bun == 'true'
         run: |
           cd tests/demo/medium-monorepo
           hyperfine \
@@ -126,7 +137,7 @@ jobs:
             './monorepo-hash --generate -pm=pnpm -s'
 
       - name: "Benchmark : large monorepo, bun"
-        if: contains(steps.get_benchs.outputs.benchs, 'large')
+        if: contains(steps.get_benchs.outputs.benchs, 'large') && steps.get_benchs.outputs.build_bun == 'true'
         run: |
           cd tests/demo/large-monorepo
           hyperfine \
@@ -137,7 +148,7 @@ jobs:
             './monorepo-hash --generate -pm=pnpm -s'
 
       - name: "Benchmark : wide monorepo, bun"
-        if: contains(steps.get_benchs.outputs.benchs, 'wide')
+        if: contains(steps.get_benchs.outputs.benchs, 'wide') && steps.get_benchs.outputs.build_bun == 'true'
         run: |
           cd tests/demo/wide-monorepo
           hyperfine \
