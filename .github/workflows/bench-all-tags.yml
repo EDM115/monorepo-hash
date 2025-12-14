@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       tags_mode:
-        description: "all | last:N (e.g. last:10)"
+        description: "all | last:N (ex last:10)"
         required: false
-        default: "last:10"
+        default: "last:2"
       benchs:
         description: "small,medium,large,wide"
         required: false
@@ -64,11 +64,14 @@ jobs:
           RUNS_FAST: ${{ github.event.inputs.runs_fast }}
           RUNS_SLOW: ${{ github.event.inputs.runs_slow }}
           BASELINE_TAGS: ${{ github.event.inputs.baseline_tags }}
+          INCLUDE_REF: "true"
+          REF_LABEL: ${{ github.ref_name }}
         run: |
           chmod +x .github/workflows/bench-all-tags.sh
           .github/workflows/bench-all-tags.sh
 
-      - uses: actions/upload-artifact@v5
+      - name: "Upload benchmark history"
+        uses: actions/upload-artifact@v5
         with:
           name: bench-history
           path: tests/benchmarks/history/**/*.json

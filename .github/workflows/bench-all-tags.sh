@@ -7,6 +7,19 @@ RUNS_SLOW="${RUNS_SLOW:-10}" # newest tag(s)
 WARMUP="${WARMUP:-1}"
 TAGS_MODE="${TAGS_MODE:-all}" # all | last:N
 BASELINE_TAGS="${BASELINE_TAGS:-1}" # how many newest tags get slow runs
+INCLUDE_REF="${INCLUDE_REF:-true}" # include the currently checked-out ref (HEAD) as well
+
+# Label for the current ref (branch name in Actions, or "HEAD" locally)
+REF_LABEL="${REF_LABEL:-${GITHUB_REF_NAME:-HEAD}}"
+REF_COMMIT="$(git rev-parse HEAD)"
+
+sanitize_label() {
+  # safe for directory names
+  local s="$1"
+  s="${s//\//_}"
+  s="${s// /_}"
+  echo "$s"
+}
 
 ROOT="$(pwd)"
 RESULTS_DIR="$ROOT/tests/benchmarks/history"
@@ -21,31 +34,49 @@ for b in "${BENCH_ARR[@]}"; do
   fi
 done
 
-# Collect tags
-mapfile -t TAGS < <(git tag --list '*' --sort=version:refname)
+# Collect tags as commit-ish
+mapfile -t TAGS < <(git tag --list --sort=version:refname)
 if [[ "$TAGS_MODE" =~ ^last:([0-9]+)$ ]]; then
   N="${BASH_REMATCH[1]}"
   TAGS=("${TAGS[@]: -$N}")
 fi
+
+# Build the list of refs to benchmark :
+#   ref:<label>:<commit-ish>
+REFS=()
+if [[ "$INCLUDE_REF" == "true" ]]; then
+  REFS+=("ref:${REF_LABEL}:${REF_COMMIT}")
+fi
+for t in "${TAGS[@]}"; do
+  REFS+=("tag:${t}:${t}")
+done
 
 # Figure out which tags get the "slow" treatment (newest ones)
 TOTAL="${#TAGS[@]}"
 SLOW_FROM=$(( TOTAL - BASELINE_TAGS ))
 if (( SLOW_FROM < 0 )); then SLOW_FROM=0; fi
 
-echo "Benchmarking ${#TAGS[@]} tags : ${TAGS[*]}"
+echo "Benchmarking ${#REFS[@]} refs (ref + tags) :"
+printf ' - %s\n' "${REFS[@]}"
 echo "Fast runs : $RUNS_FAST | Slow runs (newest $BASELINE_TAGS) : $RUNS_SLOW"
 
 i=0
-for tag in "${TAGS[@]}"; do
+for spec in "${REFS[@]}"; do
+  kind="${spec%%:*}"
+  rest="${spec#*:}"
+  label="${rest%%:*}"
+  commitish="${rest#*:}"
+  safe_label="$(sanitize_label "$label")"
+
   echo ""
-  echo "=== TAG $tag ==="
+  echo "=== ${kind^^} $label ($commitish) ==="
 
   # Make a worktree per tag
-  WT="$ROOT/.worktrees/$tag"
+  WT="$ROOT/.worktrees/$safe_label"
   rm -rf "$WT"
   mkdir -p "$ROOT/.worktrees"
-  git worktree add -f "$WT" "$tag" >/dev/null
+  # Use detached worktrees so tags/SHAs/branches all behave consistently
+  git worktree add -f --detach "$WT" "$commitish" >/dev/null
 
   pushd "$WT" >/dev/null
 
@@ -88,35 +119,35 @@ for tag in "${TAGS[@]}"; do
     DEMO="$ROOT/tests/demo/${b}-monorepo"
 
     # node
-    mkdir -p "$RESULTS_DIR/node/$tag"
+    mkdir -p "$RESULTS_DIR/node/$safe_label"
     hyperfine \
       --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches >/dev/null' \
       --warmup "$WARMUP" \
       --runs "$RUNS" \
-      --export-json "$RESULTS_DIR/node/$tag/${b}-cold.json" \
+      --export-json "$RESULTS_DIR/node/$safe_label/${b}-cold.json" \
       "node $WT/dist/$JS_NAME --generate $PM_ARG -s" \
       --workdir "$DEMO"
     hyperfine \
       --warmup "$WARMUP" \
       --runs "$RUNS" \
-      --export-json "$RESULTS_DIR/node/$tag/${b}-warm.json" \
+      --export-json "$RESULTS_DIR/node/$safe_label/${b}-warm.json" \
       "node $WT/dist/$JS_NAME --generate $PM_ARG -s" \
       --workdir "$DEMO"
 
     # bun (if that tag supports it)
     if [[ "$BUILD_BUN" == "true" ]]; then
-      mkdir -p "$RESULTS_DIR/bun/$tag"
+      mkdir -p "$RESULTS_DIR/bun/$safe_label"
       hyperfine \
         --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches >/dev/null' \
         --warmup "$WARMUP" \
         --runs "$RUNS" \
-        --export-json "$RESULTS_DIR/bun/$tag/${b}-cold.json" \
+        --export-json "$RESULTS_DIR/bun/$safe_label/${b}-cold.json" \
         "$WT/bun-build/monorepo-hash-linux-x64 --generate $PM_ARG -s" \
         --workdir "$DEMO"
       hyperfine \
         --warmup "$WARMUP" \
         --runs "$RUNS" \
-        --export-json "$RESULTS_DIR/bun/$tag/${b}-warm.json" \
+        --export-json "$RESULTS_DIR/bun/$safe_label/${b}-warm.json" \
         "$WT/bun-build/monorepo-hash-linux-x64 --generate $PM_ARG -s" \
         --workdir "$DEMO"
     fi
