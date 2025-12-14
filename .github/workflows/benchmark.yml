@@ -111,6 +111,12 @@ jobs:
             js_name=monorepo-hash.mjs
           fi
           echo "js_name=$js_name" >> $GITHUB_OUTPUT
+          if grep -q '(-pm)' src/monorepo-hash.ts; then
+            pm_arg='-pm=pnpm'
+          else
+            pm_arg=''
+          fi
+          echo "pm_arg=$pm_arg" >> $GITHUB_OUTPUT
           mkdir -p tests/benchmarks/node
           IFS=',' read -ra BENCHES <<< "${{ steps.get_benchs.outputs.benchs }}"
           for b in "${BENCHES[@]}"; do
@@ -133,7 +139,7 @@ jobs:
             --warmup 2 \
             --runs 10 \
             --export-markdown ../../benchmarks/bun/small-monorepo.md \
-            './monorepo-hash --generate -pm=pnpm -s'
+            "./monorepo-hash --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
       - name: "Benchmark : medium monorepo, bun"
         if: contains(steps.get_benchs.outputs.benchs, 'medium') && steps.get_benchs.outputs.build_bun == 'true'
@@ -144,7 +150,7 @@ jobs:
             --warmup 2 \
             --runs 10 \
             --export-markdown ../../benchmarks/bun/medium-monorepo.md \
-            './monorepo-hash --generate -pm=pnpm -s'
+            "./monorepo-hash --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
       - name: "Benchmark : large monorepo, bun"
         if: contains(steps.get_benchs.outputs.benchs, 'large') && steps.get_benchs.outputs.build_bun == 'true'
@@ -155,7 +161,7 @@ jobs:
             --warmup 2 \
             --runs 10 \
             --export-markdown ../../benchmarks/bun/large-monorepo.md \
-            './monorepo-hash --generate -pm=pnpm -s'
+            "./monorepo-hash --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
       - name: "Benchmark : wide monorepo, bun"
         if: contains(steps.get_benchs.outputs.benchs, 'wide') && steps.get_benchs.outputs.build_bun == 'true'
@@ -166,7 +172,7 @@ jobs:
             --warmup 2 \
             --runs 10 \
             --export-markdown ../../benchmarks/bun/wide-monorepo.md \
-            './monorepo-hash --generate -pm=pnpm -s'
+            "./monorepo-hash --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
       - name: "Benchmark : small monorepo, node"
         if: contains(steps.get_benchs.outputs.benchs, 'small')
@@ -177,7 +183,7 @@ jobs:
             --warmup 2 \
             --runs 10 \
             --export-markdown ../../benchmarks/node/small-monorepo.md \
-            "node ${{ steps.prepare_benchs.outputs.js_name }} --generate -pm=pnpm -s"
+            "node ${{ steps.prepare_benchs.outputs.js_name }} --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
       - name: "Benchmark : medium monorepo, node"
         if: contains(steps.get_benchs.outputs.benchs, 'medium')
@@ -188,7 +194,7 @@ jobs:
             --warmup 2 \
             --runs 10 \
             --export-markdown ../../benchmarks/node/medium-monorepo.md \
-            "node ${{ steps.prepare_benchs.outputs.js_name }} --generate -pm=pnpm -s"
+            "node ${{ steps.prepare_benchs.outputs.js_name }} --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
       - name: "Benchmark : large monorepo, node"
         if: contains(steps.get_benchs.outputs.benchs, 'large')
@@ -199,7 +205,7 @@ jobs:
             --warmup 2 \
             --runs 10 \
             --export-markdown ../../benchmarks/node/large-monorepo.md \
-            "node ${{ steps.prepare_benchs.outputs.js_name }} --generate -pm=pnpm -s"
+            "node ${{ steps.prepare_benchs.outputs.js_name }} --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
       - name: "Benchmark : wide monorepo, node"
         if: contains(steps.get_benchs.outputs.benchs, 'wide')
@@ -210,7 +216,7 @@ jobs:
             --warmup 2 \
             --runs 10 \
             --export-markdown ../../benchmarks/node/wide-monorepo.md \
-            "node ${{ steps.prepare_benchs.outputs.js_name }} --generate -pm=pnpm -s"
+            "node ${{ steps.prepare_benchs.outputs.js_name }} --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
       - name: "Upload benchmarks results"
         uses: actions/upload-artifact@v5
