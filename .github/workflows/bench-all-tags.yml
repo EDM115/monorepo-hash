@@ -1,0 +1,74 @@
+name: Benchmark all tags
+
+on:
+  workflow_dispatch:
+    inputs:
+      tags_mode:
+        description: "all | last:N (e.g. last:10)"
+        required: false
+        default: "last:10"
+      benchs:
+        description: "small,medium,large,wide"
+        required: false
+        default: "small,medium,large,wide"
+      runs_fast:
+        description: "Runs for old tags"
+        required: false
+        default: "3"
+      runs_slow:
+        description: "Runs for newest tag(s)"
+        required: false
+        default: "10"
+      baseline_tags:
+        description: "How many newest tags get runs_slow"
+        required: false
+        default: "1"
+
+jobs:
+  bench-all:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+
+    steps:
+      - name: "Checkout code"
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: "Install pnpm"
+        uses: pnpm/action-setup@v4
+
+      - name: "Bump Node.js to v24"
+        uses: actions/setup-node@v6
+        with:
+          check-latest: true
+          cache: "pnpm"
+          node-version: lts/krypton
+
+      - name: "Install Bun"
+        uses: oven-sh/setup-bun@v2
+
+      - name: "Install hyperfine"
+        run: |
+          wget https://github.com/sharkdp/hyperfine/releases/download/v1.20.0/hyperfine_1.20.0_amd64.deb
+          sudo dpkg -i hyperfine_1.20.0_amd64.deb
+          rm hyperfine_1.20.0_amd64.deb
+
+      - name: "Install deps once (store cached)"
+        run: pnpm i --frozen-lockfile
+
+      - name: "Run tag sweep"
+        env:
+          TAGS_MODE: ${{ github.event.inputs.tags_mode }}
+          BENCHS: ${{ github.event.inputs.benchs }}
+          RUNS_FAST: ${{ github.event.inputs.runs_fast }}
+          RUNS_SLOW: ${{ github.event.inputs.runs_slow }}
+          BASELINE_TAGS: ${{ github.event.inputs.baseline_tags }}
+        run: |
+          chmod +x .github/workflows/bench-all-tags.sh
+          .github/workflows/bench-all-tags.sh
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: bench-history
+          path: tests/benchmarks/history/**/*.json
