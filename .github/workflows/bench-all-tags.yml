@@ -20,7 +20,7 @@ on:
         required: false
         default: "10"
       baseline_tags:
-        description: "How many newest tags get runs_slow"
+        description: "How many newest tags get runs_slow, -1 for all"
         required: false
         default: "1"
 

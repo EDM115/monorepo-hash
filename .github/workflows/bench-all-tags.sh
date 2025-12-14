@@ -51,10 +51,15 @@ if [[ "$INCLUDE_REF" == "true" ]]; then
   REFS+=("ref:${REF_LABEL}:${REF_COMMIT}")
 fi
 
-# Figure out which tags get the "slow" treatment (newest ones)
-TOTAL="${#TAGS[@]}"
-SLOW_FROM=$(( TOTAL - BASELINE_TAGS ))
-if (( SLOW_FROM < 0 )); then SLOW_FROM=0; fi
+# Figure out which refs (tags + optional REF_LABEL) get the "slow" treatment (last N entries)
+TOTAL="${#REFS[@]}"
+if (( BASELINE_TAGS < 0 )); then
+  # Special case : -1 (or any negative) means "treat all as slow"
+  SLOW_FROM=0
+else
+  SLOW_FROM=$(( TOTAL - BASELINE_TAGS ))
+  if (( SLOW_FROM < 0 )); then SLOW_FROM=0; fi
+fi
 
 echo "Benchmarking ${#REFS[@]} refs (ref + tags) :"
 printf ' - %s\n' "${REFS[@]}"
@@ -80,7 +85,7 @@ for spec in "${REFS[@]}"; do
 
   pushd "$WT" >/dev/null
 
-  # Reuse pnpm store (best effort; still respects each tag's lockfile)
+  # Reuse pnpm store (best effort, still respects each tag's lockfile)
   pnpm i --frozen-lockfile
 
   pnpm build
@@ -122,6 +127,7 @@ for spec in "${REFS[@]}"; do
     mkdir -p "$RESULTS_DIR/node/$safe_label"
     cd "$DEMO"
     echo "  node, $b, cold"
+    sleep 2
     hyperfine \
       --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches >/dev/null' \
       --warmup "$WARMUP" \
@@ -129,6 +135,7 @@ for spec in "${REFS[@]}"; do
       --export-json "$RESULTS_DIR/node/$safe_label/${b}-cold.json" \
       "node $WT/dist/$JS_NAME --generate $PM_ARG -s"
     echo "  node, $b, warm"
+    sleep 2
     hyperfine \
       --warmup "$WARMUP" \
       --runs "$RUNS" \
@@ -139,6 +146,7 @@ for spec in "${REFS[@]}"; do
     if [[ "$BUILD_BUN" == "true" ]]; then
       mkdir -p "$RESULTS_DIR/bun/$safe_label"
       echo "  bun, $b, cold"
+      sleep 2
       hyperfine \
         --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches >/dev/null' \
         --warmup "$WARMUP" \
@@ -146,6 +154,7 @@ for spec in "${REFS[@]}"; do
         --export-json "$RESULTS_DIR/bun/$safe_label/${b}-cold.json" \
         "$WT/bun-build/monorepo-hash-linux-x64 --generate $PM_ARG -s"
       echo "  bun, $b, warm"
+      sleep 2
       hyperfine \
         --warmup "$WARMUP" \
         --runs "$RUNS" \
