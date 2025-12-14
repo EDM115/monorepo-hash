@@ -121,12 +121,14 @@ for spec in "${REFS[@]}"; do
     # node
     mkdir -p "$RESULTS_DIR/node/$safe_label"
     cd "$DEMO"
+    echo "  node, $b, cold"
     hyperfine \
       --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches >/dev/null' \
       --warmup "$WARMUP" \
       --runs "$RUNS" \
       --export-json "$RESULTS_DIR/node/$safe_label/${b}-cold.json" \
       "node $WT/dist/$JS_NAME --generate $PM_ARG -s"
+    echo "  node, $b, warm"
     hyperfine \
       --warmup "$WARMUP" \
       --runs "$RUNS" \
@@ -136,12 +138,14 @@ for spec in "${REFS[@]}"; do
     # bun (if that tag supports it)
     if [[ "$BUILD_BUN" == "true" ]]; then
       mkdir -p "$RESULTS_DIR/bun/$safe_label"
+      echo "  bun, $b, cold"
       hyperfine \
         --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches >/dev/null' \
         --warmup "$WARMUP" \
         --runs "$RUNS" \
         --export-json "$RESULTS_DIR/bun/$safe_label/${b}-cold.json" \
         "$WT/bun-build/monorepo-hash-linux-x64 --generate $PM_ARG -s"
+      echo "  bun, $b, warm"
       hyperfine \
         --warmup "$WARMUP" \
         --runs "$RUNS" \
