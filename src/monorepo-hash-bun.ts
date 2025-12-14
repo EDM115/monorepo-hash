@@ -713,7 +713,8 @@ export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCach
         return [ pkgName, undefined ] as const
       }
 
-      const oldHex = (await file(hashPath).text()).trim()
+      const oldHex = (await file(hashPath)
+        .text()).trim()
 
       return [ pkgName, oldHex ] as const
     }))

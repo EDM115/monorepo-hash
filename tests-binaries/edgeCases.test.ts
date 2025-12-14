@@ -114,7 +114,7 @@ describe("edge cases", () => {
     })
 
     it("handles packages with only package.json", async () => {
-      await execa(cli, [ "--generate" ], { cwd: emptyDir })
+      await execa(cli, ["--generate"], { cwd: emptyDir })
       const hashPath = join(emptyDir, ".hash")
 
       expect(await pathExists(hashPath))
@@ -247,7 +247,7 @@ describe("edge cases", () => {
     })
 
     it("compares only specified target", async () => {
-      await execa(cli, [ "--generate" ], { cwd: targetDir })
+      await execa(cli, ["--generate"], { cwd: targetDir })
       await writeFile(join(targetDir, "packages", "pkg-1", "index.js"), "export const pkg_1 = false\n")
       const result = await execa(cli, [ "--compare", "--target=packages/pkg-2" ], {
         cwd: targetDir,

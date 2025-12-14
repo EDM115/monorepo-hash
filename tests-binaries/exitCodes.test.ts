@@ -126,7 +126,7 @@ describe("exit codes", () => {
     })
 
     it("detects circular dependencies and exits with code 6", async () => {
-      const result = await execa(cli, [ "--generate" ], {
+      const result = await execa(cli, ["--generate"], {
         cwd: circularDir,
         reject: false,
         timeout: 30000,
@@ -139,7 +139,7 @@ describe("exit codes", () => {
     })
 
     it("reports the cycle path in the error message", async () => {
-      const result = await execa(cli, [ "--generate" ], {
+      const result = await execa(cli, ["--generate"], {
         cwd: circularDir,
         reject: false,
       })
