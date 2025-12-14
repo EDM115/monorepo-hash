@@ -101,6 +101,9 @@ jobs:
             chmod +x bun-build/monorepo-hash-linux-x64
             mkdir -p tests/benchmarks/bun
           fi
+          if [[ ! -f tests/demo/wide-monorepo.7z ]]; then
+            wget https://raw.githubusercontent.com/EDM115/monorepo-hash/refs/heads/master/tests/demo/wide-monorepo.7z -O tests/demo/wide-monorepo.7z
+          fi
           mkdir -p tests/benchmarks/node
           IFS=',' read -ra BENCHES <<< "${{ steps.get_benchs.outputs.benchs }}"
           for b in "${BENCHES[@]}"; do
@@ -113,9 +116,6 @@ jobs:
               cp bun-build/monorepo-hash-linux-x64 "tests/demo/${b}-monorepo/monorepo-hash"
             fi
           done
-          if [[ ! -f tests/demo/wide-monorepo.7z ]]; then
-            wget https://raw.githubusercontent.com/EDM115/monorepo-hash/refs/heads/master/tests/demo/wide-monorepo.7z -O tests/demo/wide-monorepo.7z
-          fi
 
       - name: "Benchmark : small monorepo, bun"
         if: contains(steps.get_benchs.outputs.benchs, 'small') && steps.get_benchs.outputs.build_bun == 'true'
