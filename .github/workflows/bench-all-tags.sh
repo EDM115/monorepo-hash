@@ -44,12 +44,12 @@ fi
 # Build the list of refs to benchmark :
 #   ref:<label>:<commit-ish>
 REFS=()
-if [[ "$INCLUDE_REF" == "true" ]]; then
-  REFS+=("ref:${REF_LABEL}:${REF_COMMIT}")
-fi
 for t in "${TAGS[@]}"; do
   REFS+=("tag:${t}:${t}")
 done
+if [[ "$INCLUDE_REF" == "true" ]]; then
+  REFS+=("ref:${REF_LABEL}:${REF_COMMIT}")
+fi
 
 # Figure out which tags get the "slow" treatment (newest ones)
 TOTAL="${#TAGS[@]}"
@@ -120,19 +120,18 @@ for spec in "${REFS[@]}"; do
 
     # node
     mkdir -p "$RESULTS_DIR/node/$safe_label"
+    cd "$DEMO"
     hyperfine \
       --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches >/dev/null' \
       --warmup "$WARMUP" \
       --runs "$RUNS" \
       --export-json "$RESULTS_DIR/node/$safe_label/${b}-cold.json" \
-      "node $WT/dist/$JS_NAME --generate $PM_ARG -s" \
-      --workdir "$DEMO"
+      "node $WT/dist/$JS_NAME --generate $PM_ARG -s"
     hyperfine \
       --warmup "$WARMUP" \
       --runs "$RUNS" \
       --export-json "$RESULTS_DIR/node/$safe_label/${b}-warm.json" \
-      "node $WT/dist/$JS_NAME --generate $PM_ARG -s" \
-      --workdir "$DEMO"
+      "node $WT/dist/$JS_NAME --generate $PM_ARG -s"
 
     # bun (if that tag supports it)
     if [[ "$BUILD_BUN" == "true" ]]; then
@@ -142,14 +141,12 @@ for spec in "${REFS[@]}"; do
         --warmup "$WARMUP" \
         --runs "$RUNS" \
         --export-json "$RESULTS_DIR/bun/$safe_label/${b}-cold.json" \
-        "$WT/bun-build/monorepo-hash-linux-x64 --generate $PM_ARG -s" \
-        --workdir "$DEMO"
+        "$WT/bun-build/monorepo-hash-linux-x64 --generate $PM_ARG -s"
       hyperfine \
         --warmup "$WARMUP" \
         --runs "$RUNS" \
         --export-json "$RESULTS_DIR/bun/$safe_label/${b}-warm.json" \
-        "$WT/bun-build/monorepo-hash-linux-x64 --generate $PM_ARG -s" \
-        --workdir "$DEMO"
+        "$WT/bun-build/monorepo-hash-linux-x64 --generate $PM_ARG -s"
     fi
   done
 
