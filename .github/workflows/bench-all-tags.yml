@@ -27,7 +27,7 @@ on:
 jobs:
   bench-all:
     runs-on: ubuntu-24.04
-    timeout-minutes: 480
+    timeout-minutes: 360
 
     steps:
       - name: "Checkout code"
@@ -48,12 +48,16 @@ jobs:
       - name: "Install Bun"
         uses: oven-sh/setup-bun@v2
 
-      - name: "Install hyperfine"
+      - name: "Install hyperfine and latest 7zip version"
         run: |
           wget https://github.com/sharkdp/hyperfine/releases/download/v1.20.0/hyperfine_1.20.0_amd64.deb
           sudo dpkg -i hyperfine_1.20.0_amd64.deb
           rm hyperfine_1.20.0_amd64.deb
-          sudo apt-get update && sudo apt-get upgrade -y
+          sudo add-apt-repository ppa:apt-fast/stable -y
+          sudo apt-get update && sudo apt-get install -y apt-fast
+          echo 'DOWNLOADBEFORE=true' | sudo tee -a /etc/apt-fast.conf
+          sudo apt-fast upgrade -y
+          sudo apt-fast uninstall -y p7zip-full p7zip-rar && sudo apt-fast install -y 7zip 7zip-rar
 
       - name: "Install deps once (store cached)"
         run: pnpm i --frozen-lockfile
