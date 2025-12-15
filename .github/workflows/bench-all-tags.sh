@@ -61,9 +61,11 @@ else
   if (( SLOW_FROM < 0 )); then SLOW_FROM=0; fi
 fi
 
-echo "Benchmarking ${#REFS[@]} refs (ref + tags) :"
+echo ""
+echo "ℹ️  Benchmarking ${#REFS[@]} refs (ref + tags) :"
 printf ' - %s\n' "${REFS[@]}"
-echo "Fast runs : $RUNS_FAST | Slow runs (newest $BASELINE_TAGS) : $RUNS_SLOW"
+echo ""
+echo "Fast runs : $RUNS_FAST | Slow runs (newest : $BASELINE_TAGS) : $RUNS_SLOW"
 
 i=0
 for spec in "${REFS[@]}"; do
@@ -74,7 +76,7 @@ for spec in "${REFS[@]}"; do
   safe_label="$(sanitize_label "$label")"
 
   echo ""
-  echo "=== ${kind^^} $label ($commitish) ==="
+  echo "=== 🔰 ${kind^^} $label ($commitish) 🔰 ==="
 
   # Make a worktree per tag
   WT="$ROOT/.worktrees/$safe_label"
@@ -86,7 +88,7 @@ for spec in "${REFS[@]}"; do
   pushd "$WT" >/dev/null
 
   # Reuse pnpm store (best effort, still respects each tag's lockfile)
-  pnpm i --frozen-lockfile
+  pnpm i --frozen-lockfile --reporter=silent
 
   pnpm build
 
@@ -126,7 +128,7 @@ for spec in "${REFS[@]}"; do
     # node
     mkdir -p "$RESULTS_DIR/node/$safe_label"
     cd "$DEMO"
-    echo "  node, $b, cold"
+    echo "  🚦 node, $b, cold"
     sleep 2
     hyperfine \
       --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches >/dev/null' \
@@ -134,7 +136,7 @@ for spec in "${REFS[@]}"; do
       --runs "$RUNS" \
       --export-json "$RESULTS_DIR/node/$safe_label/${b}-cold.json" \
       "node $WT/dist/$JS_NAME --generate $PM_ARG -s"
-    echo "  node, $b, warm"
+    echo "  🚦 node, $b, warm"
     sleep 2
     hyperfine \
       --warmup "$WARMUP" \
@@ -145,7 +147,7 @@ for spec in "${REFS[@]}"; do
     # bun (if that tag supports it)
     if [[ "$BUILD_BUN" == "true" ]]; then
       mkdir -p "$RESULTS_DIR/bun/$safe_label"
-      echo "  bun, $b, cold"
+      echo "  🚦 bun, $b, cold"
       sleep 2
       hyperfine \
         --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches >/dev/null' \
@@ -153,7 +155,7 @@ for spec in "${REFS[@]}"; do
         --runs "$RUNS" \
         --export-json "$RESULTS_DIR/bun/$safe_label/${b}-cold.json" \
         "$WT/bun-build/monorepo-hash-linux-x64 --generate $PM_ARG -s"
-      echo "  bun, $b, warm"
+      echo "  🚦 bun, $b, warm"
       sleep 2
       hyperfine \
         --warmup "$WARMUP" \
@@ -168,4 +170,4 @@ for spec in "${REFS[@]}"; do
   i=$((i+1))
 done
 
-echo "Done, results in $RESULTS_DIR"
+echo "✅ Done, results in $RESULTS_DIR"

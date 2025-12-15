@@ -27,7 +27,7 @@ on:
 jobs:
   bench-all:
     runs-on: ubuntu-24.04
-    timeout-minutes: 360
+    timeout-minutes: 480
 
     steps:
       - name: "Checkout code"
@@ -53,6 +53,7 @@ jobs:
           wget https://github.com/sharkdp/hyperfine/releases/download/v1.20.0/hyperfine_1.20.0_amd64.deb
           sudo dpkg -i hyperfine_1.20.0_amd64.deb
           rm hyperfine_1.20.0_amd64.deb
+          sudo apt-get update && sudo apt-get upgrade -y
 
       - name: "Install deps once (store cached)"
         run: pnpm i --frozen-lockfile
