@@ -28,13 +28,21 @@
 ⚡️ perf : don't even check for NPM's lockfile when it is the last option to check  
 ⚡️ perf : don't run superfluous exists checks + check PM lockfiles in parallel  
 📝 docs : update the README with informations about the binary, the older usage, the default mode change and new flag, a better explanation of the transitive dep management, how to use the other exported file, refresh the examples and disclaimer on the benchmarks  
+📝 docs : rework the Benchmarks table to accomodate for [#20](https://github.com/EDM115/monorepo-hash/issues/20)  
 📦️ package : export functions and types from binary install and platform scripts in one endpoint  
 ♻️ refactor : move the `exists()` helper to the platform script to not pack `monorepo-hash` again inside, drastically reducing the postinstall script size and avoiding a crash on install  
 🦺 types : lock in-place more things  
+🦺 types : export the internal `Meta` type  
 📦️ build : binaries are built with Bun `1.3.4` instead of `1.3.3`  
+✅ tests : add utils, hash computation functions and edge cases tests  
+✅ tests : reorganize tests  
 ✅ tests : update the tests to use POSIX-style paths  
 ✅ tests : update the tests to be conformant with the new default unified mode and change older tests to use the workspaces mode  
 ✅🩹 tests : no longer use `globalThis`  
+👷 ci : also run benchmarks against a warm cache  
+👷 ci : create a new Action for consistent benchmarks  
+👷 ci : add a wide monorepo for benchmarks  
+👷 ci : allow to use specific monorepos for benchmarks  
 💡 docs : add missing functions documentation and unify it  
 🔧 config : update the package keywords  
 🔧 config : add missing folder to the TS config  

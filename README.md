@@ -14,6 +14,7 @@
 :dart: **Accurate** : Generates hashes based on every tracked file  
 :left_right_arrow: **Complete** : Supports transitive workspace dependencies  
 :ok_hand: **No config** : Drop-in and instantly usable  
+:man_juggling: **Versatile** : Works with PNPM, Bun, Yarn, NPM and Deno  
 :computer: **Cross-platform** : Works on Windows, Linux and macOS  
 :hash: **Deterministic** : Same input, same output  
 :package: **Lightweight** : No bloat, just the essentials
@@ -438,41 +439,45 @@ For the very first run, you might need to create a workflow which will only chec
   I recommend to set this up in your IDE and formatter config.
 
 ## :rocket: Benchmarks
-These benchmarks have been realised on Standard GitHub-hosted runner that you can get by running any Action.  
+These benchmarks have been realised on Standard GitHub-hosted runner (`ubuntu-24.04`) that you can get by running any Action.  
 The specs as I'm writing this are an AMD EPYC 7763 64-Core (4) @ 3.24 GHz CPU, 15.62 GiB of RAM and 71.61 GiB of SSD storage. Keep in mind that since the servers are shared between multiple users, the performance may vary slightly between runs.  
-They have been reproduced 10 times with a cold disk cache thanks to [hyperfine](https://github.com/sharkdp/hyperfine).  
-Warm cache usage is usually 2 to 3 times faster than cold cache, so these results are more representative of a first run in CI or on a fresh boot. The script run speed doesn't really change, the only performance overhead on a cold cache is the time it takes to run Node.js (and reading files from the disk).  
-The versions denoted with `(bun)` are using the Bun binary build of `monorepo-hash`, which removes the Node.js overhead, uses Bun internal replacements and is generally faster. This build is the default one since `v2.0.0`.
+They have been reproduced 10 times with a cold and warm disk cache thanks to [hyperfine](https://github.com/sharkdp/hyperfine).  
+Cold cache results are more representative of a first run in CI or on a fresh boot. The script run speed doesn't really change, the only performance overhead on a cold cache is the time it takes to run Node.js/Bun (and reading files from the disk). You can expect warm cache runs to be at least 1/3 faster than cold cache ones.  
+The versions denoted with `(bun)` are using the Bun binary build of `monorepo-hash`, which removes the Node.js overhead, uses Bun internal replacements and is generally faster. This build is the default one since `v2.0.0`.  
+Starting with `v2.0.0`, the benchmark methodology has changed : we re-runned them for all versions in *the same runner and script* to avoid noisy neighbor effects and massive drifts in perf for no reason, and we also started to measure warm cache runs, noted in parenthesis. As a consequence, previous results that you could find in the releases aren't comparable with these new ones. More info here : [[INFO] 📣 A change in the benchmarks methodology (#20)](https://github.com/EDM115/monorepo-hash/issues/20)
 > [!NOTE]  
 > Here are the details of each demo monorepo used for the benchmarks :
 > - **Small monorepo** : 5 workspaces of 100 files each, files composed of 1 line of text
 > - **Medium monorepo** : 5 workspaces of 100 folders each, with each folder containing 100 files, files composed of 10 lines of text
-> - **Large monorepo** : 5 workspaces of 100 folders each, with each folder containing 10 files and 10 folders, and each of these folders containing 100 files, files composed of 100 lines of text  
+> - **Large monorepo** : 5 workspaces of 100 folders each, with each folder containing 10 files and 10 folders, and each of these folders containing 100 files, files composed of 100 lines of text
+> - **Wide monorepo** : 50 workspaces of 10 folders each, with each folder containing 100 files, files composed of 10 lines of text *(the most representative of a real-world monorepo with many packages)*
 >
-> In order to not clunk up Git, these [demo repos](./tests/demo/) are compressed.  
-> Symbols :
+> In order to not clunk up Git, these [demo repos](./tests/demo/) are 7z ultra compressed.  
+> Symbols (comparing Node with Node, Bun with Bun, the first Bun version is compared with the same version's Node) :
 > - :chart_with_upwards_trend: : Faster than the previous version
 > - :chart_with_downwards_trend: : Slower than the previous version
 > - :balance_scale: : Negligible or no perceivable change in performance compared to the previous version
 
-| Version                                     | Small    | Medium  | Large    |
-| :------------------------------------------ | :------- | :------ | :------- |
-| `v1.9.0 (bun)` :balance_scale:              | 180.2 ms | 3.048 s | 47.661 s |
-| `v1.9.0` :balance_scale:                    | 255.5 ms | 3.668 s | 54.953 s |
-| `v1.8.0 (bun)` :chart_with_upwards_trend:   | 171.3 ms | 3.038 s | 47.607 s |
-| `v1.8.0` :chart_with_upwards_trend:         | 237.6 ms | 3.669 s | 54.453 s |
-| `v1.7.0` :chart_with_upwards_trend:         | 257.5 ms | 3.655 s | 55.136 s |
-| `v1.6.0` :chart_with_downwards_trend:       | 290.5 ms | 4.128 s | 56.348 s |
-| `v1.5.1` :balance_scale:                    | 284.9 ms | 3.948 s | 55.728 s |
-| `v1.5.0` :balance_scale:                    | 266.8 ms | 3.947 s | 55.896 s |
-| `v1.4.2` :chart_with_upwards_trend:         | 277.5 ms | 3.639 s | 54.694 s |
-| `v1.4.1` :chart_with_downwards_trend:       | 371.8 ms | 5.240 s | 62.899 s |
-| `v1.4.0` :chart_with_upwards_trend:         | 302.4 ms | 4.417 s | 58.606 s |
-| `v1.3.1` :chart_with_downwards_trend:       | 372.2 ms | 5.470 s | 96.353 s |
-| `v1.3.0` :chart_with_upwards_trend:         | 303.5 ms | 4.415 s | 92.203 s |
-| `v1.2.0` :chart_with_downwards_trend:       | 345.3 ms | 4.442 s | 93.391 s |
-| `v1.1.0` :chart_with_upwards_trend:         | 284.1 ms | 3.884 s | 56.717 s |
-| `v1.0.0` :balance_scale:                    | 318.6 ms | 4.699 s | 58.094 s |
+| Version                                   | Small               | Medium             | Large               | Wide               |
+| :---------------------------------------- | :------------------ | :----------------- | :------------------ | :----------------- |
+| `v2.0.0 (bun)` :chart_with_upwards_trend: | 231 ms (69.33 ms)   | 3.295 s (802.3 ms) | 41.083 s (17.319 s) | 3.081 s (761.9 ms) |
+| `v2.0.0` :chart_with_upwards_trend:       | 282.6 ms (124.1 ms) | 3.853 s (3.532 s)  | 36.773 s (35.706 s) | 4.447 s (3.599 s)  |
+| `v1.9.0 (bun)` :balance_scale:            | 224.3 ms (67.45 ms) | 3.347 s (719.9 ms) | 35.774 s (10.268 s) | 3.546 s (1.405 s)  |
+| `v1.9.0` :chart_with_downwards_trend:     | 284.5 ms (129.3 ms) | 4.140 s (3.548 s)  | 42.666 s (36.751 s) | 4.063 s (3.617 s)  |
+| `v1.8.0 (bun)` :chart_with_upwards_trend: | 216.5 ms (73.16 ms) | 3.285 s (752.5 ms) | 35.464 s (10.382 s) | 3.536 s (1.444 s)  |
+| `v1.8.0` :chart_with_upwards_trend:       | 276.2 ms (124 ms)   | 4.057 s (3.534 s)  | 42.178 s (36.731 s) | 4.051 s (3.637 s)  |
+| `v1.7.0` :balance_scale:                  | 285.2 ms (124.5 ms) | 4.117 s (3.535 s)  | 42.534 s (37.125 s) | 3.924 s (3.643 s)  |
+| `v1.6.0` :chart_with_downwards_trend:     | 285.3 ms (126.6 ms) | 4.191 s (3.556 s)  | 42.940 s (37.045 s) | 4.174 s (3.636 s)  |
+| `v1.5.1` :chart_with_downwards_trend:     | 290.6 ms (128 ms)   | 4.225 s (3.593 s)  | 42.419 s (36.959 s) | 4.062 s (3.644 s)  |
+| `v1.5.0` :chart_with_upwards_trend:       | 265.9 ms (125.8 ms) | 4.068 s (3.573 s)  | 42.245 s (36.998 s) | 4.083 s (3.606 s)  |
+| `v1.4.2` :chart_with_downwards_trend:     | 274.3 ms (130 ms)   | 4.227 s (3.574 s)  | 42.901 s (36.902 s) | 4.007 s (3.625 s)  |
+| `v1.4.1` :chart_with_upwards_trend:       | 280.6 ms (123.1 ms) | 4.067 s (3.532 s)  | 42.309 s (36.820 s) | 4.038 s (3.623 s)  |
+| `v1.4.0` :chart_with_upwards_trend:       | 264.1 ms (119.3 ms) | 4.150 s (3.535 s)  | 42.384 s (37.046 s) | 3.894 s (3.640 s)  |
+| `v1.3.1` :chart_with_upwards_trend:       | 274 ms (136.5 ms)   | 4.366 s (4.012 s)  | 89.512 s (87.311 s) | 4.152 s (3.886 s)  |
+| `v1.3.0` :chart_with_upwards_trend:       | 273.4 ms (137.9 ms) | 4.417 s (4.098 s)  | 89.956 s (88.009 s) | 4.152 s (3.898 s)  |
+| `v1.2.0` :chart_with_downwards_trend:     | 280.4 ms (137.4 ms) | 4.387 s (3.965 s)  | 92.195 s (87.312 s) | 4.266 s (4.050 s)  |
+| `v1.1.0` :chart_with_downwards_trend:     | 263.1 ms (122.9 ms) | 3.894 s (3.586 s)  | 56.071 s (37.309 s) | 4.299 s (4.021 s)  |
+| `v1.0.0` :balance_scale:                  | 247.9 ms (119.1 ms) | 3.752 s (3.576 s)  | 56.198 s (37.479 s) | 4.370 s (4.048 s)  |
 
 ## :hammer_and_wrench: Contributing
 Here's a quick guide for contributing to `monorepo-hash` :
