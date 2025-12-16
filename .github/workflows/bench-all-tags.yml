@@ -57,7 +57,7 @@ jobs:
           sudo apt-get update && sudo apt-get install -y apt-fast
           echo 'DOWNLOADBEFORE=true' | sudo tee -a /etc/apt-fast.conf
           sudo apt-fast upgrade -y
-          sudo apt-fast uninstall -y p7zip-full p7zip-rar && sudo apt-fast install -y 7zip 7zip-rar
+          sudo apt-fast remove -y p7zip-full p7zip-rar && sudo apt-fast install -y 7zip 7zip-rar
 
       - name: "Install deps once (store cached)"
         run: pnpm i --frozen-lockfile
