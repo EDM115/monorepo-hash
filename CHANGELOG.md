@@ -1,6 +1,12 @@
 # monorepo-hash changelog
 
 ## v2.0.0
+> [!IMPORTANT]  
+> This will likely be the last release of `monorepo-hash`.  
+> I consider the project to be feature-complete by now.  
+> Future patch releases will only exist for performance improvements or dependency updates.  
+> Future minor releases will only exist for bug fixes and potentially features.
+
 ### Breaking changes
 💥✨⚡️ feat/perf : the Bun binary is now made the default, accessed with the `monorepo-hash` command. the pure Node version is still available either from the `monorepo-hash-js` command or the programmatic API, with the same exports than before  
 💥✨⚡️🗑️ feat/perf/deprecate : the unified mode is now the default. this means faster runs and less VCS clutter. to revert to the older behavior, use the `--workspaces`/`-w` flag. to migrate, while on the older version delete every `.hash` file and run `pnpm monorepo-hash -g -u`. the `--unified`/`-u` flag has been removed  
@@ -50,6 +56,8 @@
 🔨 scripts : fix the binaries test prepare script + enable PNPM shell emulation  
 🎨 format : new format pass  
 ⬆️ deps : bump all deps
+
+**Full Changelog**: https://github.com/EDM115/monorepo-hash/compare/1.9.0...2.0.0
 
 ---
 
