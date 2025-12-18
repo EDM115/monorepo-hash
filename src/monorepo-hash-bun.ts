@@ -4,6 +4,7 @@ import {
   CryptoHasher,
   file,
   write,
+  YAML,
 } from "bun"
 import { availableParallelism } from "node:os"
 import {
@@ -23,7 +24,6 @@ import fg from "fast-glob"
 import ignore, { type Ignore } from "ignore"
 
 import { findUp } from "find-up"
-import { load } from "js-yaml"
 // #endregion
 
 
@@ -240,7 +240,7 @@ export async function detectPNPM(): Promise<{
 
   const root = dirname(wsYaml)
   // oxlint-disable-next-line no-unsafe-type-assertion
-  const config = load(await file(wsYaml)
+  const config = YAML.parse(await file(wsYaml)
     .text()) as PnpmWorkspaceConfig
   const globs: string[] = Array.isArray(config.packages)
     ? config.packages

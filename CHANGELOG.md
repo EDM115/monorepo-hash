@@ -1,5 +1,8 @@
 # monorepo-hash changelog
 
+### unreleased
+⚡️ perf : use Bun's implementation of YAML parsing for the binary version
+
 ## v2.0.0
 > [!IMPORTANT]  
 > This will likely be the last release of `monorepo-hash`.  
@@ -34,7 +37,7 @@
 ⚡️ perf : don't even check for NPM's lockfile when it is the last option to check  
 ⚡️ perf : don't run superfluous exists checks + check PM lockfiles in parallel  
 📝 docs : update the README with informations about the binary, the older usage, the default mode change and new flag, a better explanation of the transitive dep management, how to use the other exported file, refresh the examples and disclaimer on the benchmarks  
-📝 docs : rework the Benchmarks table to accomodate for [#20](https://github.com/EDM115/monorepo-hash/issues/20)  
+📝 docs : rework the Benchmarks table to accommodate for [#20](https://github.com/EDM115/monorepo-hash/issues/20)  
 📦️ package : export functions and types from binary install and platform scripts in one endpoint  
 ♻️ refactor : move the `exists()` helper to the platform script to not pack `monorepo-hash` again inside, drastically reducing the postinstall script size and avoiding a crash on install  
 🦺 types : lock in-place more things  
