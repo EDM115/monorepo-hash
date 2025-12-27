@@ -96,6 +96,7 @@ let debug = false
 let unified = true
 let cliUsage = true
 let pmOption: PackageManager | null = null
+let usePathCache = true
 
 let packageManager: PackageManager | null = null
 let repoRoot = ""
@@ -138,7 +139,7 @@ export function log(message: string, overwrite = false, level: "log" | "error" =
 }
 
 /**
- * Normalize a path for display purposes (always POSIX-style separators) and cache the result
+ * Normalize a path for display purposes (always POSIX-style separators) and cache the result unless disabled by the user
  * @param p The path to normalize
  * @returns The normalized path
  */
@@ -147,7 +148,9 @@ export function displayPath(p: string): string {
     return p
   }
 
-  let cached = displayPathCache.get(p)
+  let cached = usePathCache
+    ? displayPathCache.get(p)
+    : p.replace(/\\/g, "/")
 
   if (cached === undefined) {
     cached = p.replace(/\\/g, "/")
@@ -194,7 +197,7 @@ export function zeroPad(num: number, places: number): string {
 }
 
 /**
- * Only exit the process if running as a CLI, otherwise throw an error
+ * Only exit the process if running as a CLI, otherwise throw an error  
  * Exit code 1 won't throw an error to still get the comparison results, and exit code 0 is normal
  * @param code The exit code
  */
@@ -236,6 +239,29 @@ export async function mapLimit<T, R>(
 
   return results
 }
+
+/**
+ * A constructor for objects with no prototype  
+ * Inspired by https://github.com/Kikobeats/null-prototype-object
+ */
+export const NullObj: {
+  new<V = unknown>(): Record<string, V>;
+} = /* @__PURE__ */ (() => {
+  function NullObj(this: unknown): void {
+    // intentionally empty
+    void 0
+  }
+
+  // oxlint-disable-next-line no-unsafe-type-assertion
+  NullObj.prototype = Object.create(null) as object
+  Object.freeze(NullObj.prototype)
+
+  // oxlint-disable-next-line no-unsafe-type-assertion
+  return NullObj as unknown as {
+    new<V = unknown>(): Record<string, V>;
+  }
+})()
+Object.freeze(NullObj)
 
 /**
  * Given a workspace directory (`dir`) and its repo-relative path (`relDir`), return a sorted array of all file-relative paths (using OS-specific separators), after applying root and package‐level .gitignore filters
@@ -488,8 +514,7 @@ export async function detectSpecified(pm: PackageManager): Promise<{
 
 // #region debug
 /**
- * Load the existing `.debug-hash` JSON from `dir`, if present
- * Otherwise returns null
+ * Load the existing `.debug-hash` JSON from `dir`, if present, otherwise returns null
  * @param dir The directory to load the debug file from
  * @returns A promise that resolves to a record mapping POSIX relative file paths to their SHA-256 hex hashes, or null if the file does not exist
  */
@@ -517,7 +542,7 @@ export async function writeDebugFile(
   debugMap: Record<string, string>,
 ): Promise<void> {
   const debugPath = join(dir, ".debug-hash")
-  const normalizedMap: Record<string, string> = Object.create(null)
+  const normalizedMap: Record<string, string> = new NullObj<string>()
 
   for (const [ key, value ] of Object.entries(debugMap)) {
     normalizedMap[displayPath(key)] = value
@@ -553,11 +578,11 @@ export async function writeRootDebugFile(
   map: Record<string, Record<string, string>>,
 ): Promise<void> {
   const p = join(rootDir, ".debug-hash")
-  const normalizedMap: Record<string, Record<string, string>> = Object.create(null)
+  const normalizedMap: Record<string, Record<string, string>> = new NullObj<Record<string, string>>()
 
   for (const [ wsKey, perFile ] of Object.entries(map)) {
     const normWsKey = displayPath(wsKey)
-    const normPerFile: Record<string, string> = Object.create(null)
+    const normPerFile: Record<string, string> = new NullObj<string>()
 
     for (const [ fileKey, hash ] of Object.entries(perFile)) {
       normPerFile[displayPath(fileKey)] = hash
@@ -616,7 +641,7 @@ export async function generateDebug(
 
 // #region hash compute
 /**
- * For a given `dir` and list of relative file paths (`fileList`), compute per-file SHA-256 on (normalizedPath + rawContent)
+ * For a given `dir` and list of relative file paths (`fileList`), compute per-file SHA-256 on (normalizedPath + rawContent)  
  * Always returns a map : { "posix/rel/path": "hex" }
  * @param dir The absolute path to the directory containing the files
  * @param fileList An array of relative file paths within the directory
@@ -626,7 +651,7 @@ export async function computePerFileHashes(
   dir: string,
   fileList: string[],
 ): Promise<Record<string, string>> {
-  const result: Record<string, string> = Object.create(null)
+  const result: Record<string, string> = new NullObj<string>()
 
   if (fileList.length === 0) {
     return result
@@ -757,7 +782,7 @@ export async function writeRootHashFile(
   map: Record<string, string>,
 ): Promise<void> {
   const p = join(rootDir, ".hash")
-  const normalized: Record<string, string> = Object.create(null)
+  const normalized: Record<string, string> = new NullObj<string>()
   const existing = await loadRootHashFile(rootDir)
 
   // Preserve existing entries not in the new map
@@ -791,7 +816,7 @@ export async function generateHashes(
     .filter(([ _, { relDir }]) => !targets || targets.includes(relDir))
 
   if (unified) {
-    const map: Record<string, string> = Object.create(null)
+    const map: Record<string, string> = new NullObj<string>()
 
     for (const [ name, { relDir }] of entries) {
       map[displayPath(relDir)] = finalCache[name]
@@ -863,7 +888,7 @@ export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCach
 
   // Build oldHashMap in a single pass, reading per-workspace files in parallel when not unified
   const pkgEntries = Object.entries(pkgs)
-  const oldHashMap: Record<string, string> = Object.create(null)
+  const oldHashMap: Record<string, string> = new NullObj<string>()
 
   if (unified) {
     for (const [ pkgName, info ] of pkgEntries) {
@@ -909,7 +934,7 @@ export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCach
   }
 
   // 2) build a quick adjacency map from packageName to its internal deps
-  const adjacency: Record<string, string[]> = Object.create(null)
+  const adjacency: Record<string, string[]> = new NullObj<string[]>()
 
   for (const [ name, info ] of Object.entries(pkgs)) {
     // deps only includes other workspaces
@@ -917,7 +942,7 @@ export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCach
   }
 
   // 3) given a pkgName, returns the set of all workspace names it (transitively) depends on
-  const transitiveDepsCache: Record<string, Set<string>> = Object.create(null)
+  const transitiveDepsCache: Record<string, Set<string>> = new NullObj<Set<string>>()
 
   function getTransitiveDeps(pkgName: string): Set<string> {
     if (transitiveDepsCache[pkgName]) {
@@ -1233,7 +1258,7 @@ export async function hash(): Promise<Awaited<ReturnType<typeof generateHashes>>
   log(`\r🔄 Computing hashes (${zeroPad(count, pad)}/${total})`, true)
 
   const concurrency = Math.max(2, availableParallelism())
-  const debugOutput: Record<string, Record<string, string>> = Object.create(null)
+  const debugOutput: Record<string, Record<string, string>> = new NullObj<Record<string, string>>()
   const pkgInfos = await mapLimit<string, [string, PackageInfo]>(
     toHash,
     concurrency,
@@ -1294,7 +1319,7 @@ export async function hash(): Promise<Awaited<ReturnType<typeof generateHashes>>
   log("\n")
 
   // 4) recursively compute final hash (aggregate) for needed packages
-  const finalCache: Record<string, string> = Object.create(null)
+  const finalCache: Record<string, string> = new NullObj<string>()
 
   for (const pkgName of toHash) {
     computeFinalHash(pkgName, pkgs, finalCache)
@@ -1311,7 +1336,7 @@ export async function hash(): Promise<Awaited<ReturnType<typeof generateHashes>>
 
 // #region run
 /**
- * CLI entry point : parse arguments, detect workspaces, and run the hash routine
+ * CLI entry point : parse arguments, detect workspaces, and run the hash routine  
  * This is only invoked when the module is executed directly, not when imported
  * @param customArgv Optional array of command-line arguments (defaults to process.argv)
  * @returns A promise that resolves to the result of the hash operation, or undefined if exiting early
@@ -1325,6 +1350,7 @@ export async function runCli(customArgv?: string[]): Promise<Awaited<ReturnType<
   unified = true
   pmOption = null
   cliUsage = customArgv === undefined
+  usePathCache = true
 
   // Clear caches for fresh runs
   existsCache.clear()
@@ -1370,6 +1396,8 @@ export async function runCli(customArgv?: string[]): Promise<Awaited<ReturnType<
       pmOption = isPackageManager(val)
         ? val
         : null
+    } else if (arg === "--nopathcache" || arg === "-npc") {
+      usePathCache = false
     } else if (arg === "--help" || arg === "-h") {
       log(`
 monorepo-hash by EDM115
@@ -1377,14 +1405,15 @@ A simple script to generate or compare .hash files for monorepo workspaces
 Supports PNPM, Yarn, NPM, Bun and Deno
 
 Arguments :
-  --generate        (-g)  Generate or update .hash files for all workspaces
-  --compare         (-c)  Compare current state with existing .hash files. Capture the exit code to check for changes
-  --target="<path>" (-t)  Specify one or more targets to generate/compare (comma-separated)
-  --silent          (-s)  Suppress output messages
-  --debug           (-d)  Enable debug mode (per-file hashes)
-  --workspaces      (-w)  Use per-workspace .hash files instead of a single root one
-  --packagemanager  (-pm) Force the package manager (${PACKAGE_MANAGERS.join(", ")})
-  --help            (-h)  Show this help message
+  --generate        (-g)   Generate or update .hash files for all workspaces
+  --compare         (-c)   Compare current state with existing .hash files. Capture the exit code to check for changes
+  --target="<path>" (-t)   Specify one or more targets to generate/compare (comma-separated)
+  --silent          (-s)   Suppress output messages
+  --debug           (-d)   Enable debug mode (per-file hashes)
+  --workspaces      (-w)   Use per-workspace .hash files instead of a single root one
+  --packagemanager  (-pm)  Force the package manager (${PACKAGE_MANAGERS.join(", ")})
+  --nopathcache     (-npc) Disable path normalization cache (can reduce memory footprint on very large repos)
+  --help            (-h)   Show this help message
 `)
       safeExit(0)
     } else {
