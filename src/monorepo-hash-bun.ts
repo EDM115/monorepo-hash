@@ -21,7 +21,7 @@ import {
 } from "node:process"
 
 import fg from "fast-glob"
-import ignore, { type Ignore } from "ignore"
+import ignore from "ignore"
 
 import { findUp } from "find-up"
 // #endregion
@@ -79,7 +79,7 @@ let packageManager: PackageManager | null = null
 let repoRoot = ""
 let workspaceGlobs: string[] = []
 
-let rootIgnore: Ignore = ignore()
+let rootIgnore: ignore.Ignore = ignore()
 
 const displayPathCache = new Map<string, string>()
 const existsCache = new Map<string, boolean>()
@@ -190,7 +190,7 @@ Object.freeze(NullObj)
 export async function getWorkspaceFileList(
   dir: string,
   relDir: string,
-  rootIgnore: Ignore,
+  rootIgnore: ignore.Ignore,
 ): Promise<string[]> {
   const relDirPosix = displayPath(relDir)
 
