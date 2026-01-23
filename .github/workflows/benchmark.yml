@@ -42,12 +42,12 @@ jobs:
       - name: "Install pnpm"
         uses: pnpm/action-setup@v4
 
-      - name: "Bump Node.js to v24"
+      - name: "Bump Node.js to v25"
         uses: actions/setup-node@v6
         with:
           check-latest: true
           cache: "pnpm"
-          node-version: lts/krypton
+          node-version: 25
 
       - name: "Install Bun"
         uses: oven-sh/setup-bun@v2

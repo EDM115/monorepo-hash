@@ -4,7 +4,8 @@
 ✨ feat : add a `--nopathcache`/`-npc` flag to disable the path existence cache, which can make the process slightly slower but can reduce memory footprint on large monorepos  
 ⚡️ perf : use Bun's implementation of YAML parsing for the binary version  
 ⚡️ perf : make the proto-less objects potentially even faster, props to https://github.com/h3js/rou3/blob/f0361df69be0aea4bea3ccb38ac7b5f7de78f342/src/_utils.ts and https://github.com/Kikobeats/null-prototype-object  
-🍱 assets : invert the order of resolutions in the ICO file to ensure that Bun picks the highest one, remove the 1024px variant
+🍱 assets : invert the order of resolutions in the ICO file to ensure that Bun picks the highest one, remove the 1024px variant  
+📌 deps : pin Node to latest non-LTS (v25)
 
 ## v2.0.0
 > [!IMPORTANT]  

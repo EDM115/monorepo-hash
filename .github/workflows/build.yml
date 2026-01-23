@@ -7,7 +7,7 @@ jobs:
   darwin-arm64:
     name: "Build for Darwin arm64"
     runs-on: macos-15
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     steps:
       - name: "Checkout"
@@ -16,12 +16,12 @@ jobs:
       - name: "Install pnpm"
         uses: pnpm/action-setup@v4
 
-      - name: "Bump Node.js to v24"
+      - name: "Bump Node.js to v25"
         uses: actions/setup-node@v6
         with:
           check-latest: true
           cache: "pnpm"
-          node-version: lts/krypton
+          node-version: 25
 
       - name: "Install Bun"
         uses: oven-sh/setup-bun@v2
@@ -44,7 +44,7 @@ jobs:
   darwin-x64:
     name: "Build for Darwin x64"
     runs-on: macos-15-intel
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     steps:
       - name: "Checkout"
@@ -53,12 +53,12 @@ jobs:
       - name: "Install pnpm"
         uses: pnpm/action-setup@v4
 
-      - name: "Bump Node.js to v24"
+      - name: "Bump Node.js to v25"
         uses: actions/setup-node@v6
         with:
           check-latest: true
           cache: "pnpm"
-          node-version: lts/krypton
+          node-version: 25
 
       - name: "Install Bun"
         uses: oven-sh/setup-bun@v2
@@ -81,7 +81,7 @@ jobs:
   linux-arm64:
     name: "Build for Linux arm64"
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     steps:
       - name: "Checkout"
@@ -90,12 +90,12 @@ jobs:
       - name: "Install pnpm"
         uses: pnpm/action-setup@v4
 
-      - name: "Bump Node.js to v24"
+      - name: "Bump Node.js to v25"
         uses: actions/setup-node@v6
         with:
           check-latest: true
           cache: "pnpm"
-          node-version: lts/krypton
+          node-version: 25
 
       - name: "Install Bun"
         uses: oven-sh/setup-bun@v2
@@ -118,7 +118,7 @@ jobs:
   linux-arm64-musl:
     name: "Build for Linux arm64 musl"
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     steps:
       - name: "Checkout"
@@ -132,13 +132,13 @@ jobs:
       - name: "Set up Docker Buildx"
         uses: docker/setup-buildx-action@v3
 
-      - name: "Build and test in arm64v8/node:24-alpine container"
+      - name: "Build and test in arm64v8/node:25-alpine container"
         run: |
           docker run --rm \
             --platform linux/arm64 \
             -v "$PWD":/workspace \
             -w /workspace \
-            arm64v8/node:24-alpine \
+            arm64v8/node:25-alpine \
             sh -lc '
               apk update && apk add --no-cache bash curl make musl-dev linux-headers g++ gcc libgcc libstdc++ libffi-dev git \
               && curl -fsSL https://get.pnpm.io/install.sh | ENV="$HOME/.shrc" SHELL="$(which sh)" sh - \
@@ -162,7 +162,7 @@ jobs:
   linux-x64:
     name: "Build for Linux x64"
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     steps:
       - name: "Checkout"
@@ -171,12 +171,12 @@ jobs:
       - name: "Install pnpm"
         uses: pnpm/action-setup@v4
 
-      - name: "Bump Node.js to v24"
+      - name: "Bump Node.js to v25"
         uses: actions/setup-node@v6
         with:
           check-latest: true
           cache: "pnpm"
-          node-version: lts/krypton
+          node-version: 25
 
       - name: "Install Bun"
         uses: oven-sh/setup-bun@v2
@@ -199,7 +199,7 @@ jobs:
   linux-x64-musl:
     name: "Build for Linux x64 musl"
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     steps:
       - name: "Checkout"
@@ -213,13 +213,13 @@ jobs:
       - name: "Set up Docker Buildx"
         uses: docker/setup-buildx-action@v3
 
-      - name: "Build and test in amd64/node:24-alpine container"
+      - name: "Build and test in amd64/node:25-alpine container"
         run: |
           docker run --rm \
             --platform linux/amd64 \
             -v "$PWD":/workspace \
             -w /workspace \
-            amd64/node:24-alpine \
+            amd64/node:25-alpine \
             sh -lc '
               apk update && apk add --no-cache bash curl make musl-dev linux-headers g++ gcc libgcc libstdc++ libffi-dev git \
               && curl -fsSL https://get.pnpm.io/install.sh | ENV="$HOME/.shrc" SHELL="$(which sh)" sh - \
@@ -243,7 +243,7 @@ jobs:
   windows-x64:
     name: "Build for Windows x64"
     runs-on: windows-2025
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     steps:
       - name: "Checkout"
@@ -252,12 +252,12 @@ jobs:
       - name: "Install pnpm"
         uses: pnpm/action-setup@v4
 
-      - name: "Bump Node.js to v24"
+      - name: "Bump Node.js to v25"
         uses: actions/setup-node@v6
         with:
           check-latest: true
           cache: "pnpm"
-          node-version: lts/krypton
+          node-version: 25
 
       - name: "Install Bun"
         uses: oven-sh/setup-bun@v2

@@ -351,7 +351,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [24]
+        node-version: [25]
 
     steps:
       - name: Checkout code

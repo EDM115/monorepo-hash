@@ -7,6 +7,7 @@ export default defineConfig([
     entry: { "monorepo-hash": "./src/monorepo-hash.ts" },
     exports: false,
     format: ["esm"],
+    inlineOnly: false,
     minify: true,
     nodeProtocol: true,
     noExternal: [
