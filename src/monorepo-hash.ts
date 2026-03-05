@@ -102,7 +102,7 @@ let packageManager: PackageManager | null = null
 let repoRoot = ""
 let workspaceGlobs: string[] = []
 
-let rootIgnore: ignore.Ignore = ignore()
+let globalRootIgnore: ignore.Ignore = ignore()
 
 const displayPathCache = new Map<string, string>()
 const existsCache = new Map<string, boolean>()
@@ -247,17 +247,17 @@ export async function mapLimit<T, R>(
 export const NullObj: {
   new<V = unknown>(): Record<string, V>;
 } = /* @__PURE__ */ (() => {
-  function NullObj(this: unknown): void {
+  function NullObjCreator(this: unknown): void {
     // intentionally empty
     void 0
   }
 
   // oxlint-disable-next-line no-unsafe-type-assertion
-  NullObj.prototype = Object.create(null) as object
-  Object.freeze(NullObj.prototype)
+  NullObjCreator.prototype = Object.create(null) as object
+  Object.freeze(NullObjCreator.prototype)
 
   // oxlint-disable-next-line no-unsafe-type-assertion
-  return NullObj as unknown as {
+  return NullObjCreator as unknown as {
     new<V = unknown>(): Record<string, V>;
   }
 })()
@@ -584,8 +584,8 @@ export async function writeRootDebugFile(
     const normWsKey = displayPath(wsKey)
     const normPerFile: Record<string, string> = new NullObj<string>()
 
-    for (const [ fileKey, hash ] of Object.entries(perFile)) {
-      normPerFile[displayPath(fileKey)] = hash
+    for (const [ fileKey, fileHash ] of Object.entries(perFile)) {
+      normPerFile[displayPath(fileKey)] = fileHash
     }
 
     normalizedMap[normWsKey] = normPerFile
@@ -828,8 +828,8 @@ export async function generateHashes(
       // oxlint-disable-next-line no-array-sort
       .sort((a, b) => a[0].localeCompare(b[0]))
 
-    for (const [ rel, hash ] of sortedEntries) {
-      log(`✅ ${displayPath(rel)} (${hash} written to .hash)`)
+    for (const [ rel, fileHash ] of sortedEntries) {
+      log(`✅ ${displayPath(rel)} (${fileHash} written to .hash)`)
     }
 
     return Object.fromEntries(sortedEntries)
@@ -852,9 +852,9 @@ export async function generateHashes(
     results.sort((a, b) => a.relDir.localeCompare(b.relDir))
 
     for (const {
-      relDir, hash,
+      relDir, hash: fileHash,
     } of results) {
-      log(`✅ ${displayPath(relDir)} (${hash} written to .hash)`)
+      log(`✅ ${displayPath(relDir)} (${fileHash} written to .hash)`)
     }
 
     return results
@@ -914,9 +914,9 @@ export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCach
       return [ pkgName, oldHex ] as const
     }))
 
-    for (const [ name, hash ] of hashResults) {
-      if (hash !== undefined) {
-        oldHashMap[name] = hash
+    for (const [ name, fileHash ] of hashResults) {
+      if (fileHash !== undefined) {
+        oldHashMap[name] = fileHash
       }
     }
   }
@@ -1275,7 +1275,7 @@ export async function hash(): Promise<Awaited<ReturnType<typeof generateHashes>>
       } = pkgMeta!
 
       // Get file list after ignores
-      const fileList = await getWorkspaceFileList(dir, relDir, rootIgnore)
+      const fileList = await getWorkspaceFileList(dir, relDir, globalRootIgnore)
 
       // Compute per-file hashes & ownHash
       const perFileMap = await computePerFileHashes(dir, fileList)
@@ -1484,17 +1484,17 @@ Arguments :
   log(`ℹ️  Using ${packageManager} workspaces from ${repoRoot}\n`)
 
   // Compile root .gitignore
-  rootIgnore = ignore()
+  globalRootIgnore = ignore()
   const rootGit: string = join(repoRoot, ".gitignore")
 
   if (await exists(rootGit)) {
     const rootGitContents = await readFile(rootGit, "utf8")
 
-    rootIgnore = ignore()
+    globalRootIgnore = ignore()
       .add(rootGitContents)
     // Ignore hashes
-    rootIgnore.add("**/.hash")
-    rootIgnore.add("**/.debug-hash")
+    globalRootIgnore.add("**/.hash")
+    globalRootIgnore.add("**/.debug-hash")
   }
 
   try {
