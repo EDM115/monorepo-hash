@@ -2,6 +2,7 @@
 
 ### unreleased
 ✨ feat : add a `--nopathcache`/`-npc` flag to disable the path existence cache, which can make the process slightly slower but can reduce memory footprint on large monorepos  
+✨ feat : the Bun build is now also available for Windows on ARM64  
 ⚡️ perf : use Bun's implementation of YAML parsing for the binary version  
 ⚡️ perf : make the proto-less objects potentially even faster, props to https://github.com/h3js/rou3/blob/f0361df69be0aea4bea3ccb38ac7b5f7de78f342/src/_utils.ts and https://github.com/Kikobeats/null-prototype-object  
 📦️ build : binaries are built with Bun `1.3.7` instead of `1.3.4`  

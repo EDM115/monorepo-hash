@@ -1,6 +1,7 @@
 import stylistic from "@stylistic/eslint-plugin"
 import tsParser from "@typescript-eslint/parser"
-import edm115Lint from "edm115-lint/eslint-stylistic.json"
+
+import { eslint as edm115Lint } from "edm115-lint"
 
 export default [
   { ignores: [ "**/bun-build/", "**/dist/", "**/node_modules/", "tests/demo" ] },
@@ -11,10 +12,6 @@ export default [
       ecmaVersion: "latest",
       sourceType: "module",
       parser: tsParser,
-      parserOptions: {
-        ecmaVersion: "latest",
-        tsconfigRootDir: import.meta.dirname,
-      },
     },
     plugins: { "@stylistic": stylistic },
     rules: edm115Lint,
