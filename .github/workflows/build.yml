@@ -36,9 +36,9 @@ jobs:
         run: ./bun-build/monorepo-hash-darwin-arm64 --help
 
       - name: "Upload Darwin arm64 binary"
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
-          name: monorepo-hash-darwin-arm64
+          archive: false
           path: ./bun-build/monorepo-hash-darwin-arm64
 
   darwin-x64:
@@ -73,9 +73,9 @@ jobs:
         run: ./bun-build/monorepo-hash-darwin-x64 --help
 
       - name: "Upload Darwin x64 binary"
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
-          name: monorepo-hash-darwin-x64
+          archive: false
           path: ./bun-build/monorepo-hash-darwin-x64
 
   linux-arm64:
@@ -110,9 +110,9 @@ jobs:
         run: ./bun-build/monorepo-hash-linux-arm64 --help
 
       - name: "Upload Linux arm64 binary"
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
-          name: monorepo-hash-linux-arm64
+          archive: false
           path: ./bun-build/monorepo-hash-linux-arm64
 
   linux-arm64-musl:
@@ -154,9 +154,9 @@ jobs:
             '
 
       - name: "Upload Linux arm64 musl binary"
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
-          name: monorepo-hash-linux-arm64-musl
+          archive: false
           path: ./bun-build/monorepo-hash-linux-arm64-musl
 
   linux-x64:
@@ -191,9 +191,9 @@ jobs:
         run: ./bun-build/monorepo-hash-linux-x64 --help
 
       - name: "Upload Linux x64 binary"
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
-          name: monorepo-hash-linux-x64
+          archive: false
           path: ./bun-build/monorepo-hash-linux-x64
 
   linux-x64-musl:
@@ -235,9 +235,9 @@ jobs:
             '
 
       - name: "Upload Linux x64 musl binary"
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
-          name: monorepo-hash-linux-x64-musl
+          archive: false
           path: ./bun-build/monorepo-hash-linux-x64-musl
 
   windows-arm64:
@@ -272,9 +272,9 @@ jobs:
         run: .\bun-build\monorepo-hash-windows-arm64.exe --help
 
       - name: "Upload Windows arm64 binary"
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
-          name: monorepo-hash-windows-arm64.exe
+          archive: false
           path: .\bun-build\monorepo-hash-windows-arm64.exe
 
   windows-x64:
@@ -309,7 +309,7 @@ jobs:
         run: .\bun-build\monorepo-hash-windows-x64.exe --help
 
       - name: "Upload Windows x64 binary"
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
-          name: monorepo-hash-windows-x64.exe
+          archive: false
           path: .\bun-build\monorepo-hash-windows-x64.exe

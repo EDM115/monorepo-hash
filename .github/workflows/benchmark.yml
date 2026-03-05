@@ -294,7 +294,7 @@ jobs:
             "node ${{ steps.prepare_benchs.outputs.js_name }} --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
       - name: "Upload benchmarks results"
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: benchmarks-results-${{ steps.get_ref.outputs.ref }}
           path: tests/benchmarks/**/*.md
