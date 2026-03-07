@@ -1,14 +1,11 @@
-import { execa } from "execa"
 import {
-  mkdirp,
   mkdtemp,
-  remove,
   writeFile,
-  writeJson,
-} from "fs-extra"
+} from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { pathToFileURL } from "node:url"
+import { x } from "tinyexec"
 import {
   afterEach,
   beforeAll,
@@ -16,6 +13,12 @@ import {
   expect,
   it,
 } from "vitest"
+
+import {
+  mkdirp,
+  remove,
+  writeJson,
+} from "./utils"
 
 describe("workspace detection", () => {
   const cli = "node"
@@ -72,7 +75,7 @@ const result = await detectPNPM()
 console.log(JSON.stringify(result))
 `)
 
-    const { stdout } = await execa(cli, [harness], { cwd: dir })
+    const { stdout } = await x(cli, [harness], { nodeOptions: { cwd: dir } })
 
     // oxlint-disable-next-line no-unsafe-type-assertion
     const parsed = JSON.parse(stdout) as {
@@ -109,7 +112,7 @@ const result = await detectPkgJson()
 console.log(JSON.stringify(result))
 `)
 
-    const { stdout } = await execa(cli, [harness], { cwd: dir })
+    const { stdout } = await x(cli, [harness], { nodeOptions: { cwd: dir } })
 
     // oxlint-disable-next-line no-unsafe-type-assertion
     const parsed = JSON.parse(stdout) as {
@@ -146,7 +149,7 @@ const result = await detectPkgJson()
 console.log(JSON.stringify(result))
 `)
 
-    const { stdout } = await execa(cli, [harness], { cwd: dir })
+    const { stdout } = await x(cli, [harness], { nodeOptions: { cwd: dir } })
 
     // oxlint-disable-next-line no-unsafe-type-assertion
     const parsed = JSON.parse(stdout) as {
@@ -183,7 +186,7 @@ const result = await detectPkgJson()
 console.log(JSON.stringify(result))
 `)
 
-    const { stdout } = await execa(cli, [harness], { cwd: dir })
+    const { stdout } = await x(cli, [harness], { nodeOptions: { cwd: dir } })
 
     // oxlint-disable-next-line no-unsafe-type-assertion
     const parsed = JSON.parse(stdout) as {
@@ -219,7 +222,7 @@ const result = await detectDeno()
 console.log(JSON.stringify(result))
 `)
 
-    const { stdout } = await execa(cli, [harness], { cwd: dir })
+    const { stdout } = await x(cli, [harness], { nodeOptions: { cwd: dir } })
 
     // oxlint-disable-next-line no-unsafe-type-assertion
     const parsed = JSON.parse(stdout) as {

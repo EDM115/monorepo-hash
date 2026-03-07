@@ -1,12 +1,8 @@
 import {
   copyFile,
-  mkdirp,
   mkdtemp,
-  pathExists,
-  remove,
   writeFile,
-  writeJson,
-} from "fs-extra"
+} from "node:fs/promises"
 import { tmpdir } from "node:os"
 import {
   dirname,
@@ -20,6 +16,12 @@ import {
   detectPlatformId,
   getBinaryBasename,
 } from "../src/platform"
+import {
+  mkdirp,
+  pathExists,
+  remove,
+  writeJson,
+} from "../tests/utils"
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)

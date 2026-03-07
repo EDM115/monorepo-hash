@@ -1,11 +1,10 @@
-import { execa } from "execa"
 import {
   readFile,
-  remove,
   writeFile,
-} from "fs-extra"
+} from "node:fs/promises"
 import { join } from "node:path"
 import { pathToFileURL } from "node:url"
+import { x } from "tinyexec"
 import {
   afterEach,
   beforeAll,
@@ -13,6 +12,8 @@ import {
   expect,
   it,
 } from "vitest"
+
+import { remove } from "../tests/utils"
 
 describe("monorepo-hash CLI output", () => {
   let cwd: string
@@ -25,31 +26,31 @@ describe("monorepo-hash CLI output", () => {
 
   describe("unified", () => {
     it("reports unchanged when no files changed, and exit code 0", async () => {
-      await execa(cli, ["--generate"], { cwd })
-      const result = await execa(cli, ["--compare"], {
-        cwd, reject: false, all: true,
+      await x(cli, ["--generate"], { nodeOptions: { cwd } })
+      const result = await x(cli, ["--compare"], {
+        nodeOptions: { cwd },
       })
 
       expect(result.exitCode)
         .toBe(0)
 
-      expect(result.all)
+      expect(result.stdout)
         .toMatch(/✅ Unchanged \(3\) :/m)
-      expect(result.all)
+      expect(result.stdout)
         .toMatch(new RegExp("• packages/pkg-a", "m"))
-      expect(result.all)
+      expect(result.stdout)
         .toMatch(new RegExp("• packages/pkg-b", "m"))
-      expect(result.all)
+      expect(result.stdout)
         .toMatch(new RegExp("• packages/pkg-c", "m"))
     })
 
     it("detects a file change and exits with non-zero, listing the changed workspace", async () => {
-      await execa(cli, ["--generate"], { cwd })
+      await x(cli, ["--generate"], { nodeOptions: { cwd } })
       const pkgBIndex = join(cwd, "packages", "pkg-b", "index.js")
 
       await writeFile(pkgBIndex, "export const msg = \"pkg-b (edited)\"\n")
-      const result = await execa(cli, ["--compare"], {
-        cwd, reject: false, all: true,
+      const result = await x(cli, ["--compare"], {
+        nodeOptions: { cwd },
       })
 
       expect(result.exitCode)
@@ -66,12 +67,12 @@ describe("monorepo-hash CLI output", () => {
         "ms",
       )
 
-      expect(result.all)
+      expect(result.stdout)
         .toMatch(expectedPattern)
     })
 
     it("reports missing .hash if you delete an entry and run --compare", async () => {
-      await execa(cli, ["--generate"], { cwd })
+      await x(cli, ["--generate"], { nodeOptions: { cwd } })
       const rootHashPath = join(cwd, ".hash")
       // oxlint-disable-next-line no-unsafe-type-assertion
       const content = JSON.parse(await readFile(rootHashPath, "utf8")) as Record<string, string>
@@ -79,20 +80,20 @@ describe("monorepo-hash CLI output", () => {
 
       delete content[pkgAKey]
       await writeFile(rootHashPath, `${JSON.stringify(content, null, 2)}\n`)
-      const result = await execa(cli, ["--compare"], {
-        cwd, reject: false, all: true,
+      const result = await x(cli, ["--compare"], {
+        nodeOptions: { cwd },
       })
 
       expect(result.exitCode)
         .toBe(1)
-      expect(result.all)
+      expect(result.stdout)
         .toContain("❓ Missing .hash files (1) :")
-      expect(result.all)
+      expect(result.stdout)
         .toContain("• packages/pkg-a")
     })
 
     it("produces deterministic hashes across consecutive --generate runs", async () => {
-      await execa(cli, ["--generate"], { cwd })
+      await x(cli, ["--generate"], { nodeOptions: { cwd } })
       const rootHashPath = join(cwd, ".hash")
       // oxlint-disable-next-line no-unsafe-type-assertion
       const firstContent = JSON.parse(await readFile(rootHashPath, "utf8")) as Record<string, string>
@@ -102,7 +103,7 @@ describe("monorepo-hash CLI output", () => {
       const firstB = firstContent[pkgBKey]
 
       await remove(rootHashPath)
-      await execa(cli, ["--generate"], { cwd })
+      await x(cli, ["--generate"], { nodeOptions: { cwd } })
       // oxlint-disable-next-line no-unsafe-type-assertion
       const secondContent = JSON.parse(await readFile(rootHashPath, "utf8")) as Record<string, string>
       const secondA = secondContent[pkgAKey]
@@ -117,24 +118,24 @@ describe("monorepo-hash CLI output", () => {
 
   describe("workspaces", () => {
     it("reports missing .hash if you delete a hash file and run --compare", async () => {
-      await execa(cli, [ "--generate", "--workspaces" ], { cwd })
+      await x(cli, [ "--generate", "--workspaces" ], { nodeOptions: { cwd } })
       const hashAPath = join(cwd, "packages", "pkg-a", ".hash")
 
       await remove(hashAPath)
-      const result = await execa(cli, [ "--compare", "--workspaces" ], {
-        cwd, reject: false, all: true,
+      const result = await x(cli, [ "--compare", "--workspaces" ], {
+        nodeOptions: { cwd },
       })
 
       expect(result.exitCode)
         .toBe(1)
-      expect(result.all)
+      expect(result.stdout)
         .toContain("❓ Missing .hash files (1) :")
-      expect(result.all)
+      expect(result.stdout)
         .toContain("• packages/pkg-a")
     })
 
     it("produces deterministic hashes across consecutive --generate runs", async () => {
-      await execa(cli, [ "--generate", "--workspaces" ], { cwd })
+      await x(cli, [ "--generate", "--workspaces" ], { nodeOptions: { cwd } })
       const aPath = join(cwd, "packages", "pkg-a", ".hash")
       const bPath = join(cwd, "packages", "pkg-b", ".hash")
       const firstA = (await readFile(aPath, "utf8")).trim()
@@ -142,7 +143,7 @@ describe("monorepo-hash CLI output", () => {
 
       await remove(aPath)
       await remove(bPath)
-      await execa(cli, [ "--generate", "--workspaces" ], { cwd })
+      await x(cli, [ "--generate", "--workspaces" ], { nodeOptions: { cwd } })
       const secondA = (await readFile(aPath, "utf8")).trim()
       const secondB = (await readFile(bPath, "utf8")).trim()
 
@@ -177,7 +178,7 @@ describe("monorepo-hash API output", () => {
 
   describe("unified", () => {
     it("reports unchanged when no files changed", async () => {
-      await execa(cliBinary, ["--generate"], { cwd })
+      await x(cliBinary, ["--generate"], { nodeOptions: { cwd } })
 
       const harness = join(cwd, "unchanged.mjs")
 
@@ -189,7 +190,7 @@ describe("monorepo-hash API output", () => {
   console.log(JSON.stringify(result))
   `)
 
-      const { stdout } = await execa(cli, [harness], { cwd })
+      const { stdout } = await x(cli, [harness], { nodeOptions: { cwd } })
 
       // oxlint-disable-next-line no-unsafe-type-assertion
       const parsed = JSON.parse(stdout) as {
@@ -215,7 +216,7 @@ describe("monorepo-hash API output", () => {
     })
 
     it("detects a file change and lists the changed workspace", async () => {
-      await execa(cliBinary, ["--generate"], { cwd })
+      await x(cliBinary, ["--generate"], { nodeOptions: { cwd } })
       const pkgBIndex = join(cwd, "packages", "pkg-b", "index.js")
 
       await writeFile(pkgBIndex, "export const msg = \"pkg-b (edited again)\"\n")
@@ -230,7 +231,7 @@ describe("monorepo-hash API output", () => {
   console.log(JSON.stringify(result))
   `)
 
-      const { stdout } = await execa(cli, [harness], { cwd })
+      const { stdout } = await x(cli, [harness], { nodeOptions: { cwd } })
 
       // oxlint-disable-next-line no-unsafe-type-assertion
       const parsed = JSON.parse(stdout) as {
@@ -260,7 +261,7 @@ describe("monorepo-hash API output", () => {
     })
 
     it("reports missing .hash if you delete an entry and run --compare", async () => {
-      await execa(cliBinary, ["--generate"], { cwd })
+      await x(cliBinary, ["--generate"], { nodeOptions: { cwd } })
       const rootHashPath = join(cwd, ".hash")
       // oxlint-disable-next-line no-unsafe-type-assertion
       const content = JSON.parse(await readFile(rootHashPath, "utf8")) as Record<string, string>
@@ -279,7 +280,7 @@ describe("monorepo-hash API output", () => {
   console.log(JSON.stringify(result))
   `)
 
-      const { stdout } = await execa(cli, [harness], { cwd })
+      const { stdout } = await x(cli, [harness], { nodeOptions: { cwd } })
 
       // oxlint-disable-next-line no-unsafe-type-assertion
       const parsed = JSON.parse(stdout) as {
@@ -310,7 +311,7 @@ describe("monorepo-hash API output", () => {
   await runCli(["--generate", "--silent"])
   `)
 
-      await execa(cli, [harness], { cwd })
+      await x(cli, [harness], { nodeOptions: { cwd } })
       const rootHashPath = join(cwd, ".hash")
       // oxlint-disable-next-line no-unsafe-type-assertion
       const firstContent = JSON.parse(await readFile(rootHashPath, "utf8")) as Record<string, string>
@@ -320,7 +321,7 @@ describe("monorepo-hash API output", () => {
       const firstB = firstContent[pkgBKey]
 
       await remove(rootHashPath)
-      await execa(cli, [harness], { cwd })
+      await x(cli, [harness], { nodeOptions: { cwd } })
       // oxlint-disable-next-line no-unsafe-type-assertion
       const secondContent = JSON.parse(await readFile(rootHashPath, "utf8")) as Record<string, string>
       const secondA = secondContent[pkgAKey]
@@ -335,7 +336,7 @@ describe("monorepo-hash API output", () => {
 
   describe("workspaces", () => {
     it("reports missing .hash if you delete a hash file and run --compare", async () => {
-      await execa(cliBinary, [ "--generate", "--workspaces" ], { cwd })
+      await x(cliBinary, [ "--generate", "--workspaces" ], { nodeOptions: { cwd } })
       const hashAPath = join(cwd, "packages", "pkg-a", ".hash")
 
       await remove(hashAPath)
@@ -350,7 +351,7 @@ describe("monorepo-hash API output", () => {
   console.log(JSON.stringify(result))
   `)
 
-      const { stdout } = await execa(cli, [harness], { cwd })
+      const { stdout } = await x(cli, [harness], { nodeOptions: { cwd } })
 
       // oxlint-disable-next-line no-unsafe-type-assertion
       const parsed = JSON.parse(stdout) as {
@@ -381,7 +382,7 @@ describe("monorepo-hash API output", () => {
   await runCli(["--generate", "--silent", "--workspaces"])
   `)
 
-      await execa(cli, [harness], { cwd })
+      await x(cli, [harness], { nodeOptions: { cwd } })
       const aPath = join(cwd, "packages", "pkg-a", ".hash")
       const bPath = join(cwd, "packages", "pkg-b", ".hash")
       const firstA = (await readFile(aPath, "utf8")).trim()
@@ -389,7 +390,7 @@ describe("monorepo-hash API output", () => {
 
       await remove(aPath)
       await remove(bPath)
-      await execa(cli, [harness], { cwd })
+      await x(cli, [harness], { nodeOptions: { cwd } })
       const secondA = (await readFile(aPath, "utf8")).trim()
       const secondB = (await readFile(bPath, "utf8")).trim()
 

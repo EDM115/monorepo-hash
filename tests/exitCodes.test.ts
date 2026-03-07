@@ -1,13 +1,9 @@
-import { execa } from "execa"
 import {
-  mkdirp,
-  pathExists,
   readFile,
-  remove,
   writeFile,
-  writeJson,
-} from "fs-extra"
+} from "node:fs/promises"
 import { join } from "node:path"
+import { x } from "tinyexec"
 import {
   afterAll,
   beforeAll,
@@ -15,6 +11,13 @@ import {
   expect,
   it,
 } from "vitest"
+
+import {
+  mkdirp,
+  pathExists,
+  remove,
+  writeJson,
+} from "./utils"
 
 describe("exit codes", () => {
   let cliScript: string
@@ -27,8 +30,8 @@ describe("exit codes", () => {
   })
 
   it("returns 0 for --help", async () => {
-    const result = await execa(cli, [ cliScript, "--help" ], {
-      cwd, reject: false,
+    const result = await x(cli, [ cliScript, "--help" ], {
+      nodeOptions: { cwd },
     })
 
     expect(result.exitCode)
@@ -36,8 +39,8 @@ describe("exit codes", () => {
   })
 
   it("returns 2 when no mode is specified", async () => {
-    const result = await execa(cli, [cliScript], {
-      cwd, reject: false,
+    const result = await x(cli, [cliScript], {
+      nodeOptions: { cwd },
     })
 
     expect(result.exitCode)
@@ -45,8 +48,8 @@ describe("exit codes", () => {
   })
 
   it("returns 2 when both --generate and --compare are specified", async () => {
-    const result = await execa(cli, [ cliScript, "--generate", "--compare" ], {
-      cwd, reject: false,
+    const result = await x(cli, [ cliScript, "--generate", "--compare" ], {
+      nodeOptions: { cwd },
     })
 
     expect(result.exitCode)
@@ -54,8 +57,8 @@ describe("exit codes", () => {
   })
 
   it("returns 3 for unknown option", async () => {
-    const result = await execa(cli, [ cliScript, "--edm115" ], {
-      cwd, reject: false,
+    const result = await x(cli, [ cliScript, "--edm115" ], {
+      nodeOptions: { cwd },
     })
 
     expect(result.exitCode)
@@ -67,8 +70,8 @@ describe("exit codes", () => {
     const workspaceContent = await readFile(workspaceFilePath, "utf8")
 
     await remove(workspaceFilePath)
-    const result = await execa(cli, [ cliScript, "--generate" ], {
-      cwd, reject: false,
+    const result = await x(cli, [ cliScript, "--generate" ], {
+      nodeOptions: { cwd },
     })
 
     expect(result.exitCode)
@@ -78,8 +81,8 @@ describe("exit codes", () => {
   })
 
   it("returns 5 when forcing a wrong package manager", async () => {
-    const result = await execa(cli, [ cliScript, "--generate", "--packagemanager=yarn" ], {
-      cwd, reject: false,
+    const result = await x(cli, [ cliScript, "--generate", "--packagemanager=yarn" ], {
+      nodeOptions: { cwd },
     })
 
     expect(result.exitCode)
@@ -127,9 +130,8 @@ describe("exit codes", () => {
     })
 
     it("detects circular dependencies and exits with code 6", async () => {
-      const result = await execa(cli, [ cliScript, "--generate" ], {
-        cwd: circularDir,
-        reject: false,
+      const result = await x(cli, [ cliScript, "--generate" ], {
+        nodeOptions: { cwd: circularDir },
         timeout: 30000,
       })
 
@@ -140,9 +142,8 @@ describe("exit codes", () => {
     })
 
     it("reports the cycle path in the error message", async () => {
-      const result = await execa(cli, [ cliScript, "--generate" ], {
-        cwd: circularDir,
-        reject: false,
+      const result = await x(cli, [ cliScript, "--generate" ], {
+        nodeOptions: { cwd: circularDir },
       })
 
       expect(result.exitCode)
@@ -159,8 +160,8 @@ describe("exit codes", () => {
     const packageJsonContent = await readFile(packageJsonPath, "utf8")
 
     await writeFile(packageJsonPath, "{ invalid json }")
-    const result = await execa(cli, [ cliScript, "--generate" ], {
-      cwd, reject: false,
+    const result = await x(cli, [ cliScript, "--generate" ], {
+      nodeOptions: { cwd },
     })
 
     expect(result.exitCode)

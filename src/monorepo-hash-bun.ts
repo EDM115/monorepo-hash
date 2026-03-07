@@ -16,14 +16,15 @@ import {
   sep,
 } from "node:path"
 import {
+  cwd,
   exit,
   stdout,
 } from "node:process"
 
-import fg from "fast-glob"
 import ignore from "ignore"
 
-import { findUp } from "find-up"
+import { file as findUpFile } from "empathic/find"
+import { glob } from "tinyglobby"
 // #endregion
 
 
@@ -109,17 +110,21 @@ export function log(message: string, overwrite = false, level: "log" | "error" =
   }
 }
 
-export function displayPath(p: string): string {
+export function displayPath(p: string, forceDisableCache?: boolean): string {
   if (!needsPathConversion) {
     return p
   }
 
-  let cached = usePathCache
-    ? displayPathCache.get(p)
-    : p.replace(/\\/g, "/")
+  const transformed = p.replace(/\\/g, "/")
+
+  if (!usePathCache || forceDisableCache) {
+    return transformed
+  }
+
+  let cached = displayPathCache.get(p)
 
   if (cached === undefined) {
-    cached = p.replace(/\\/g, "/")
+    cached = transformed
     displayPathCache.set(p, cached)
   }
 
@@ -195,12 +200,13 @@ export async function getWorkspaceFileList(
   const relDirPosix = displayPath(relDir)
 
   // Gather all files under `dir`
-  const rawFiles = await fg("**/*", {
+  const rawFiles = await glob("**/*", {
     cwd: dir,
     onlyFiles: true,
     dot: true,
     // Always ignore .hash and .debug-hash as well as common ignores
     ignore: [ "**/node_modules/**", "**/.git/**", "**/.hash", "**/.debug-hash" ],
+    expandDirectories: false,
   })
 
   // Early exit if no files
@@ -208,8 +214,8 @@ export async function getWorkspaceFileList(
     return []
   }
 
-  // Convert to POSIX paths for consistent processing (already POSIX from fast-glob)
-  const repoPaths = rawFiles.map((f) => posix.join(relDirPosix, f))
+  // Convert to POSIX paths for consistent processing
+  const repoPaths = rawFiles.map((f) => posix.join(relDirPosix, displayPath(f, true)))
 
   // 1) Apply root .gitignore
   const rootFiltered = rootIgnore.filter(repoPaths)
@@ -254,7 +260,7 @@ export function isPackageManager(value: string): value is PackageManager {
 export async function detectPNPM(): Promise<{
   pm: PackageManager; root: string; globs: string[];
 } | null> {
-  const wsYaml = await findUp("pnpm-workspace.yaml")
+  const wsYaml = findUpFile("pnpm-workspace.yaml")
 
   if (!wsYaml) {
     return null
@@ -280,10 +286,10 @@ export async function detectPNPM(): Promise<{
 export async function detectDeno(): Promise<{
   pm: PackageManager; root: string; globs: string[];
 } | null> {
-  let denoPath = await findUp("deno.json")
+  let denoPath = findUpFile("deno.json")
 
   if (!denoPath) {
-    denoPath = await findUp("deno.jsonc")
+    denoPath = findUpFile("deno.jsonc")
 
     if (!denoPath) {
       return null
@@ -310,21 +316,38 @@ export async function detectDeno(): Promise<{
 export async function detectPkgJson(): Promise<{
   pm: PackageManager; root: string; globs: string[];
 } | null> {
-  const pkgPath = await findUp(async (dir) => {
-    const pkgFile = join(dir, "package.json")
+  async function findWorkspacePackageJson(start = cwd()): Promise<string | null> {
+    let dir = start
 
-    if (await exists(pkgFile)) {
-      // oxlint-disable-next-line no-unsafe-type-assertion
-      const data = await file(pkgFile)
-        .json() as { workspaces?: unknown }
+    while (true) {
+      const pkgPath = join(dir, "package.json")
 
-      if (data.workspaces) {
-        return pkgFile
+      // oxlint-disable-next-line no-await-in-loop
+      if (await exists(pkgPath)) {
+        try {
+          // oxlint-disable-next-line typescript/no-unsafe-type-assertion no-await-in-loop
+          const pkg = await file(pkgPath).json() as { workspaces?: unknown }
+
+          if (pkg.workspaces) {
+            return pkgPath
+          }
+        } catch {
+          // ignore invalid package.json and keep walking upward
+          void 0
+        }
       }
-    }
 
-    return undefined
-  })
+      const parent = dirname(dir)
+
+      if (parent === dir) {
+        return null
+      }
+
+      dir = parent
+    }
+  }
+
+  const pkgPath = await findWorkspacePackageJson()
 
   if (!pkgPath) {
     return null
@@ -950,10 +973,13 @@ export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCach
 
 export async function hash(): Promise<Awaited<ReturnType<typeof generateHashes>> | Awaited<ReturnType<typeof compareHashes>>> {
   // 1) find every workspace's package.json
-  const pkgJsonPaths = await fg(
-    workspaceGlobs.map((glob) => posix.join(glob, "package.json")),
+  const pkgJsonPaths = await glob(
+    workspaceGlobs.map((pattern) => posix.join(pattern, "package.json")),
     {
-      onlyFiles: true, dot: true,
+      cwd: repoRoot,
+      onlyFiles: true,
+      dot: true,
+      expandDirectories: false,
     },
   )
 

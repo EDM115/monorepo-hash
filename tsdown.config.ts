@@ -5,10 +5,10 @@ export default defineConfig([
     banner: { js: "#!/usr/bin/env node" },
     deps: {
       alwaysBundle: [
-        "fast-glob",
-        "find-up",
+        "empathic",
         "ignore",
-        "js-yaml",
+        "tinyglobby",
+        "yaml",
       ],
       onlyAllowBundle: false,
     },

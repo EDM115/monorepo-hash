@@ -1,16 +1,12 @@
-import { execa } from "execa"
 import {
   copyFile,
-  mkdirp,
-  pathExists,
   readFile,
-  remove,
   writeFile,
-  writeJson,
-} from "fs-extra"
+} from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { pathToFileURL } from "node:url"
+import { x } from "tinyexec"
 import {
   afterAll,
   afterEach,
@@ -19,6 +15,13 @@ import {
   expect,
   it,
 } from "vitest"
+
+import {
+  mkdirp,
+  pathExists,
+  remove,
+  writeJson,
+} from "../tests/utils"
 
 describe("hash generation", () => {
   let cwd: string
@@ -115,7 +118,7 @@ packages:
 
   describe("unified", () => {
     it("generates all hashes and matches snapshot", async () => {
-      await execa(cli, ["--generate"], { cwd: demoDir })
+      await x(cli, ["--generate"], { nodeOptions: { cwd: demoDir } })
 
       const rootPath = join(demoDir, ".hash")
       // oxlint-disable-next-line no-unsafe-type-assertion
@@ -133,7 +136,7 @@ packages:
         await remove(rootPath)
       }
 
-      await execa(cli, [ "--generate", "--target=packages/cli-tools" ], { cwd: demoDir })
+      await x(cli, [ "--generate", "--target=packages/cli-tools" ], { nodeOptions: { cwd: demoDir } })
 
       // oxlint-disable-next-line no-unsafe-type-assertion
       const content = JSON.parse(await readFile(rootPath, "utf8")) as Record<string, string>
@@ -147,7 +150,7 @@ packages:
 
     it("produces the same hash for a workspace with transitive deps as in full generate", async () => {
       // full generate
-      await execa(cli, ["--generate"], { cwd: demoDir })
+      await x(cli, ["--generate"], { nodeOptions: { cwd: demoDir } })
       const rootPath = join(demoDir, ".hash")
       // oxlint-disable-next-line no-unsafe-type-assertion
       const fullContent = JSON.parse(await readFile(rootPath, "utf8")) as Record<string, string>
@@ -160,7 +163,7 @@ packages:
       }
 
       // partial generate
-      await execa(cli, [ "--generate", "--target=services/backend" ], { cwd: demoDir })
+      await x(cli, [ "--generate", "--target=services/backend" ], { nodeOptions: { cwd: demoDir } })
       // oxlint-disable-next-line no-unsafe-type-assertion
       const partialContent = JSON.parse(await readFile(rootPath, "utf8")) as Record<string, string>
       const partial = partialContent[backendKey]
@@ -179,7 +182,7 @@ packages:
         await remove(cliToolsHashPath)
       }
 
-      await execa(cli, ["--generate"], { cwd: demoDir })
+      await x(cli, ["--generate"], { nodeOptions: { cwd: demoDir } })
       const rootPath = join(demoDir, ".hash")
       const exists = await pathExists(rootPath)
 
@@ -202,7 +205,7 @@ packages:
 
   describe("workspaces", () => {
     it("generates all hashes and matches snapshot", async () => {
-      await execa(cli, [ "--generate", "--workspaces" ], { cwd: demoDir })
+      await x(cli, [ "--generate", "--workspaces" ], { nodeOptions: { cwd: demoDir } })
 
       const hashPromises = pkgs.map(async (rel) => {
         const hash = (await readFile(join(demoDir, rel, ".hash"), "utf8")).trim()
@@ -232,7 +235,7 @@ packages:
       })
 
       await Promise.all(cleanupPromises)
-      await execa(cli, [ "--generate", "--target=packages/cli-tools", "--workspaces" ], { cwd: demoDir })
+      await x(cli, [ "--generate", "--target=packages/cli-tools", "--workspaces" ], { nodeOptions: { cwd: demoDir } })
 
       const existsPromises = pkgs.map(async (rel) => {
         const exists = await pathExists(join(demoDir, rel, ".hash"))
@@ -255,7 +258,7 @@ packages:
 
     it("produces the same hash for a workspace with transitive deps as in full generate", async () => {
       // full generate
-      await execa(cli, [ "--generate", "--workspaces" ], { cwd: demoDir })
+      await x(cli, [ "--generate", "--workspaces" ], { nodeOptions: { cwd: demoDir } })
       const full = (await readFile(join(demoDir, "services", "backend", ".hash"), "utf8")).trim()
 
       // remove all .hash
@@ -270,7 +273,7 @@ packages:
       await Promise.all(cleanPromises)
 
       // partial generate
-      await execa(cli, [ "--generate", "--target=services/backend", "--workspaces" ], { cwd: demoDir })
+      await x(cli, [ "--generate", "--target=services/backend", "--workspaces" ], { nodeOptions: { cwd: demoDir } })
       const partial = (await readFile(join(demoDir, "services", "backend", ".hash"), "utf8")).trim()
 
       const existsPromises = pkgs.map(async (rel) => {
@@ -302,7 +305,7 @@ packages:
         await remove(rootPath)
       }
 
-      await execa(cli, [ "--generate", "--workspaces" ], { cwd: demoDir })
+      await x(cli, [ "--generate", "--workspaces" ], { nodeOptions: { cwd: demoDir } })
       const exists = await pathExists(rootPath)
 
       expect(exists)
@@ -352,7 +355,7 @@ describe("hash computation functions", () => {
       await writeFile(harness, `import { computePerFileHashes } from "${cliImport}"
 const result = await computePerFileHashes("${escapedDir}", ["file1.txt", "file2.txt"])
 console.log(JSON.stringify(Object.keys(result).sort()))`)
-      const { stdout } = await execa(cli, [harness], { cwd })
+      const { stdout } = await x(cli, [harness], { nodeOptions: { cwd } })
 
       expect(JSON.parse(stdout))
         .toEqual([ "file1.txt", "file2.txt" ])
@@ -371,7 +374,7 @@ console.log(JSON.stringify(Object.keys(result).sort()))`)
       await writeFile(harness, `import { computePerFileHashes } from "${cliImport}"
 const result = await computePerFileHashes("${escapedDir}", [])
 console.log(JSON.stringify(result))`)
-      const { stdout } = await execa(cli, [harness], { cwd })
+      const { stdout } = await x(cli, [harness], { nodeOptions: { cwd } })
 
       expect(JSON.parse(stdout))
         .toEqual({})
@@ -392,9 +395,9 @@ console.log(JSON.stringify(result))`)
 const result1 = await computePerFileHashes("${escapedDir}", ["file.txt"])
 const result2 = await computePerFileHashes("${escapedDir}", ["file.txt"])
 console.log(result1["file.txt"] === result2["file.txt"])`)
-      const { stdout } = await execa(cli, [harness], { cwd })
+      const { stdout } = await x(cli, [harness], { nodeOptions: { cwd } })
 
-      expect(stdout)
+      expect(stdout.trim())
         .toBe("true")
     })
   })
@@ -411,9 +414,9 @@ const perFileMap = {
 }
 const result = computeOwnHashFromPerFile(perFileMap, ["a.txt", "b.txt"])
 console.log(result instanceof Buffer)`)
-      const { stdout } = await execa(cli, [harness], { cwd })
+      const { stdout } = await x(cli, [harness], { nodeOptions: { cwd } })
 
-      expect(stdout)
+      expect(stdout.trim())
         .toBe("true")
     })
 
@@ -429,9 +432,9 @@ const perFileMap = {
 const result1 = computeOwnHashFromPerFile(perFileMap, ["a.txt", "b.txt"])
 const result2 = computeOwnHashFromPerFile(perFileMap, ["b.txt", "a.txt"])
 console.log(result1.toString("hex") !== result2.toString("hex"))`)
-      const { stdout } = await execa(cli, [harness], { cwd })
+      const { stdout } = await x(cli, [harness], { nodeOptions: { cwd } })
 
-      expect(stdout)
+      expect(stdout.trim())
         .toBe("true")
     })
   })

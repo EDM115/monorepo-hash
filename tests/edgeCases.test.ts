@@ -1,13 +1,9 @@
-import { execa } from "execa"
 import {
-  mkdirp,
-  pathExists,
   readFile,
-  remove,
   writeFile,
-  writeJson,
-} from "fs-extra"
+} from "node:fs/promises"
 import { join } from "node:path"
+import { x } from "tinyexec"
 import {
   afterAll,
   beforeAll,
@@ -15,6 +11,13 @@ import {
   expect,
   it,
 } from "vitest"
+
+import {
+  mkdirp,
+  pathExists,
+  remove,
+  writeJson,
+} from "./utils"
 
 describe("edge cases", () => {
   let cliScript: string
@@ -59,7 +62,7 @@ describe("edge cases", () => {
     })
 
     it("respects root .gitignore", async () => {
-      await execa(cli, [ cliScript, "--generate", "--debug" ], { cwd: gitignoreDir })
+      await x(cli, [ cliScript, "--generate", "--debug" ], { nodeOptions: { cwd: gitignoreDir } })
       const debugPath = join(gitignoreDir, ".debug-hash")
 
       expect(await pathExists(debugPath))
@@ -77,7 +80,7 @@ describe("edge cases", () => {
     })
 
     it("respects package-level .gitignore", async () => {
-      await execa(cli, [ cliScript, "--generate", "--debug" ], { cwd: gitignoreDir })
+      await x(cli, [ cliScript, "--generate", "--debug" ], { nodeOptions: { cwd: gitignoreDir } })
       const debugPath = join(gitignoreDir, ".debug-hash")
       // oxlint-disable-next-line no-unsafe-type-assertion
       const debugContent = JSON.parse(await readFile(debugPath, "utf8")) as Record<string, Record<string, string>>
@@ -115,7 +118,7 @@ describe("edge cases", () => {
     })
 
     it("handles packages with only package.json", async () => {
-      await execa(cli, [ cliScript, "--generate" ], { cwd: emptyDir })
+      await x(cli, [ cliScript, "--generate" ], { nodeOptions: { cwd: emptyDir } })
       const hashPath = join(emptyDir, ".hash")
 
       expect(await pathExists(hashPath))
@@ -160,7 +163,7 @@ describe("edge cases", () => {
     })
 
     it("handles filenames with special characters", async () => {
-      await execa(cli, [ cliScript, "--generate", "--debug" ], { cwd: specialDir })
+      await x(cli, [ cliScript, "--generate", "--debug" ], { nodeOptions: { cwd: specialDir } })
       const debugPath = join(specialDir, ".debug-hash")
 
       expect(await pathExists(debugPath))
@@ -174,7 +177,7 @@ describe("edge cases", () => {
     })
 
     it("handles filenames with spaces", async () => {
-      await execa(cli, [ cliScript, "--generate", "--debug" ], { cwd: specialDir })
+      await x(cli, [ cliScript, "--generate", "--debug" ], { nodeOptions: { cwd: specialDir } })
       const debugPath = join(specialDir, ".debug-hash")
       // oxlint-disable-next-line no-unsafe-type-assertion
       const debugContent = JSON.parse(await readFile(debugPath, "utf8")) as Record<string, Record<string, string>>
@@ -220,7 +223,7 @@ describe("edge cases", () => {
     })
 
     it("generates hash only for specified target", async () => {
-      await execa(cli, [ targetCliScript, "--generate", "--target=packages/pkg-2" ], { cwd: targetDir })
+      await x(cli, [ targetCliScript, "--generate", "--target=packages/pkg-2" ], { nodeOptions: { cwd: targetDir } })
       const hashPath = join(targetDir, ".hash")
       // oxlint-disable-next-line no-unsafe-type-assertion
       const content = JSON.parse(await readFile(hashPath, "utf8")) as Record<string, string>
@@ -234,7 +237,7 @@ describe("edge cases", () => {
 
     it("generates hashes for multiple specified targets", async () => {
       await remove(join(targetDir, ".hash"))
-      await execa(cli, [ targetCliScript, "--generate", "--target=packages/pkg-1,packages/pkg-3" ], { cwd: targetDir })
+      await x(cli, [ targetCliScript, "--generate", "--target=packages/pkg-1,packages/pkg-3" ], { nodeOptions: { cwd: targetDir } })
       const hashPath = join(targetDir, ".hash")
       // oxlint-disable-next-line no-unsafe-type-assertion
       const content = JSON.parse(await readFile(hashPath, "utf8")) as Record<string, string>
@@ -250,12 +253,9 @@ describe("edge cases", () => {
     })
 
     it("compares only specified target", async () => {
-      await execa(cli, [ targetCliScript, "--generate" ], { cwd: targetDir })
+      await x(cli, [ targetCliScript, "--generate" ], { nodeOptions: { cwd: targetDir } })
       await writeFile(join(targetDir, "packages", "pkg-1", "index.js"), "export const pkg_1 = false\n")
-      const result = await execa(cli, [ targetCliScript, "--compare", "--target=packages/pkg-2" ], {
-        cwd: targetDir,
-        reject: false,
-      })
+      const result = await x(cli, [ targetCliScript, "--compare", "--target=packages/pkg-2" ], { nodeOptions: { cwd: targetDir } })
 
       expect(result.exitCode)
         .toBe(0)

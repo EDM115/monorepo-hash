@@ -1,16 +1,17 @@
-import { execa } from "execa"
-import {
-  pathExists,
-  remove,
-  writeFile,
-} from "fs-extra"
+import { writeFile } from "node:fs/promises"
 import { join } from "node:path"
+import { x } from "tinyexec"
 import {
   beforeAll,
   describe,
   expect,
   it,
 } from "vitest"
+
+import {
+  pathExists,
+  remove,
+} from "../tests/utils"
 
 describe("debug mode", () => {
   let cwd: string
@@ -23,7 +24,7 @@ describe("debug mode", () => {
 
   describe("unified", () => {
     it("creates root .debug-hash file and reports mismatched files", async () => {
-      await execa(cli, [ "--generate", "--debug" ], { cwd })
+      await x(cli, [ "--generate", "--debug" ], { nodeOptions: { cwd } })
 
       const rootDebug = join(cwd, ".debug-hash")
 
@@ -34,17 +35,12 @@ describe("debug mode", () => {
 
       await writeFile(pkgBIndex, "export const msg = \"pkg-b (edited)\"\n")
 
-      const result = await execa(
-        cli,
-        [ "--compare", "--debug" ],
-        {
-          cwd, reject: false, all: true,
-        },
+      const result = await x(cli, [ "--compare", "--debug" ], { nodeOptions: { cwd } },
       )
 
-      expect(result.all)
+      expect(result.stdout)
         .toMatch(new RegExp("⚠️\\s+<debug>\\s+packages\\/pkg-b\\s+diverging files\\s*:"))
-      expect(result.all)
+      expect(result.stdout)
         .toContain("• index.js")
       expect(result.exitCode)
         .toBe(1)
@@ -62,7 +58,7 @@ describe("debug mode", () => {
         await remove(pkgADebugPath)
       }
 
-      await execa(cli, [ "--generate", "--debug" ], { cwd })
+      await x(cli, [ "--generate", "--debug" ], { nodeOptions: { cwd } })
 
       expect(await pathExists(rootDebug))
         .toBe(true)
@@ -76,7 +72,7 @@ describe("debug mode", () => {
 
   describe("workspaces", () => {
     it("creates .debug-hash files and reports mismatched files", async () => {
-      await execa(cli, [ "--generate", "--debug", "--workspaces" ], { cwd })
+      await x(cli, [ "--generate", "--debug", "--workspaces" ], { nodeOptions: { cwd } })
 
       const aDebug = join(cwd, "packages", "pkg-a", ".debug-hash")
       const bDebug = join(cwd, "packages", "pkg-b", ".debug-hash")
@@ -90,17 +86,11 @@ describe("debug mode", () => {
 
       await writeFile(pkgBIndex, "export const msg = \"pkg-b (edited again)\"\n")
 
-      const result = await execa(
-        cli,
-        [ "--compare", "--debug" ],
-        {
-          cwd, reject: false, all: true,
-        },
-      )
+      const result = await x(cli, [ "--compare", "--debug" ], { nodeOptions: { cwd } })
 
-      expect(result.all)
+      expect(result.stdout)
         .toMatch(new RegExp("⚠️\\s+<debug>\\s+packages\\/pkg-b\\s+diverging files\\s*:"))
-      expect(result.all)
+      expect(result.stdout)
         .toContain("• index.js")
       expect(result.exitCode)
         .toBe(1)
@@ -113,7 +103,7 @@ describe("debug mode", () => {
         await remove(rootDebug)
       }
 
-      await execa(cli, [ "--generate", "--debug", "--workspaces" ], { cwd })
+      await x(cli, [ "--generate", "--debug", "--workspaces" ], { nodeOptions: { cwd } })
 
       expect(await pathExists(rootDebug))
         .toBe(false)

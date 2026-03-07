@@ -1,10 +1,7 @@
-import { execa } from "execa"
-import {
-  remove,
-  writeFile,
-} from "fs-extra"
+import { writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { pathToFileURL } from "node:url"
+import { x } from "tinyexec"
 import {
   afterEach,
   beforeAll,
@@ -12,6 +9,8 @@ import {
   expect,
   it,
 } from "vitest"
+
+import { remove } from "../tests/utils"
 
 describe("utility functions", () => {
   let cliScript: string
@@ -44,9 +43,9 @@ const path = require("node:path")
 path.sep = "\\\\"
 const { displayPath } = await import("${cliImport}")
 console.log(displayPath("packages\\\\pkg-a\\\\src\\\\index.ts"))`)
-      const { stdout } = await execa(cli, [harness], { cwd })
+      const { stdout } = await x(cli, [harness], { nodeOptions: { cwd } })
 
-      expect(stdout)
+      expect(stdout.trim())
         .toBe("packages/pkg-a/src/index.ts")
     })
 
@@ -56,9 +55,9 @@ console.log(displayPath("packages\\\\pkg-a\\\\src\\\\index.ts"))`)
       created.push(harness)
       await writeFile(harness, `import { displayPath } from "${cliImport}"
 console.log(displayPath("packages/pkg-a/src/index.ts"))`)
-      const { stdout } = await execa(cli, [harness], { cwd })
+      const { stdout } = await x(cli, [harness], { nodeOptions: { cwd } })
 
-      expect(stdout)
+      expect(stdout.trim())
         .toBe("packages/pkg-a/src/index.ts")
     })
   })
@@ -71,9 +70,9 @@ console.log(displayPath("packages/pkg-a/src/index.ts"))`)
       await writeFile(harness, `import { exists } from "${cliImport}"
 const result = await exists("${cliScript.replace(/\\/g, "\\\\")}")
 console.log(result)`)
-      const { stdout } = await execa(cli, [harness], { cwd })
+      const { stdout } = await x(cli, [harness], { nodeOptions: { cwd } })
 
-      expect(stdout)
+      expect(stdout.trim())
         .toBe("true")
     })
 
@@ -85,9 +84,9 @@ console.log(result)`)
 const result = await exists("${join(cwd, "non-existent-file.txt")
   .replace(/\\/g, "\\\\")}")
 console.log(result)`)
-      const { stdout } = await execa(cli, [harness], { cwd })
+      const { stdout } = await x(cli, [harness], { nodeOptions: { cwd } })
 
-      expect(stdout)
+      expect(stdout.trim())
         .toBe("false")
     })
   })
@@ -99,9 +98,9 @@ console.log(result)`)
       created.push(harness)
       await writeFile(harness, `import { zeroPad } from "${cliImport}"
 console.log(zeroPad(5, 3))`)
-      const { stdout } = await execa(cli, [harness], { cwd })
+      const { stdout } = await x(cli, [harness], { nodeOptions: { cwd } })
 
-      expect(stdout)
+      expect(stdout.trim())
         .toBe("005")
     })
 
@@ -111,9 +110,9 @@ console.log(zeroPad(5, 3))`)
       created.push(harness)
       await writeFile(harness, `import { zeroPad } from "${cliImport}"
 console.log(zeroPad(100, 3))`)
-      const { stdout } = await execa(cli, [harness], { cwd })
+      const { stdout } = await x(cli, [harness], { nodeOptions: { cwd } })
 
-      expect(stdout)
+      expect(stdout.trim())
         .toBe("100")
     })
   })
@@ -126,9 +125,9 @@ console.log(zeroPad(100, 3))`)
       await writeFile(harness, `import { isPackageManager } from "${cliImport}"
 const pms = ["pnpm", "npm", "yarn", "bun", "deno"]
 console.log(pms.every(isPackageManager))`)
-      const { stdout } = await execa(cli, [harness], { cwd })
+      const { stdout } = await x(cli, [harness], { nodeOptions: { cwd } })
 
-      expect(stdout)
+      expect(stdout.trim())
         .toBe("true")
     })
 
@@ -138,9 +137,9 @@ console.log(pms.every(isPackageManager))`)
       created.push(harness)
       await writeFile(harness, `import { isPackageManager } from "${cliImport}"
 console.log(isPackageManager("edm115"))`)
-      const { stdout } = await execa(cli, [harness], { cwd })
+      const { stdout } = await x(cli, [harness], { nodeOptions: { cwd } })
 
-      expect(stdout)
+      expect(stdout.trim())
         .toBe("false")
     })
   })
@@ -154,7 +153,7 @@ console.log(isPackageManager("edm115"))`)
 const items = [1, 2, 3, 4, 5]
 const results = await mapLimit(items, 2, async (x) => x * 2)
 console.log(JSON.stringify(results))`)
-      const { stdout } = await execa(cli, [harness], { cwd })
+      const { stdout } = await x(cli, [harness], { nodeOptions: { cwd } })
 
       expect(JSON.parse(stdout))
         .toEqual([ 2, 4, 6, 8, 10 ])
@@ -167,7 +166,7 @@ console.log(JSON.stringify(results))`)
       await writeFile(harness, `import { mapLimit } from "${cliImport}"
 const results = await mapLimit([], 2, async (x) => x * 2)
 console.log(JSON.stringify(results))`)
-      const { stdout } = await execa(cli, [harness], { cwd })
+      const { stdout } = await x(cli, [harness], { nodeOptions: { cwd } })
 
       expect(JSON.parse(stdout))
         .toEqual([])
@@ -181,7 +180,7 @@ console.log(JSON.stringify(results))`)
 const items = [1, 2]
 const results = await mapLimit(items, 10, async (x) => x * 3)
 console.log(JSON.stringify(results))`)
-      const { stdout } = await execa(cli, [harness], { cwd })
+      const { stdout } = await x(cli, [harness], { nodeOptions: { cwd } })
 
       expect(JSON.parse(stdout))
         .toEqual([ 3, 6 ])
