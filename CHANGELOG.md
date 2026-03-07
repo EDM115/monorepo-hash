@@ -18,6 +18,8 @@
 📌 deps : pin Node to latest non-LTS (`v25`)  
 ⬆️ deps : bump all deps
 
+**Full Changelog**: https://github.com/EDM115/monorepo-hash/compare/2.0.0...2.1.0
+
 ## v2.0.0
 > [!IMPORTANT]  
 > This will likely be the last release of `monorepo-hash`.  
