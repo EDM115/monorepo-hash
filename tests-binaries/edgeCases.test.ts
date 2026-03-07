@@ -253,7 +253,7 @@ describe("edge cases", () => {
       await x(cli, ["--generate"], { nodeOptions: { cwd: targetDir } })
       await writeFile(join(targetDir, "packages", "pkg-1", "index.js"), "export const pkg_1 = false\n")
       const result = await x(cli, [ "--compare", "--target=packages/pkg-2" ], {
-        nodeOptions: { cwd: targetDir }
+        nodeOptions: { cwd: targetDir },
       })
 
       expect(result.exitCode)

@@ -451,13 +451,15 @@ Starting with `v2.0.0`, the benchmark methodology has changed : we re-runned the
 > - **Wide monorepo** : 50 workspaces of 10 folders each, with each folder containing 100 files, files composed of 10 lines of text *(the most representative of a real-world monorepo with many packages)*
 >
 > In order to not clunk up Git, these [demo repos](./tests/demo/) are 7z ultra compressed.  
-> Symbols (comparing Node with Node, Bun with Bun, the first Bun version is compared with the same version's Node) :
+> Symbols (comparing Node with Node, Bun with Bun, the first Bun version is compared with the same version's Node, wide > small > medium > large, warm > cold) :
 > - :chart_with_upwards_trend: : Faster than the previous version
 > - :chart_with_downwards_trend: : Slower than the previous version
 > - :balance_scale: : Negligible or no perceivable change in performance compared to the previous version
 
 | Version                                   | Small               | Medium             | Large               | Wide               |
 | :---------------------------------------- | :------------------ | :----------------- | :------------------ | :----------------- |
+| `v2.1.0 (bun)` :chart_with_upwards_trend: | 208 ms (53.9 ms)    | 3.468 s (775.8 ms) | 49.896 s (12.169 s) | 3.816 s (862 ms) |
+| `v2.1.0` :chart_with_upwards_trend:       | 253.9 ms (116.5 ms) | 3.677 s (3.438 s)  | 52.091 s (67.068 s) | 5.883 s (5.614 s)  |
 | `v2.0.0 (bun)` :chart_with_upwards_trend: | 231 ms (69.33 ms)   | 3.295 s (802.3 ms) | 41.083 s (17.319 s) | 3.081 s (761.9 ms) |
 | `v2.0.0` :chart_with_upwards_trend:       | 282.6 ms (124.1 ms) | 3.853 s (3.532 s)  | 36.773 s (35.706 s) | 4.447 s (3.599 s)  |
 | `v1.9.0 (bun)` :balance_scale:            | 224.3 ms (67.45 ms) | 3.347 s (719.9 ms) | 35.774 s (10.268 s) | 3.546 s (1.405 s)  |

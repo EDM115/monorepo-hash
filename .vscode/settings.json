@@ -10,7 +10,7 @@
   "explorer.fileNesting.patterns": {
     "oxlint.config.ts": "eslint.*",
     "tsdown.config.ts": "tsconfig.*",
-    "package.json": ".node-version, pnpm*",
+    "package.json": ".node-version, pnpm*, *.script.ts",
     "README.md": "LICENSE, .gitignore, CHANGELOG.md, logo.*",
     "vitest.config.ts": "vitest.*"
   },

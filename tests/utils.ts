@@ -12,7 +12,9 @@ async function pathExists(path: string): Promise<boolean> {
 }
 
 async function remove(path: string): Promise<void> {
-  await rm(path, { recursive: true, force: true })
+  await rm(path, {
+    recursive: true, force: true,
+  })
 }
 
 async function mkdirp(path: string): Promise<void> {
@@ -20,13 +22,14 @@ async function mkdirp(path: string): Promise<void> {
 }
 
 type JsonReplacerFn = (this: unknown, key: string, value: unknown) => unknown
+
 type JsonReplacer = JsonReplacerFn | Array<string | number>
 
 type WriteJsonOptions = {
-  spaces?: number
-  EOL?: string
-  finalEOL?: boolean
-  replacer?: JsonReplacer
+  spaces?: number;
+  EOL?: string;
+  finalEOL?: boolean;
+  replacer?: JsonReplacer;
 }
 
 async function writeJson(

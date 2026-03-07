@@ -105,6 +105,7 @@
     "build:bun:windows-x64": "bun build --compile --minify --sourcemap --bytecode --format=esm --windows-icon=logo.ico --windows-title=monorepo-hash --windows-description=monorepo-hash --windows-publisher=EDM115 --windows-version=2.0.1 --windows-copyright=https://github.com/EDM115/monorepo-hash/blob/master/LICENSE --target=bun-windows-x64 ./src/monorepo-hash-bun.ts --outfile ./bun-build/monorepo-hash-windows-x64.exe",
     "build:bun:windows-x64:ci": "bun build --compile --minify --sourcemap --bytecode --format=esm --target=bun-windows-x64 ./src/monorepo-hash-bun.ts --outfile ./bun-build/monorepo-hash-windows-x64.exe",
     "build:decoy": "node -e \"require('fs').writeFileSync('./dist/monorepo-hash.exe', '', 'utf8')\"",
+    "cli:get-bench-times": "jiti ./get-bench-times.script.ts",
     "format": "eslint -c eslint.stylistic.config.ts --concurrency=auto --fix .",
     "lint": "oxlint .",
     "lint:fix": "oxlint --fix .",
@@ -116,5 +117,5 @@
     "typecheck": "tsgo --noEmit"
   },
   "type": "module",
-  "version": "2.0.1"
+  "version": "2.1.0"
 }

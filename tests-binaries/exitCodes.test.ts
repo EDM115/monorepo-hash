@@ -30,7 +30,7 @@ describe("exit codes", () => {
 
   it("returns 0 for --help", async () => {
     const result = await x(cli, ["--help"], {
-      nodeOptions: { cwd }
+      nodeOptions: { cwd },
     })
 
     expect(result.exitCode)
@@ -39,7 +39,7 @@ describe("exit codes", () => {
 
   it("returns 2 when no mode is specified", async () => {
     const result = await x(cli, [], {
-      nodeOptions: { cwd }
+      nodeOptions: { cwd },
     })
 
     expect(result.exitCode)
@@ -48,7 +48,7 @@ describe("exit codes", () => {
 
   it("returns 2 when both --generate and --compare are specified", async () => {
     const result = await x(cli, [ "--generate", "--compare" ], {
-      nodeOptions: { cwd }
+      nodeOptions: { cwd },
     })
 
     expect(result.exitCode)
@@ -57,7 +57,7 @@ describe("exit codes", () => {
 
   it("returns 3 for unknown option", async () => {
     const result = await x(cli, ["--edm115"], {
-      nodeOptions: { cwd }
+      nodeOptions: { cwd },
     })
 
     expect(result.exitCode)
@@ -70,7 +70,7 @@ describe("exit codes", () => {
 
     await remove(workspaceFilePath)
     const result = await x(cli, ["--generate"], {
-      nodeOptions: { cwd }
+      nodeOptions: { cwd },
     })
 
     expect(result.exitCode)
@@ -81,7 +81,7 @@ describe("exit codes", () => {
 
   it("returns 5 when forcing a wrong package manager", async () => {
     const result = await x(cli, [ "--generate", "--packagemanager=yarn" ], {
-      nodeOptions: { cwd }
+      nodeOptions: { cwd },
     })
 
     expect(result.exitCode)
@@ -133,7 +133,7 @@ describe("exit codes", () => {
         nodeOptions: {
           cwd: circularDir,
           timeout: 30000,
-        }
+        },
       })
 
       expect(result.exitCode)
@@ -144,7 +144,7 @@ describe("exit codes", () => {
 
     it("reports the cycle path in the error message", async () => {
       const result = await x(cli, ["--generate"], {
-        nodeOptions: { cwd: circularDir }
+        nodeOptions: { cwd: circularDir },
       })
 
       expect(result.exitCode)
@@ -162,7 +162,7 @@ describe("exit codes", () => {
 
     await writeFile(packageJsonPath, "{ invalid json }")
     const result = await x(cli, ["--generate"], {
-      nodeOptions: { cwd }
+      nodeOptions: { cwd },
     })
 
     expect(result.exitCode)

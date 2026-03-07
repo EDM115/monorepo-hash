@@ -326,7 +326,8 @@ export async function detectPkgJson(): Promise<{
       if (await exists(pkgPath)) {
         try {
           // oxlint-disable-next-line typescript/no-unsafe-type-assertion no-await-in-loop
-          const pkg = await file(pkgPath).json() as { workspaces?: unknown }
+          const pkg = await file(pkgPath)
+            .json() as { workspaces?: unknown }
 
           if (pkg.workspaces) {
             return pkgPath

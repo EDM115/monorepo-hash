@@ -35,8 +35,7 @@ describe("debug mode", () => {
 
       await writeFile(pkgBIndex, "export const msg = \"pkg-b (edited)\"\n")
 
-      const result = await x(cli, [ "--compare", "--debug" ], { nodeOptions: { cwd } },
-      )
+      const result = await x(cli, [ "--compare", "--debug" ], { nodeOptions: { cwd } })
 
       expect(result.stdout)
         .toMatch(new RegExp("⚠️\\s+<debug>\\s+packages\\/pkg-b\\s+diverging files\\s*:"))

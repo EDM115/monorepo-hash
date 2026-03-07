@@ -1,4 +1,5 @@
 node_modules
 dist
 bun-build
+bench-history-new
 tsconfig.tsbuildinfo

@@ -1,18 +1,20 @@
 # monorepo-hash changelog
 
-### unreleased
+### v2.1.0
 ✨ feat : add a `--nopathcache`/`-npc` flag to disable the path existence cache, which can make the process slightly slower but can reduce memory footprint on large monorepos  
 ✨ feat : the Bun build is now also available for Windows on ARM64  
 ⚡️ perf : use Bun's implementation of YAML parsing for the binary version  
-⚡️🏗️ perf, internal : switch dependencies with leaner alternatives, courtesy of [e18e.dev](https://e18e.dev/). no difference should be visible user-side, hashes should stay the same. however if you see any change (apart from faster execution 😉), [open an issue](https://github.com/EDM115/monorepo-hash/issues/new?template=BUG_REPORT.yml)  
+⚡️🏗️ perf, internal : switch dependencies with leaner alternatives, courtesy of [e18e.dev](https://e18e.dev/). no difference should be visible user-side, hashes should stay the same, 219 => 173 deps. however if you see any change (apart from faster execution 😉), [open an issue](https://github.com/EDM115/monorepo-hash/issues/new?template=BUG_REPORT.yml)  
 ⚡️ perf : make the proto-less objects potentially even faster, props to https://github.com/h3js/rou3/blob/f0361df69be0aea4bea3ccb38ac7b5f7de78f342/src/_utils.ts and https://github.com/Kikobeats/null-prototype-object  
 📦️ build : binaries are built with Bun `1.3.10` instead of `1.3.4`  
 📦️ build : the produced JS code is downleveled to Node.js `22` instead of `20`  
 📦️ build : Windows binaries now have proper properties  
 🍱 assets : invert the order of resolutions in the ICO file to ensure that Bun picks the highest one, remove the 1024px variant  
+🔨🧑‍💻 scripts, dev : add a script to compute the fixed benchmark times of an unreleased version  
 🔧 config : use the newest OxLint config file format and update linters configs  
 🔧 config : add the `inlinedDependencies` field  
 📝 docs : update the badges  
+📝 docs : add the benchmark history files to the repo  
 📌 deps : pin Node to latest non-LTS (`v25`)  
 ⬆️ deps : bump all deps
 
