@@ -29,6 +29,12 @@ jobs:
           cache: "pnpm"
           node-version: 25
 
+      - name: "Install Go (stable)"
+        uses: actions/setup-go@v6
+        with:
+          go-version: "stable"
+          check-latest: true
+
       - name: "Install Bun"
         uses: oven-sh/setup-bun@v2
 
@@ -46,6 +52,9 @@ jobs:
 
       - name: "Run the node tests"
         run: pnpm vitest
+
+      - name: "Run the Go tests"
+        run: cd src/go && go test ./...
 
       - name: "Run the bun tests"
         run: pnpm test:binaries:prepare && pnpm vitest --config vitest.binaries.config.ts

@@ -4,6 +4,61 @@ on:
   workflow_dispatch:
 
 jobs:
+  go-x64:
+    name: "Build Go binary (${{ matrix.os }} x64)"
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: linux
+            runner: ubuntu-24.04
+            goos: linux
+            ext: ""
+          - os: darwin
+            runner: macos-15-intel
+            goos: darwin
+            ext: ""
+          - os: windows
+            runner: windows-2025
+            goos: windows
+            ext: ".exe"
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v6
+
+      - name: "Install Go (stable)"
+        uses: actions/setup-go@v6
+        with:
+          go-version: "stable"
+          check-latest: true
+
+      - name: "Build Go x64 binary"
+        shell: bash
+        run: |
+          mkdir -p go-build
+          cd src/go
+          GOOS=${{ matrix.goos }} GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o "../../go-build/monorepo-hash-go-${{ matrix.os }}-x64${{ matrix.ext }}" .
+
+      - name: "Test the Go binary"
+        shell: bash
+        run: |
+          if [[ "${{ matrix.os }}" == "windows" ]]; then
+            ./go-build/monorepo-hash-go-windows-x64.exe --help
+          elif [[ "${{ matrix.os }}" == "darwin" ]]; then
+            ./go-build/monorepo-hash-go-darwin-x64 --help
+          else
+            ./go-build/monorepo-hash-go-linux-x64 --help
+          fi
+
+      - name: "Upload Go binary"
+        uses: actions/upload-artifact@v7
+        with:
+          archive: false
+          path: ./go-build/monorepo-hash-go-${{ matrix.os }}-x64${{ matrix.ext }}
+
   darwin-arm64:
     name: "Build for Darwin arm64"
     runs-on: macos-15

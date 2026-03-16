@@ -92,6 +92,7 @@
   },
   "scripts": {
     "build": "tsdown && pnpm build:decoy",
+    "build:go": "mkdir -p go-build && cd src/go && GOOS=$(go env GOOS) GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags=\"-s -w\" -o ../../go-build/monorepo-hash-go .",
     "build:bun": "pnpm build:bun:linux-x64 && pnpm build:bun:linux-arm64 && pnpm build:bun:windows-x64 && pnpm build:bun:darwin-x64 && pnpm build:bun:darwin-arm64 && pnpm build:bun:linux-x64-musl && pnpm build:bun:linux-arm64-musl && pnpm build:bun:windows-arm64 && pnpm build:bun:chmod",
     "build:bun:chmod": "node -e \"const { chmodSync } = require('fs'); const { readdirSync } = require('fs'); const path = require('path'); const dir = path.join(__dirname, 'bun-build'); for (const file of readdirSync(dir)) { if (!file.includes('.')) { chmodSync(path.join(dir, file), 0o755); } }\"",
     "build:bun:darwin-arm64": "bun build --compile --minify --sourcemap --bytecode --format=esm --target=bun-darwin-arm64 ./src/monorepo-hash-bun.ts --outfile ./bun-build/monorepo-hash-darwin-arm64",
@@ -112,6 +113,7 @@
     "postinstall": "node -e \"const fs = require('fs'); const path = require('path'); const installBinaryPath = path.join(__dirname, 'dist', 'install-binary.mjs'); if (fs.existsSync(installBinaryPath)) { const child_process = require('child_process'); child_process.execFileSync(process.execPath, [installBinaryPath], { stdio: 'inherit' }); }\"",
     "release": "pnpm publish",
     "test": "pnpm build && vitest",
+    "test:go": "cd src/go && go test ./...",
     "test:binaries": "pnpm build:bun && pnpm test:binaries:prepare && (vitest --config vitest.binaries.config.ts; code=$?; git restore src/monorepo-hash-bun.ts; exit $code)",
     "test:binaries:prepare": "node -e \"const fs=require('fs');const p='src/monorepo-hash-bun.ts';let t=fs.readFileSync(p,'utf8');t=t.replace(/\\(async \\(\\) => {[\\s\\S]*?\\/\\/ #endregion[\\r\\n]*/g,'').replace(/exit\\(\\s*(\\d+)\\s*\\)/g,(_,x)=>'if(![0,1].includes('+x+')){throw new Error(\\\"Exit with code '+x+'\\\")}');fs.writeFileSync(p,t);\"",
     "typecheck": "tsgo --noEmit"
