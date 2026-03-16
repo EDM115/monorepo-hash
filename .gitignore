@@ -1,5 +1,7 @@
 node_modules
 dist
 bun-build
+rust-build
+src/rust/target
 bench-history-new
 tsconfig.tsbuildinfo

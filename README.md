@@ -47,7 +47,7 @@ npm install -D monorepo-hash
 deno install -D npm:monorepo-hash --allow-scripts=npm:monorepo-hash
 ```
 > [!IMPORTANT]  
-> Since `v2.0.0`, the `monorepo-hash` cli command is a direct binary made with Bun that cut the Node.js overhead and enables faster I/O. To enable this, the postinstall script needs to be run, which is disabled by default in PNPM/Bun/Deno for security reasons.  
+> Since `v2.2.0`, the `monorepo-hash` cli command is a native binary built in Rust to minimize startup overhead and memory usage. To enable this, the postinstall script needs to be run, which is disabled by default in PNPM/Bun/Deno for security reasons.  
 > You can totally refuse to use it (whether it is for security reasons or size constraints). In such case, either run the older Node + plain JS version (`monorepo-hash-js`) or use the [programmatic API](#usage-outside-of-the-cli).  
 > If you added `monorepo-hash` without allowing the postinstall script to run, you can do it later at anytime with `pnpm approve-scripts`, `bun pm trust monorepo-hash` or `deno approve-scripts`.
 
@@ -441,7 +441,8 @@ These benchmarks have been realised on Standard GitHub-hosted runner (`ubuntu-24
 The specs as I'm writing this are an AMD EPYC 7763 64-Core (4) @ 3.24 GHz CPU, 15.62 GiB of RAM and 71.61 GiB of SSD storage. Keep in mind that since the servers are shared between multiple users, the performance may vary slightly between runs.  
 They have been reproduced 10 times with a cold and warm disk cache thanks to [hyperfine](https://github.com/sharkdp/hyperfine).  
 Cold cache results are more representative of a first run in CI or on a fresh boot. The script run speed doesn't really change, the only performance overhead on a cold cache is the time it takes to run Node.js/Bun (and reading files from the disk). You can expect warm cache runs to be at least 1/3 faster than cold cache ones.  
-The versions denoted with `(bun)` are using the Bun binary build of `monorepo-hash`, which removes the Node.js overhead, uses Bun internal replacements and is generally faster. This build is the default one since `v2.0.0`.  
+The versions denoted with `(bun)` are using the Bun binary build of `monorepo-hash`, which removes the Node.js overhead, uses Bun internal replacements and is generally faster.  
+The Rust CLI measurements below were run on `2026-03-16` from this branch on the same machine, only on `small` and `wide` demo monorepos as a focused comparison with the current Node implementation.  
 Starting with `v2.0.0`, the benchmark methodology has changed : we re-runned them for all versions in *the same runner and script* to avoid noisy neighbor effects and massive drifts in perf for no reason, and we also started to measure warm cache runs, noted in parenthesis. As a consequence, previous results that you could find in the releases aren't comparable with these new ones. More info here : [[INFO] 📣 A change in the benchmarks methodology (#20)](https://github.com/EDM115/monorepo-hash/issues/20)
 > [!NOTE]  
 > Here are the details of each demo monorepo used for the benchmarks :
@@ -458,6 +459,7 @@ Starting with `v2.0.0`, the benchmark methodology has changed : we re-runned the
 
 | Version                                   | Small               | Medium             | Large               | Wide               |
 | :---------------------------------------- | :------------------ | :----------------- | :------------------ | :----------------- |
+| `v2.2.0 (rust)` :chart_with_upwards_trend: | 8.08 ms *(avg, 3 runs)* | — | — | 615.2 ms *(avg, 3 runs)* |
 | `v2.1.0 (bun)` :chart_with_upwards_trend: | 208 ms (53.9 ms)    | 3.468 s (775.8 ms) | 49.896 s (12.169 s) | 3.816 s (862 ms) |
 | `v2.1.0` :chart_with_upwards_trend:       | 253.9 ms (116.5 ms) | 3.677 s (3.438 s)  | 52.091 s (67.068 s) | 5.883 s (5.614 s)  |
 | `v2.0.0 (bun)` :chart_with_upwards_trend: | 231 ms (69.33 ms)   | 3.295 s (802.3 ms) | 41.083 s (17.319 s) | 3.081 s (761.9 ms) |
@@ -486,7 +488,10 @@ Here's a quick guide for contributing to `monorepo-hash` :
   ```bash
   git clone https://github.com/USERNAME/monorepo-hash.git
   cd monorepo-hash
+  corepack enable
+  corepack prepare pnpm@10.30.3 --activate
   pnpm i --frozen-lockfile
+  rustup toolchain install stable
   ```
 3. Do your changes
 4. Format, typecheck and lint your code
@@ -500,9 +505,15 @@ Here's a quick guide for contributing to `monorepo-hash` :
   ```bash
   pnpm test
   pnpm test:binaries
+  cargo test --manifest-path ./src/rust/Cargo.toml
   ```
-6. Commit your changes
-7. Open a pull request
+7. Build the Rust CLI binary (optional but recommended before opening the PR)
+  ```bash
+  pnpm build:rust
+  ./src/rust/target/release/monorepo-hash-rust --help
+  ```
+8. Commit your changes
+9. Open a pull request
 
 ### Release process
 ```bash
@@ -510,9 +521,10 @@ Here's a quick guide for contributing to `monorepo-hash` :
 git commit && git push
 pnpm typecheck
 pnpm build
+pnpm build:rust
 pnpm build:bun
-# run the action that builds the binaries and download the artifacts
-# create a draft release on GitHub with the bun artifacts
+# run the actions that build the binaries and download the artifacts
+# create a draft release on GitHub with the bun and rust artifacts
 # compare the benchmarks ran from master and the release and pick the best ones to include as a zip artifact & in the README
 git commit && git push
 # un-draft and publish the release on GitHub as latest

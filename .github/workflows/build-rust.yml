@@ -1,0 +1,89 @@
+name: Build Rust binaries on x64 platforms
+
+on:
+  workflow_dispatch:
+
+jobs:
+  linux-x64:
+    name: "Build Rust binary for Linux x64"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v6
+
+      - name: "Install Rust"
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: "Build Linux x64 binary"
+        run: |
+          cargo build --manifest-path ./src/rust/Cargo.toml --release
+          mkdir -p rust-build
+          cp ./src/rust/target/release/monorepo-hash-rust ./rust-build/monorepo-hash-linux-x64
+          chmod +x ./rust-build/monorepo-hash-linux-x64
+
+      - name: "Test the binary"
+        run: ./rust-build/monorepo-hash-linux-x64 --help
+
+      - name: "Upload Linux x64 binary"
+        uses: actions/upload-artifact@v7
+        with:
+          archive: false
+          path: ./rust-build/monorepo-hash-linux-x64
+
+  darwin-x64:
+    name: "Build Rust binary for Darwin x64"
+    runs-on: macos-15-intel
+    timeout-minutes: 20
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v6
+
+      - name: "Install Rust"
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: "Build Darwin x64 binary"
+        run: |
+          cargo build --manifest-path ./src/rust/Cargo.toml --release
+          mkdir -p rust-build
+          cp ./src/rust/target/release/monorepo-hash-rust ./rust-build/monorepo-hash-darwin-x64
+          chmod +x ./rust-build/monorepo-hash-darwin-x64
+
+      - name: "Test the binary"
+        run: ./rust-build/monorepo-hash-darwin-x64 --help
+
+      - name: "Upload Darwin x64 binary"
+        uses: actions/upload-artifact@v7
+        with:
+          archive: false
+          path: ./rust-build/monorepo-hash-darwin-x64
+
+  windows-x64:
+    name: "Build Rust binary for Windows x64"
+    runs-on: windows-2025
+    timeout-minutes: 20
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v6
+
+      - name: "Install Rust"
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: "Build Windows x64 binary"
+        shell: pwsh
+        run: |
+          cargo build --manifest-path .\src\rust\Cargo.toml --release
+          New-Item -ItemType Directory -Path .\rust-build -Force | Out-Null
+          Copy-Item .\src\rust\target\release\monorepo-hash-rust.exe .\rust-build\monorepo-hash-windows-x64.exe
+
+      - name: "Test the binary"
+        run: .\rust-build\monorepo-hash-windows-x64.exe --help
+
+      - name: "Upload Windows x64 binary"
+        uses: actions/upload-artifact@v7
+        with:
+          archive: false
+          path: .\rust-build\monorepo-hash-windows-x64.exe
