@@ -3,6 +3,9 @@ name: Builds the Bun binaries on all platforms
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   go-x64:
     name: "Build Go binary (${{ matrix.os }} x64)"
