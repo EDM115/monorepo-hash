@@ -11,7 +11,9 @@ export default defineConfig({ test: {
   logHeapUsage: true,
   open: false,
   pool: "threads",
-  reporters: ["tree"],
+  reporters: process.env.GITHUB_ACTIONS === "true"
+    ? [ "dot", "tree", "github-actions" ]
+    : [ "dot", "tree" ],
   setupFiles: ["tests-binaries/setup.ts"],
   typecheck: { enabled: true },
   watch: false,
