@@ -3,7 +3,6 @@ import {
   writeFile,
 } from "node:fs/promises"
 import { join } from "node:path"
-import { x } from "tinyexec"
 import {
   afterAll,
   beforeAll,
@@ -12,6 +11,7 @@ import {
   it,
 } from "vitest"
 
+import { x } from "./exec"
 import {
   mkdirp,
   pathExists,
@@ -37,13 +37,13 @@ describe("exit codes", () => {
       .toBe(0)
   })
 
-  it("returns 2 when no mode is specified", async () => {
+  it("returns 0 when no mode is specified", async () => {
     const result = await x(cli, [], {
       nodeOptions: { cwd },
     })
 
     expect(result.exitCode)
-      .toBe(2)
+      .toBe(0)
   })
 
   it("returns 2 when both --generate and --compare are specified", async () => {

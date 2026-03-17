@@ -5,7 +5,7 @@
 
 <img src="https://raw.githubusercontent.com/EDM115/monorepo-hash/refs/heads/master/logo.webp" alt="monorepo-hash logo" width="200" height="200">
 
-![NPM Version](https://img.shields.io/npm/v/monorepo-hash) ![NPM Downloads](https://img.shields.io/npm/dt/monorepo-hash) ![Total binaries downloads](https://img.shields.io/github/downloads/EDM115/monorepo-hash/total?label=Total%20binaries%20downloads) ![More info](https://img.shields.io/badge/npmx-More_info-orange?logo=npm&link=https%3A%2F%2Fnpmx.dev%2Fpackage%2Fmonorepo-hash)
+![NPM Version](https://img.shields.io/npm/v/monorepo-hash) ![NPM Downloads](https://img.shields.io/npm/dt/monorepo-hash) ![Total binaries downloads](https://img.shields.io/github/downloads/EDM115/monorepo-hash/total?label=Total%20binaries%20downloads) [![More info](https://img.shields.io/badge/npmx-More_info-orange?logo=npm)](https://npmx.dev/monorepo-hash)
 
 ## :memo: Features
 :runner: **Fast** : Runs in huge monorepos [in no time](#rocket-benchmarks), processes workspaces in parallel, powered by Bun  
@@ -45,6 +45,11 @@ yarn add -D monorepo-hash
 npm install -D monorepo-hash
 # add "nodeModulesDir": "auto" to your deno.json(c) config file first
 deno install -D npm:monorepo-hash --allow-scripts=npm:monorepo-hash
+```
+To install it globally, use your package manager's global installation command, for example with PNPM : `pnpm add -g monorepo-hash --allow-build=monorepo-hash`.
+On Windows only, you can also install it globally using WinGet :
+```pwsh
+winget install EDM115.monorepo-hash
 ```
 > [!IMPORTANT]  
 > Since `v2.0.0`, the `monorepo-hash` cli command is a direct binary made with Bun that cut the Node.js overhead and enables faster I/O. To enable this, the postinstall script needs to be run, which is disabled by default in PNPM/Bun/Deno for security reasons.  
@@ -152,9 +157,9 @@ pnpm monorepo-hash --compare --debug
 Don't forget to delete these files afterwards !
 
 ### Exit codes
-- `0` : No changes detected (or you wanted to get help)
+- `0` : No changes detected (or you wanted to get the help/version)
 - `1` : Changes detected in the hashes
-- `2` : Error with the arguments (either `--generate` or `--compare` is missing, both were provided or an unsupported `--packagemanager` was forced)
+- `2` : Error with the arguments (both `--generate` and `--compare` were provided or an unsupported `--packagemanager` was forced)
 - `3` : Unknown arguments provided
 - `4` : No workspaces found or unsupported package manager
 - `5` : Package manager forced with `--packagemanager` not present in the repo

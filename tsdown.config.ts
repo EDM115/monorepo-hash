@@ -10,7 +10,7 @@ export default defineConfig([
         "tinyglobby",
         "yaml",
       ],
-      onlyAllowBundle: false,
+      onlyBundle: false,
     },
     dts: true,
     entry: { "monorepo-hash": "./src/monorepo-hash.ts" },

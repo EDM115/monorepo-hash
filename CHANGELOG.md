@@ -1,5 +1,17 @@
 # monorepo-hash changelog
 
+## v2.1.1
+### Breaking changes
+💥🩹 small fix : not providing any argument will display the help instead of exiting with code `2`
+
+✨ feat : add a `--version`/`-v` flag to display the version information and exit so [winget doesn't complain](https://github.com/microsoft/winget-pkgs/pull/346996#issuecomment-4034397380)  
+📝 docs : add the WinGet manifests to the repo  
+📝 docs : add WinGet installation instructions  
+✅ tests : fix async leaks  
+⬆️ deps : bump all deps
+
+**Full Changelog**: https://github.com/EDM115/monorepo-hash/compare/2.1.0...2.1.1
+
 ### v2.1.0
 ✨ feat : add a `--nopathcache`/`-npc` flag to disable the path existence cache, which can make the process slightly slower but can reduce memory footprint on large monorepos  
 ✨ feat : the Bun build is now also available for Windows on ARM64  

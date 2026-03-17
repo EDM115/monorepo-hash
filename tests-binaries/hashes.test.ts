@@ -6,7 +6,6 @@ import {
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { pathToFileURL } from "node:url"
-import { x } from "tinyexec"
 import {
   afterAll,
   afterEach,
@@ -16,6 +15,7 @@ import {
   it,
 } from "vitest"
 
+import { x } from "./exec"
 import {
   mkdirp,
   pathExists,

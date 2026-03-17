@@ -90,6 +90,7 @@ export type Meta = {
 
 
 // #region CLI state
+const CLI_VERSION = "2.1.1"
 let mode: "generate" | "compare" | null = null
 let targets: string[] | null = null
 let silent = false
@@ -1379,6 +1380,7 @@ export async function runCli(customArgv?: string[]): Promise<Awaited<ReturnType<
   pmOption = null
   cliUsage = customArgv === undefined
   usePathCache = true
+  let helpRequested = false
 
   // Clear caches for fresh runs
   existsCache.clear()
@@ -1427,7 +1429,18 @@ export async function runCli(customArgv?: string[]): Promise<Awaited<ReturnType<
     } else if (arg === "--nopathcache" || arg === "-npc") {
       usePathCache = false
     } else if (arg === "--help" || arg === "-h") {
-      log(`
+      helpRequested = true
+    } else if (arg === "--version" || arg === "-v") {
+      log(`monorepo-hash v${CLI_VERSION}`)
+      safeExit(0)
+    } else {
+      log(`❌ Unknown option : ${arg}`, false, "error")
+      safeExit(3)
+    }
+  }
+
+  if (!mode || helpRequested) {
+    log(`
 monorepo-hash by EDM115
 A simple script to generate or compare .hash files for monorepo workspaces
 Supports PNPM, Yarn, NPM, Bun and Deno
@@ -1441,26 +1454,18 @@ Arguments :
   --workspaces      (-w)   Use per-workspace .hash files instead of a single root one
   --packagemanager  (-pm)  Force the package manager (${PACKAGE_MANAGERS.join(", ")})
   --nopathcache     (-npc) Disable path normalization cache (can reduce memory footprint on very large repos)
+  --version         (-v)   Show version information
   --help            (-h)   Show this help message
 `)
-      safeExit(0)
-    } else {
-      log(`❌ Unknown option : ${arg}`, false, "error")
-      safeExit(3)
-    }
-  }
-
-  // Normalize targets from forward-slash to platform-specific separators
-  if (targets && needsPathConversion) {
-    targets = targets.map((t) => t.replace(/\/+$/, "")
-      .split("/")
-      .join(sep))
-  }
-
-  if (!mode) {
-    log("❌ Must specify either --generate (-g) or --compare (-c)", false, "error")
-    safeExit(2)
+    safeExit(0)
   } else {
+    // Normalize targets from forward-slash to platform-specific separators
+    if (targets && needsPathConversion) {
+      targets = targets.map((t) => t.replace(/\/+$/, "")
+        .split("/")
+        .join(sep))
+    }
+
     if (mode === "generate") {
       if (targets) {
         log(`ℹ️  Generating hashes for specified targets... (${displayPath(targets.join(", "))})\n`)

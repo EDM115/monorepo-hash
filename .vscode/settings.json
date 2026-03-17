@@ -9,9 +9,9 @@
   "explorer.fileNesting.enabled": true,
   "explorer.fileNesting.patterns": {
     "oxlint.config.ts": "eslint.*",
-    "tsdown.config.ts": "tsconfig.*",
     "package.json": ".node-version, pnpm*, *.script.ts",
     "README.md": "LICENSE, .gitignore, CHANGELOG.md, logo.*",
+    "tsdown.config.ts": "tsconfig.*",
     "vitest.config.ts": "vitest.*"
   },
   "files.eol": "\n",
@@ -27,12 +27,11 @@
   "js/ts.inlayHints.enumMemberValues.enabled": true,
   "js/ts.inlayHints.functionLikeReturnTypes.enabled": true,
   "js/ts.inlayHints.parameterNames.enabled": "all",
+  "js/ts.inlayHints.propertyDeclarationTypes.enabled": true,
   "js/ts.updateImportsOnFileMove.enabled": "always",
-  "oxc.enable": true,
-  "oxc.typeAware": true,
+  "oxc.enable.oxlint": true,
   "oxc.unusedDisableDirectives": "warn",
   "search.exclude": {
     "pnpm-lock.yaml": true
-  },
-  "js/ts.inlayHints.propertyDeclarationTypes.enabled": true,
+  }
 }

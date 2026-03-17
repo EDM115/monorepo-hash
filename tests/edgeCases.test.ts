@@ -3,7 +3,6 @@ import {
   writeFile,
 } from "node:fs/promises"
 import { join } from "node:path"
-import { x } from "tinyexec"
 import {
   afterAll,
   beforeAll,
@@ -12,6 +11,7 @@ import {
   it,
 } from "vitest"
 
+import { x } from "./exec"
 import {
   mkdirp,
   pathExists,

@@ -4,7 +4,6 @@ import {
 } from "node:fs/promises"
 import { join } from "node:path"
 import { pathToFileURL } from "node:url"
-import { x } from "tinyexec"
 import {
   afterEach,
   beforeAll,
@@ -13,6 +12,7 @@ import {
   it,
 } from "vitest"
 
+import { x } from "./exec"
 import { remove } from "../tests/utils"
 
 describe("monorepo-hash CLI output", () => {

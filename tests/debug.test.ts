@@ -1,6 +1,5 @@
 import { writeFile } from "node:fs/promises"
 import { join } from "node:path"
-import { x } from "tinyexec"
 import {
   beforeAll,
   describe,
@@ -8,6 +7,7 @@ import {
   it,
 } from "vitest"
 
+import { x } from "./exec"
 import {
   pathExists,
   remove,
