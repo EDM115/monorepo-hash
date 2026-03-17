@@ -2,7 +2,8 @@
 
 ## v2.1.1
 ### Breaking changes
-💥🩹 small fix : not providing any argument will display the help instead of exiting with code `2`
+💥🩹 small fix : not providing any argument will display the help instead of exiting with code `2`  
+🐛 fix : properly resolve the arm64 version of the binary on non-WinGet install
 
 ✨ feat : add a `--version`/`-v` flag to display the version information and exit so [winget doesn't complain](https://github.com/microsoft/winget-pkgs/pull/346996#issuecomment-4034397380)  
 📝 docs : add the WinGet manifests to the repo  

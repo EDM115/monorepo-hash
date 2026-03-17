@@ -115,6 +115,7 @@ export type PlatformId
     | "darwin-arm64"
     | "darwin-x64"
     | "windows-x64"
+    | "windows-arm64"
 
 /**
  * Detect the current platform identifier
@@ -152,6 +153,10 @@ export async function detectPlatformId(): Promise<PlatformId | null> {
     if (arch === "x64") {
       return "windows-x64"
     }
+
+    if (arch === "arm64") {
+      return "windows-arm64"
+    }
   }
 
   return null
@@ -163,11 +168,9 @@ export async function detectPlatformId(): Promise<PlatformId | null> {
  * @returns The corresponding binary filename
  */
 export function getBinaryBasename(id: PlatformId): string {
-  if (id === "windows-x64") {
-    return "monorepo-hash-windows-x64.exe"
-  }
+  const exeEnding = id.startsWith("windows") ? ".exe" : ""
 
-  return `monorepo-hash-${id}`
+  return `monorepo-hash-${id}${exeEnding}`
 }
 
 /**
