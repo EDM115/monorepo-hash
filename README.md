@@ -509,9 +509,6 @@ Here's a quick guide for contributing to `monorepo-hash` :
   Feel free to add tests to the `tests` directory.
   ```bash
   pnpm test
-<<<<<<< HEAD
-=======
->>>>>>> origin/master
   ```
 7. Build the Rust CLI binary (optional but recommended before opening the PR)
   ```bash
