@@ -361,10 +361,10 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v5
 
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v6
@@ -377,7 +377,7 @@ jobs:
 
       - name: Restore .hash cache
         id: restore-hash-cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v5
         with:
           path: |
             **/.hash
@@ -406,7 +406,7 @@ jobs:
         if: steps.check-workspace-name.outputs.WORKSPACENAME_HASH_EXIT_CODE != '0'
         # act version :
         # if: (steps.check-workspace-name.outputs.WORKSPACENAME_HASH_EXIT_CODE != '0' || steps.check-workspace-name.outputs.WORKSPACENAME_DOCKER_EXISTS == '0')
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: services/workspace-name/Dockerfile
@@ -421,7 +421,7 @@ jobs:
           pnpm monorepo-hash --generate
 
       - name: Save .hash cache
-        uses: actions/cache@v4
+        uses: actions/cache/save@v5
         with:
           path: |
             **/.hash
