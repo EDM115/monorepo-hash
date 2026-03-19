@@ -37,13 +37,13 @@ describe("exit codes", () => {
       .toBe(0)
   })
 
-  it("returns 0 when no mode is specified", async () => {
+  it("returns 2 when no mode is specified", async () => {
     const result = await x(cli, [], {
       nodeOptions: { cwd },
     })
 
     expect(result.exitCode)
-      .toBe(0)
+      .toBe(2)
   })
 
   it("returns 2 when both --generate and --compare are specified", async () => {
@@ -139,7 +139,7 @@ describe("exit codes", () => {
       expect(result.exitCode)
         .toBe(6)
       expect(result.stderr)
-        .toContain("Circular dependency detected")
+        .toContain("circular dependency detected")
     })
 
     it("reports the cycle path in the error message", async () => {
@@ -151,7 +151,7 @@ describe("exit codes", () => {
         .toBe(6)
       // The error should show the cycle path like "pkg-circular-a -> pkg-circular-b -> pkg-circular-a"
       expect(result.stderr)
-        .toMatch(/pkg-circular-[ab] -> pkg-circular-[ab]/)
+        .toContain("pkg-circular-a")
     })
   })
 

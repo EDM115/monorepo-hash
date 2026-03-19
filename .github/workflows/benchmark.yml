@@ -131,7 +131,7 @@ jobs:
             js_name=monorepo-hash.mjs
           fi
           echo "js_name=$js_name" >> $GITHUB_OUTPUT
-          if grep -q '(-pm)' src/monorepo-hash.ts; then
+          if grep -q '(-pm)' src/node/monorepo-hash.ts; then
             pm_arg='-pm=pnpm'
           else
             pm_arg=''

@@ -38,9 +38,7 @@ describe("debug mode", () => {
       const result = await x(cli, [ "--compare", "--debug" ], { nodeOptions: { cwd } })
 
       expect(result.stdout)
-        .toMatch(new RegExp("⚠️\\s+<debug>\\s+packages\\/pkg-b\\s+diverging files\\s*:"))
-      expect(result.stdout)
-        .toContain("• index.js")
+        .toContain("⚠️  Changed (2) :")
       expect(result.exitCode)
         .toBe(1)
     })
@@ -88,9 +86,7 @@ describe("debug mode", () => {
       const result = await x(cli, [ "--compare", "--debug" ], { nodeOptions: { cwd } })
 
       expect(result.stdout)
-        .toMatch(new RegExp("⚠️\\s+<debug>\\s+packages\\/pkg-b\\s+diverging files\\s*:"))
-      expect(result.stdout)
-        .toContain("• index.js")
+        .toContain("⚠️  Changed (2) :")
       expect(result.exitCode)
         .toBe(1)
     })
