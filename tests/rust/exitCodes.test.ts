@@ -37,13 +37,13 @@ describe("exit codes", () => {
       .toBe(0)
   })
 
-  it("returns 0 when no mode is specified", async () => {
+  it("returns 2 when no mode is specified", async () => {
     const result = await x(cli, [], {
       nodeOptions: { cwd },
     })
 
     expect(result.exitCode)
-      .toBe(0)
+      .toBe(2)
   })
 
   it("returns 2 when both --generate and --compare are specified", async () => {
