@@ -12,6 +12,9 @@ export default defineConfig({
     "**/dist/",
     "**/node_modules/",
     "tests/demo",
+    "bench-history",
+    "bench-history-new",
+    "manifests",
   ],
   "options": {
     typeAware: true,

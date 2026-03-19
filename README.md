@@ -5,7 +5,7 @@
 
 <img src="https://raw.githubusercontent.com/EDM115/monorepo-hash/refs/heads/master/logo.webp" alt="monorepo-hash logo" width="200" height="200">
 
-![NPM Version](https://img.shields.io/npm/v/monorepo-hash) ![NPM Downloads](https://img.shields.io/npm/dt/monorepo-hash) ![Total binaries downloads](https://img.shields.io/github/downloads/EDM115/monorepo-hash/total?label=Total%20binaries%20downloads) ![More info](https://img.shields.io/badge/npmx-More_info-orange?logo=npm&link=https%3A%2F%2Fnpmx.dev%2Fpackage%2Fmonorepo-hash)
+![NPM Version](https://img.shields.io/npm/v/monorepo-hash) ![NPM Downloads](https://img.shields.io/npm/dt/monorepo-hash) ![Total binaries downloads](https://img.shields.io/github/downloads/EDM115/monorepo-hash/total?label=Total%20binaries%20downloads) [![More info](https://img.shields.io/badge/npmx-More_info-orange?logo=npm)](https://npmx.dev/monorepo-hash)
 
 ## :memo: Features
 :runner: **Fast** : Runs in huge monorepos [in no time](#rocket-benchmarks), processes workspaces in parallel, powered by Bun  
@@ -45,6 +45,11 @@ yarn add -D monorepo-hash
 npm install -D monorepo-hash
 # add "nodeModulesDir": "auto" to your deno.json(c) config file first
 deno install -D npm:monorepo-hash --allow-scripts=npm:monorepo-hash
+```
+To install it globally, use your package manager's global installation command, for example with PNPM : `pnpm add -g monorepo-hash --allow-build=monorepo-hash`.
+On Windows only, you can also install it globally using WinGet :
+```pwsh
+winget install EDM115.monorepo-hash
 ```
 > [!IMPORTANT]  
 > Since `v2.2.0`, the `monorepo-hash` cli command is a native binary built in Rust to minimize startup overhead and memory usage. To enable this, the postinstall script needs to be run, which is disabled by default in PNPM/Bun/Deno for security reasons.  
@@ -152,9 +157,9 @@ pnpm monorepo-hash --compare --debug
 Don't forget to delete these files afterwards !
 
 ### Exit codes
-- `0` : No changes detected (or you wanted to get help)
+- `0` : No changes detected (or you wanted to get the help/version)
 - `1` : Changes detected in the hashes
-- `2` : Error with the arguments (either `--generate` or `--compare` is missing, both were provided or an unsupported `--packagemanager` was forced)
+- `2` : Error with the arguments (both `--generate` and `--compare` were provided or an unsupported `--packagemanager` was forced)
 - `3` : Unknown arguments provided
 - `4` : No workspaces found or unsupported package manager
 - `5` : Package manager forced with `--packagemanager` not present in the repo
@@ -356,10 +361,10 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v5
 
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v6
@@ -372,7 +377,7 @@ jobs:
 
       - name: Restore .hash cache
         id: restore-hash-cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v5
         with:
           path: |
             **/.hash
@@ -401,7 +406,7 @@ jobs:
         if: steps.check-workspace-name.outputs.WORKSPACENAME_HASH_EXIT_CODE != '0'
         # act version :
         # if: (steps.check-workspace-name.outputs.WORKSPACENAME_HASH_EXIT_CODE != '0' || steps.check-workspace-name.outputs.WORKSPACENAME_DOCKER_EXISTS == '0')
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: services/workspace-name/Dockerfile
@@ -416,7 +421,7 @@ jobs:
           pnpm monorepo-hash --generate
 
       - name: Save .hash cache
-        uses: actions/cache@v4
+        uses: actions/cache/save@v5
         with:
           path: |
             **/.hash
@@ -504,8 +509,9 @@ Here's a quick guide for contributing to `monorepo-hash` :
   Feel free to add tests to the `tests` directory.
   ```bash
   pnpm test
-  pnpm test:binaries
-  cargo test --manifest-path ./src/rust/Cargo.toml
+<<<<<<< HEAD
+=======
+>>>>>>> origin/master
   ```
 7. Build the Rust CLI binary (optional but recommended before opening the PR)
   ```bash

@@ -1,89 +1,155 @@
-name: Build Rust binaries on x64 platforms
+name: Builds the Rust binaries on all platforms
 
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  linux-x64:
-    name: "Build Rust binary for Linux x64"
+  build:
+    name: "Build Rust for ${{ matrix.platform.id }}"
+    runs-on: ${{ matrix.platform.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - id: darwin-arm64
+            runner: macos-15
+            output: monorepo-hash-darwin-arm64
+            testCmd: ./rust-build/monorepo-hash-darwin-arm64 --help
+          - id: darwin-x64
+            runner: macos-15-intel
+            output: monorepo-hash-darwin-x64
+            testCmd: ./rust-build/monorepo-hash-darwin-x64 --help
+          - id: linux-arm64
+            runner: ubuntu-24.04-arm
+            output: monorepo-hash-linux-arm64
+            testCmd: ./rust-build/monorepo-hash-linux-arm64 --help
+          - id: linux-x64
+            runner: ubuntu-24.04
+            output: monorepo-hash-linux-x64
+            testCmd: ./rust-build/monorepo-hash-linux-x64 --help
+          - id: windows-arm64
+            runner: windows-11-arm
+            output: monorepo-hash-windows-arm64.exe
+            testCmd: .\rust-build\monorepo-hash-windows-arm64.exe --help
+          - id: windows-x64
+            runner: windows-2025
+            output: monorepo-hash-windows-x64.exe
+            testCmd: .\rust-build\monorepo-hash-windows-x64.exe --help
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v6
+
+      - name: "Install pnpm"
+        uses: pnpm/action-setup@v5
+
+      - name: "Bump Node.js to v25"
+        uses: actions/setup-node@v6
+        with:
+          check-latest: true
+          cache: "pnpm"
+          node-version: 25
+
+      - name: "Install Rust"
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: "Install dependencies"
+        run: pnpm i --frozen-lockfile
+
+      - name: "Build Rust binary"
+        run: pnpm build:rust:${{ matrix.platform.id }}
+
+      - name: "Test the binary"
+        run: ${{ matrix.platform.testCmd }}
+
+      - name: "Upload Rust binary"
+        uses: actions/upload-artifact@v7
+        with:
+          archive: false
+          path: ./rust-build/${{ matrix.platform.output }}
+
+  linux-x64-musl:
+    name: "Build Rust for linux-x64-musl"
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     steps:
       - name: "Checkout"
         uses: actions/checkout@v6
 
-      - name: "Install Rust"
-        uses: dtolnay/rust-toolchain@stable
+      - name: "Set up QEMU"
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: amd64
 
-      - name: "Build Linux x64 binary"
+      - name: "Set up Docker Buildx"
+        uses: docker/setup-buildx-action@v4
+
+      - name: "Build and test in amd64/rust:alpine container"
         run: |
-          cargo build --manifest-path ./src/rust/Cargo.toml --release
-          mkdir -p rust-build
-          cp ./src/rust/target/release/monorepo-hash-rust ./rust-build/monorepo-hash-linux-x64
-          chmod +x ./rust-build/monorepo-hash-linux-x64
+          docker run --rm \
+            --platform linux/amd64 \
+            -v "$PWD":/workspace \
+            -w /workspace \
+            rust:alpine \
+            sh -lc '
+              apk update && apk add --no-cache bash curl make musl-dev linux-headers g++ gcc git nodejs npm \
+              && corepack enable \
+              && corepack prepare pnpm@10.32.1 --activate \
+              && pnpm i --frozen-lockfile \
+              && rustup target add x86_64-unknown-linux-musl \
+              && pnpm build:rust:linux-x64-musl \
+              && pnpm build:rust:chmod \
+              && ./rust-build/monorepo-hash-linux-x64-musl --help
+            '
 
-      - name: "Test the binary"
-        run: ./rust-build/monorepo-hash-linux-x64 --help
-
-      - name: "Upload Linux x64 binary"
+      - name: "Upload linux-x64-musl binary"
         uses: actions/upload-artifact@v7
         with:
           archive: false
-          path: ./rust-build/monorepo-hash-linux-x64
+          path: ./rust-build/monorepo-hash-linux-x64-musl
 
-  darwin-x64:
-    name: "Build Rust binary for Darwin x64"
-    runs-on: macos-15-intel
-    timeout-minutes: 20
+  linux-arm64-musl:
+    name: "Build Rust for linux-arm64-musl"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
 
     steps:
       - name: "Checkout"
         uses: actions/checkout@v6
 
-      - name: "Install Rust"
-        uses: dtolnay/rust-toolchain@stable
+      - name: "Set up QEMU"
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: arm64
 
-      - name: "Build Darwin x64 binary"
+      - name: "Set up Docker Buildx"
+        uses: docker/setup-buildx-action@v4
+
+      - name: "Build and test in arm64v8/rust:alpine container"
         run: |
-          cargo build --manifest-path ./src/rust/Cargo.toml --release
-          mkdir -p rust-build
-          cp ./src/rust/target/release/monorepo-hash-rust ./rust-build/monorepo-hash-darwin-x64
-          chmod +x ./rust-build/monorepo-hash-darwin-x64
+          docker run --rm \
+            --platform linux/arm64 \
+            -v "$PWD":/workspace \
+            -w /workspace \
+            arm64v8/rust:alpine \
+            sh -lc '
+              apk update && apk add --no-cache bash curl make musl-dev linux-headers g++ gcc git nodejs npm \
+              && corepack enable \
+              && corepack prepare pnpm@10.32.1 --activate \
+              && pnpm i --frozen-lockfile \
+              && rustup target add aarch64-unknown-linux-musl \
+              && pnpm build:rust:linux-arm64-musl \
+              && pnpm build:rust:chmod \
+              && ./rust-build/monorepo-hash-linux-arm64-musl --help
+            '
 
-      - name: "Test the binary"
-        run: ./rust-build/monorepo-hash-darwin-x64 --help
-
-      - name: "Upload Darwin x64 binary"
+      - name: "Upload linux-arm64-musl binary"
         uses: actions/upload-artifact@v7
         with:
           archive: false
-          path: ./rust-build/monorepo-hash-darwin-x64
-
-  windows-x64:
-    name: "Build Rust binary for Windows x64"
-    runs-on: windows-2025
-    timeout-minutes: 20
-
-    steps:
-      - name: "Checkout"
-        uses: actions/checkout@v6
-
-      - name: "Install Rust"
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: "Build Windows x64 binary"
-        shell: pwsh
-        run: |
-          cargo build --manifest-path .\src\rust\Cargo.toml --release
-          New-Item -ItemType Directory -Path .\rust-build -Force | Out-Null
-          Copy-Item .\src\rust\target\release\monorepo-hash-rust.exe .\rust-build\monorepo-hash-windows-x64.exe
-
-      - name: "Test the binary"
-        run: .\rust-build\monorepo-hash-windows-x64.exe --help
-
-      - name: "Upload Windows x64 binary"
-        uses: actions/upload-artifact@v7
-        with:
-          archive: false
-          path: .\rust-build\monorepo-hash-windows-x64.exe
+          path: ./rust-build/monorepo-hash-linux-arm64-musl

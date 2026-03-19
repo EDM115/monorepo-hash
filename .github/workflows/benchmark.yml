@@ -40,7 +40,7 @@ jobs:
           ref: ${{ steps.get_ref.outputs.ref }}
 
       - name: "Install pnpm"
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v5
 
       - name: "Bump Node.js to v25"
         uses: actions/setup-node@v6
@@ -90,19 +90,35 @@ jobs:
           else
             echo "build_bun=false" >> $GITHUB_OUTPUT
           fi
+          if grep -q '"build:node"' package.json; then
+            echo "build_node=true" >> $GITHUB_OUTPUT
+          else
+            echo "build_node=false" >> $GITHUB_OUTPUT
+          fi
+          if grep -q '"build:rust"' package.json; then
+            echo "build_rust=true" >> $GITHUB_OUTPUT
+          else
+            echo "build_rust=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: "Prepare the benchmarks"
         id: prepare_benchs
         run: |
-          pnpm build
-          pnpm build:rust
+          if [[ "${{ steps.get_benchs.outputs.build_node }}" == "true" ]]; then
+            pnpm build:node
+          else
+            pnpm build
+          fi
+          if [[ "${{ steps.get_benchs.outputs.build_rust }}" == "true" ]]; then
+            pnpm build:rust:linux-x64
+            chmod +x rust-build/monorepo-hash-linux-x64
+            mkdir -p tests/benchmarks/rust
+          fi
           if [[ "${{ steps.get_benchs.outputs.build_bun }}" == "true" ]]; then
             pnpm build:bun:linux-x64
             chmod +x bun-build/monorepo-hash-linux-x64
             mkdir -p tests/benchmarks/bun
           fi
-          chmod +x src/rust/target/release/monorepo-hash-rust
-          mkdir -p tests/benchmarks/rust
           if [[ ! -f tests/demo/wide-monorepo.7z ]]; then
             wget https://raw.githubusercontent.com/EDM115/monorepo-hash/refs/heads/master/tests/demo/wide-monorepo.7z -O tests/demo/wide-monorepo.7z
           fi
@@ -126,14 +142,16 @@ jobs:
 
             7z x "tests/demo/${b}-monorepo.7z" -o./tests/demo
             cp dist/$js_name "tests/demo/${b}-monorepo/$js_name"
-            cp src/rust/target/release/monorepo-hash-rust "tests/demo/${b}-monorepo/monorepo-hash-rust"
+            if [[ "${{ steps.get_benchs.outputs.build_rust }}" == "true" ]]; then
+              cp rust-build/monorepo-hash-linux-x64 "tests/demo/${b}-monorepo/monorepo-hash-rust"
+            fi
             if [[ "${{ steps.get_benchs.outputs.build_bun }}" == "true" ]]; then
               cp bun-build/monorepo-hash-linux-x64 "tests/demo/${b}-monorepo/monorepo-hash"
             fi
           done
 
       - name: "Benchmark : small monorepo, rust, cold"
-        if: contains(steps.get_benchs.outputs.benchs, 'small')
+        if: contains(steps.get_benchs.outputs.benchs, 'small') && steps.get_benchs.outputs.build_rust == 'true'
         run: |
           cd tests/demo/small-monorepo
           hyperfine \
@@ -144,7 +162,7 @@ jobs:
             "./monorepo-hash-rust --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
       - name: "Benchmark : small monorepo, rust, warm"
-        if: contains(steps.get_benchs.outputs.benchs, 'small')
+        if: contains(steps.get_benchs.outputs.benchs, 'small') && steps.get_benchs.outputs.build_rust == 'true'
         run: |
           cd tests/demo/small-monorepo
           hyperfine \
@@ -153,8 +171,50 @@ jobs:
             --export-markdown ../../benchmarks/rust/small-monorepo-warm.md \
             "./monorepo-hash-rust --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
+      - name: "Benchmark : medium monorepo, rust, cold"
+        if: contains(steps.get_benchs.outputs.benchs, 'medium') && steps.get_benchs.outputs.build_rust == 'true'
+        run: |
+          cd tests/demo/medium-monorepo
+          hyperfine \
+            --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches' \
+            --warmup 2 \
+            --runs 10 \
+            --export-markdown ../../benchmarks/rust/medium-monorepo-cold.md \
+            "./monorepo-hash-rust --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
+
+      - name: "Benchmark : medium monorepo, rust, warm"
+        if: contains(steps.get_benchs.outputs.benchs, 'medium') && steps.get_benchs.outputs.build_rust == 'true'
+        run: |
+          cd tests/demo/medium-monorepo
+          hyperfine \
+            --warmup 2 \
+            --runs 10 \
+            --export-markdown ../../benchmarks/rust/medium-monorepo-warm.md \
+            "./monorepo-hash-rust --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
+
+      - name: "Benchmark : large monorepo, rust, cold"
+        if: contains(steps.get_benchs.outputs.benchs, 'large') && steps.get_benchs.outputs.build_rust == 'true'
+        run: |
+          cd tests/demo/large-monorepo
+          hyperfine \
+            --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches' \
+            --warmup 2 \
+            --runs 10 \
+            --export-markdown ../../benchmarks/rust/large-monorepo-cold.md \
+            "./monorepo-hash-rust --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
+
+      - name: "Benchmark : large monorepo, rust, warm"
+        if: contains(steps.get_benchs.outputs.benchs, 'large') && steps.get_benchs.outputs.build_rust == 'true'
+        run: |
+          cd tests/demo/large-monorepo
+          hyperfine \
+            --warmup 2 \
+            --runs 10 \
+            --export-markdown ../../benchmarks/rust/large-monorepo-warm.md \
+            "./monorepo-hash-rust --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
+
       - name: "Benchmark : wide monorepo, rust, cold"
-        if: contains(steps.get_benchs.outputs.benchs, 'wide')
+        if: contains(steps.get_benchs.outputs.benchs, 'wide') && steps.get_benchs.outputs.build_rust == 'true'
         run: |
           cd tests/demo/wide-monorepo
           hyperfine \
@@ -165,7 +225,7 @@ jobs:
             "./monorepo-hash-rust --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
       - name: "Benchmark : wide monorepo, rust, warm"
-        if: contains(steps.get_benchs.outputs.benchs, 'wide')
+        if: contains(steps.get_benchs.outputs.benchs, 'wide') && steps.get_benchs.outputs.build_rust == 'true'
         run: |
           cd tests/demo/wide-monorepo
           hyperfine \
