@@ -512,9 +512,9 @@ Here's a quick guide for contributing to `monorepo-hash` :
   ```bash
   mkdir -p go-build
   cd src/go
-  GOOS=$(go env GOOS) GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o ../../go-build/monorepo-hash-go .
+  GOOS=$(go env GOOS) GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o ../../go-build/monorepo-hash-$(go env GOOS)-x64 .
   cd ../..
-  ./go-build/monorepo-hash-go --help
+  ./go-build/monorepo-hash-$(go env GOOS)-x64 --help
   ```
 7. Commit your changes
 8. Open a pull request
