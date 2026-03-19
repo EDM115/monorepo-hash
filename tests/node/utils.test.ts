@@ -9,8 +9,8 @@ import {
   it,
 } from "vitest"
 
-import { x } from "./exec"
-import { remove } from "./utils"
+import { x } from "../exec"
+import { remove } from "../utils"
 
 describe("utility functions", () => {
   let cliScript: string
@@ -21,7 +21,7 @@ describe("utility functions", () => {
 
   beforeAll(() => {
     cwd = globalThis.tmpRoot
-    cliScript = join(cwd, "monorepo-hash.mjs")
+    cliScript = join(cwd, "node", "monorepo-hash.mjs")
     cliImport = pathToFileURL(cliScript).href
   })
 

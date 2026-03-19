@@ -15,23 +15,22 @@ import {
   it,
 } from "vitest"
 
-import { x } from "./exec"
+import { x } from "../exec"
 import {
   mkdirp,
   pathExists,
   remove,
   writeJson,
-} from "./utils"
+} from "../utils"
 
 describe("hash generation", () => {
-  let cliScript: string
   let cwd: string
   let demoDir: string
-  const cli = "node"
+  let cli: string
 
   beforeAll(async () => {
     cwd = globalThis.tmpRoot
-    cliScript = join(cwd, "monorepo-hash.mjs")
+    cli = join(cwd, "bun", "monorepo-hash.exe")
     demoDir = join(cwd, "small-monorepo")
 
     // Scaffold a small 5-package monorepo
@@ -100,7 +99,9 @@ packages:
     }, { spaces: 2 })
     await writeFile(join(frontend, "index.js"), "export const render = () => {}\n")
 
-    await copyFile(join(cwd, "monorepo-hash.mjs"), join(demoDir, "monorepo-hash.mjs"))
+    await mkdirp(join(demoDir, "bun"))
+
+    await copyFile(join(cwd, "bun", "monorepo-hash.ts"), join(demoDir, "bun", "monorepo-hash.ts"))
   })
 
   afterAll(async () => {
@@ -119,7 +120,7 @@ packages:
 
   describe("unified", () => {
     it("generates all hashes and matches snapshot", async () => {
-      await x(cli, [ cliScript, "--generate" ], { nodeOptions: { cwd: demoDir } })
+      await x(cli, ["--generate"], { nodeOptions: { cwd: demoDir } })
 
       const rootPath = join(demoDir, ".hash")
       // oxlint-disable-next-line no-unsafe-type-assertion
@@ -137,7 +138,7 @@ packages:
         await remove(rootPath)
       }
 
-      await x(cli, [ cliScript, "--generate", "--target=packages/cli-tools" ], { nodeOptions: { cwd: demoDir } })
+      await x(cli, [ "--generate", "--target=packages/cli-tools" ], { nodeOptions: { cwd: demoDir } })
 
       // oxlint-disable-next-line no-unsafe-type-assertion
       const content = JSON.parse(await readFile(rootPath, "utf8")) as Record<string, string>
@@ -151,7 +152,7 @@ packages:
 
     it("produces the same hash for a workspace with transitive deps as in full generate", async () => {
       // full generate
-      await x(cli, [ cliScript, "--generate" ], { nodeOptions: { cwd: demoDir } })
+      await x(cli, ["--generate"], { nodeOptions: { cwd: demoDir } })
       const rootPath = join(demoDir, ".hash")
       // oxlint-disable-next-line no-unsafe-type-assertion
       const fullContent = JSON.parse(await readFile(rootPath, "utf8")) as Record<string, string>
@@ -164,7 +165,7 @@ packages:
       }
 
       // partial generate
-      await x(cli, [ cliScript, "--generate", "--target=services/backend" ], { nodeOptions: { cwd: demoDir } })
+      await x(cli, [ "--generate", "--target=services/backend" ], { nodeOptions: { cwd: demoDir } })
       // oxlint-disable-next-line no-unsafe-type-assertion
       const partialContent = JSON.parse(await readFile(rootPath, "utf8")) as Record<string, string>
       const partial = partialContent[backendKey]
@@ -183,7 +184,7 @@ packages:
         await remove(cliToolsHashPath)
       }
 
-      await x(cli, [ cliScript, "--generate" ], { nodeOptions: { cwd: demoDir } })
+      await x(cli, ["--generate"], { nodeOptions: { cwd: demoDir } })
       const rootPath = join(demoDir, ".hash")
       const exists = await pathExists(rootPath)
 
@@ -206,7 +207,7 @@ packages:
 
   describe("workspaces", () => {
     it("generates all hashes and matches snapshot", async () => {
-      await x(cli, [ cliScript, "--generate", "--workspaces" ], { nodeOptions: { cwd: demoDir } })
+      await x(cli, [ "--generate", "--workspaces" ], { nodeOptions: { cwd: demoDir } })
 
       const hashPromises = pkgs.map(async (rel) => {
         const hash = (await readFile(join(demoDir, rel, ".hash"), "utf8")).trim()
@@ -236,7 +237,7 @@ packages:
       })
 
       await Promise.all(cleanupPromises)
-      await x(cli, [ cliScript, "--generate", "--target=packages/cli-tools", "--workspaces" ], { nodeOptions: { cwd: demoDir } })
+      await x(cli, [ "--generate", "--target=packages/cli-tools", "--workspaces" ], { nodeOptions: { cwd: demoDir } })
 
       const existsPromises = pkgs.map(async (rel) => {
         const exists = await pathExists(join(demoDir, rel, ".hash"))
@@ -259,7 +260,7 @@ packages:
 
     it("produces the same hash for a workspace with transitive deps as in full generate", async () => {
       // full generate
-      await x(cli, [ cliScript, "--generate", "--workspaces" ], { nodeOptions: { cwd: demoDir } })
+      await x(cli, [ "--generate", "--workspaces" ], { nodeOptions: { cwd: demoDir } })
       const full = (await readFile(join(demoDir, "services", "backend", ".hash"), "utf8")).trim()
 
       // remove all .hash
@@ -274,7 +275,7 @@ packages:
       await Promise.all(cleanPromises)
 
       // partial generate
-      await x(cli, [ cliScript, "--generate", "--target=services/backend", "--workspaces" ], { nodeOptions: { cwd: demoDir } })
+      await x(cli, [ "--generate", "--target=services/backend", "--workspaces" ], { nodeOptions: { cwd: demoDir } })
       const partial = (await readFile(join(demoDir, "services", "backend", ".hash"), "utf8")).trim()
 
       const existsPromises = pkgs.map(async (rel) => {
@@ -306,7 +307,7 @@ packages:
         await remove(rootPath)
       }
 
-      await x(cli, [ cliScript, "--generate", "--workspaces" ], { nodeOptions: { cwd: demoDir } })
+      await x(cli, [ "--generate", "--workspaces" ], { nodeOptions: { cwd: demoDir } })
       const exists = await pathExists(rootPath)
 
       expect(exists)
@@ -325,12 +326,12 @@ describe("hash computation functions", () => {
   let cliScript: string
   let cwd: string
   let cliImport: string
-  const cli = "node"
+  const cli = "bun"
   const created: string[] = []
 
   beforeAll(() => {
     cwd = globalThis.tmpRoot
-    cliScript = join(cwd, "monorepo-hash.mjs")
+    cliScript = join(cwd, "bun", "monorepo-hash.ts")
     cliImport = pathToFileURL(cliScript).href
   })
 

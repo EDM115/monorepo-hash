@@ -13,11 +13,15 @@ import { fileURLToPath } from "node:url"
 import { afterAll } from "vitest"
 
 import {
+  detectPlatformId,
+  getBinaryBasename,
+} from "../../src/node/platform"
+import {
   mkdirp,
   pathExists,
   remove,
   writeJson,
-} from "./utils"
+} from "../utils"
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -81,13 +85,25 @@ await writeFile(
   "export const msg = \"pkg-c\"\n",
 )
 
-const src = resolve(__dirname, "../dist/monorepo-hash.mjs")
+let src = resolve(__dirname, "../../src/bun/monorepo-hash.ts")
 
 if (!(await pathExists(src))) {
-  throw new Error(`monorepo-hash.mjs not found at ${src}`)
+  throw new Error(`bun/monorepo-hash.ts not found at ${src}`)
 }
 
-await copyFile(src, join(tmp, "monorepo-hash.mjs"))
+await mkdirp(join(tmp, "bun"))
+
+await copyFile(src, join(tmp, "bun", "monorepo-hash.ts"))
+
+const executableName = getBinaryBasename(await detectPlatformId() ?? "linux-x64")
+
+src = resolve(__dirname, `../../bun-build/${executableName}`)
+
+if (!(await pathExists(src))) {
+  throw new Error(`${executableName} not found at ${src}`)
+}
+
+await copyFile(src, join(tmp, "bun", "monorepo-hash.exe"))
 
 globalThis.tmpRoot = tmp
 

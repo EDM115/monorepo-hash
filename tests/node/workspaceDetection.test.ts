@@ -13,12 +13,12 @@ import {
   it,
 } from "vitest"
 
-import { x } from "./exec"
+import { x } from "../exec"
 import {
   mkdirp,
   remove,
   writeJson,
-} from "./utils"
+} from "../utils"
 
 describe("workspace detection", () => {
   const cli = "node"
@@ -29,7 +29,7 @@ describe("workspace detection", () => {
 
   beforeAll(() => {
     cwd = globalThis.tmpRoot
-    cliScript = join(cwd, "monorepo-hash.mjs")
+    cliScript = join(cwd, "node", "monorepo-hash.mjs")
     cliImport = pathToFileURL(cliScript).href
   })
 

@@ -504,7 +504,6 @@ Here's a quick guide for contributing to `monorepo-hash` :
   Feel free to add tests to the `tests` directory.
   ```bash
   pnpm test
-  pnpm test:binaries
   ```
 6. Commit your changes
 7. Open a pull request

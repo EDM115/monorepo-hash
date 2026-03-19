@@ -11,8 +11,7 @@
     "oxlint.config.ts": "eslint.*",
     "package.json": ".node-version, pnpm*, *.script.ts",
     "README.md": "LICENSE, .gitignore, CHANGELOG.md, logo.*",
-    "tsdown.config.ts": "tsconfig.*",
-    "vitest.config.ts": "vitest.*"
+    "tsdown.config.ts": "tsconfig.*"
   },
   "files.eol": "\n",
   "files.insertFinalNewline": true,

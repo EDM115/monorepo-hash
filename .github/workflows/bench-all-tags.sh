@@ -90,7 +90,11 @@ for spec in "${REFS[@]}"; do
   # Reuse pnpm store (best effort, still respects each tag's lockfile)
   pnpm i --frozen-lockfile --reporter=silent
 
-  pnpm build
+  if grep -q '"build:node"' package.json; then
+    pnpm build:node
+  else
+    pnpm build
+  fi
 
   # Determine JS entry name
   if [[ -f dist/monorepo-hash.js ]]; then

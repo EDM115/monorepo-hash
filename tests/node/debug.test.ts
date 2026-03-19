@@ -7,11 +7,11 @@ import {
   it,
 } from "vitest"
 
-import { x } from "./exec"
+import { x } from "../exec"
 import {
   pathExists,
   remove,
-} from "./utils"
+} from "../utils"
 
 describe("debug mode", () => {
   let cliScript: string
@@ -20,7 +20,7 @@ describe("debug mode", () => {
 
   beforeAll(() => {
     cwd = globalThis.tmpRoot
-    cliScript = join(cwd, "monorepo-hash.mjs")
+    cliScript = join(cwd, "node", "monorepo-hash.mjs")
   })
 
   describe("unified", () => {

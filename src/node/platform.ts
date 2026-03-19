@@ -168,7 +168,9 @@ export async function detectPlatformId(): Promise<PlatformId | null> {
  * @returns The corresponding binary filename
  */
 export function getBinaryBasename(id: PlatformId): string {
-  const exeEnding = id.startsWith("windows") ? ".exe" : ""
+  const exeEnding = id.startsWith("windows")
+    ? ".exe"
+    : ""
 
   return `monorepo-hash-${id}${exeEnding}`
 }

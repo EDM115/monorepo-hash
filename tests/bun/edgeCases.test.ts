@@ -11,13 +11,13 @@ import {
   it,
 } from "vitest"
 
-import { x } from "./exec"
+import { x } from "../exec"
 import {
   mkdirp,
   pathExists,
   remove,
   writeJson,
-} from "../tests/utils"
+} from "../utils"
 
 describe("edge cases", () => {
   let cwd: string
@@ -25,7 +25,7 @@ describe("edge cases", () => {
 
   beforeAll(() => {
     cwd = globalThis.tmpRoot
-    cli = join(cwd, "monorepo-hash.exe")
+    cli = join(cwd, "bun", "monorepo-hash.exe")
   })
 
   describe("gitignore handling", () => {

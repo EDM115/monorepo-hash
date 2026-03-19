@@ -11,13 +11,13 @@ import {
   it,
 } from "vitest"
 
-import { x } from "./exec"
+import { x } from "../exec"
 import {
   mkdirp,
   pathExists,
   remove,
   writeJson,
-} from "./utils"
+} from "../utils"
 
 describe("edge cases", () => {
   let cliScript: string
@@ -26,7 +26,7 @@ describe("edge cases", () => {
 
   beforeAll(() => {
     cwd = globalThis.tmpRoot
-    cliScript = join(cwd, "monorepo-hash.mjs")
+    cliScript = join(cwd, "node", "monorepo-hash.mjs")
   })
 
   describe("gitignore handling", () => {
@@ -195,7 +195,7 @@ describe("edge cases", () => {
     beforeAll(async () => {
       const cwdLocal = globalThis.tmpRoot
 
-      targetCliScript = join(cwdLocal, "monorepo-hash.mjs")
+      targetCliScript = join(cwdLocal, "node", "monorepo-hash.mjs")
       targetDir = join(cwdLocal, "target-filter-test")
       await mkdirp(targetDir)
       const workspaceYaml = "packages:\n  - \"packages/*\""

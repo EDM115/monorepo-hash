@@ -1,20 +1,40 @@
 import { defineConfig } from "vitest/config"
 
-export default defineConfig({ test: {
+const shared = {
   detectAsyncLeaks: true,
   experimental: {
     importDurations: {
       print: true,
     },
   },
-  include: ["tests/**/*.test.ts"],
   logHeapUsage: true,
-  open: false,
-  pool: "threads",
-  reporters: process.env.GITHUB_ACTIONS === "true"
-    ? [ "dot", "tree", "github-actions" ]
-    : [ "dot", "tree" ],
-  setupFiles: ["tests/setup.ts"],
+  pool: "threads" as const,
   typecheck: { enabled: true },
+}
+
+export default defineConfig({ test: {
+  projects: [
+    {
+      test: {
+        ...shared,
+        name: "node",
+        include: ["tests/node/**/*.test.ts"],
+        setupFiles: ["tests/node/setup.ts"],
+      },
+    },
+    {
+      test: {
+        ...shared,
+        name: "bun",
+        include: ["tests/bun/**/*.test.ts"],
+        setupFiles: ["tests/bun/setup.ts"],
+      },
+    },
+  ],
+  open: false,
+  reporters:
+    process.env.GITHUB_ACTIONS === "true"
+      ? ["dot", "tree", "github-actions"]
+      : ["dot", "tree"],
   watch: false,
 } })

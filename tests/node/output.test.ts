@@ -12,8 +12,8 @@ import {
   it,
 } from "vitest"
 
-import { x } from "./exec"
-import { remove } from "./utils"
+import { x } from "../exec"
+import { remove } from "../utils"
 
 describe("monorepo-hash CLI output", () => {
   let cliScript: string
@@ -22,7 +22,7 @@ describe("monorepo-hash CLI output", () => {
 
   beforeAll(() => {
     cwd = globalThis.tmpRoot
-    cliScript = join(cwd, "monorepo-hash.mjs")
+    cliScript = join(cwd, "node", "monorepo-hash.mjs")
   })
 
   describe("unified", () => {
@@ -165,7 +165,7 @@ describe("monorepo-hash API output", () => {
 
   beforeAll(() => {
     cwd = globalThis.tmpRoot
-    cliScript = join(cwd, "monorepo-hash.mjs")
+    cliScript = join(cwd, "node", "monorepo-hash.mjs")
     cliImport = pathToFileURL(cliScript).href
   })
 

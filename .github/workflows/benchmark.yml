@@ -87,11 +87,20 @@ jobs:
           else
             echo "build_bun=false" >> $GITHUB_OUTPUT
           fi
+          if grep -q '"build:node"' package.json; then
+            echo "build_node=true" >> $GITHUB_OUTPUT
+          else
+            echo "build_node=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: "Prepare the benchmarks"
         id: prepare_benchs
         run: |
-          pnpm build
+          if [[ "${{ steps.get_benchs.outputs.build_node }}" == "true" ]]; then
+            pnpm build:node
+          else
+            pnpm build
+          fi
           if [[ "${{ steps.get_benchs.outputs.build_bun }}" == "true" ]]; then
             pnpm build:bun:linux-x64
             chmod +x bun-build/monorepo-hash-linux-x64

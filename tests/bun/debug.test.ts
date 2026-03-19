@@ -7,11 +7,11 @@ import {
   it,
 } from "vitest"
 
-import { x } from "./exec"
+import { x } from "../exec"
 import {
   pathExists,
   remove,
-} from "../tests/utils"
+} from "../utils"
 
 describe("debug mode", () => {
   let cwd: string
@@ -19,7 +19,7 @@ describe("debug mode", () => {
 
   beforeAll(() => {
     cwd = globalThis.tmpRoot
-    cli = join(cwd, "monorepo-hash.exe")
+    cli = join(cwd, "bun", "monorepo-hash.exe")
   })
 
   describe("unified", () => {

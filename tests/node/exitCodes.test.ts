@@ -11,13 +11,13 @@ import {
   it,
 } from "vitest"
 
-import { x } from "./exec"
+import { x } from "../exec"
 import {
   mkdirp,
   pathExists,
   remove,
   writeJson,
-} from "./utils"
+} from "../utils"
 
 describe("exit codes", () => {
   let cliScript: string
@@ -26,7 +26,7 @@ describe("exit codes", () => {
 
   beforeAll(() => {
     cwd = globalThis.tmpRoot
-    cliScript = join(cwd, "monorepo-hash.mjs")
+    cliScript = join(cwd, "node", "monorepo-hash.mjs")
   })
 
   it("returns 0 for --help", async () => {

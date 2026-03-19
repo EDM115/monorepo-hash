@@ -147,7 +147,6 @@ jobs:
               && curl -fsSL https://bun.sh/install | bash \
               && export BUN_INSTALL="$HOME/.bun" \
               && export PATH="$BUN_INSTALL/bin:$PATH" \
-              && pnpm build \
               && pnpm build:bun:linux-arm64-musl \
               && pnpm build:bun:chmod \
               && ./bun-build/monorepo-hash-linux-arm64-musl --help
@@ -228,7 +227,6 @@ jobs:
               && curl -fsSL https://bun.sh/install | bash \
               && export BUN_INSTALL="$HOME/.bun" \
               && export PATH="$BUN_INSTALL/bin:$PATH" \
-              && pnpm build \
               && pnpm build:bun:linux-x64-musl \
               && pnpm build:bun:chmod \
               && ./bun-build/monorepo-hash-linux-x64-musl --help

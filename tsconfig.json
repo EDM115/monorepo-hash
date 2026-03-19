@@ -24,6 +24,6 @@
     "target": "ESNext",
     "verbatimModuleSyntax": true
   },
-  "include": [ "src", "tests", "tests-binaries" ],
-  "exclude": [ "node_modules", "bun-build", "dist", "tests/demo" ],
+  "include": [ "src", "tests" ],
+  "exclude": [ "node_modules", "bun-build", "dist", "tests/demo", "bench-history", "bench-history-new", "manifests" ],
 }

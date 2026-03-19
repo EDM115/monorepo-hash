@@ -6,9 +6,11 @@
 🐛 fix : properly resolve the arm64 version of the binary on non-WinGet install
 
 ✨ feat : add a `--version`/`-v` flag to display the version information and exit so [winget doesn't complain](https://github.com/microsoft/winget-pkgs/pull/346996#issuecomment-4034397380)  
+📦️ build : binaries are built with Bun `1.3.11` instead of `1.3.10`  
 📝 docs : add the WinGet manifests to the repo  
 📝 docs : add WinGet installation instructions  
 ✅ tests : fix async leaks  
+♻️ refactor : move files around to better separate node & bun versions, in order to welcome future potential implementations (ex Go & Rust)  
 ⬆️ deps : bump all deps
 
 **Full Changelog**: https://github.com/EDM115/monorepo-hash/compare/2.1.0...2.1.1
