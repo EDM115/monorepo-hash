@@ -37,15 +37,15 @@ jobs:
 
       - name: "Lint check"
         run: pnpm lint
-      
+
       - name: "Types check"
         run: pnpm typecheck
 
       - name: "Build the project"
-        run: pnpm build:node && pnpm build:bun:linux-x64 && pnpm build:bun:linux-arm64 && pnpm build:bun:windows-x64:ci && pnpm build:bun:windows-arm64:ci && pnpm build:bun:darwin-x64 && pnpm build:bun:darwin-arm64 && pnpm build:bun:linux-x64-musl && pnpm build:bun:linux-arm64-musl && pnpm build:bun:chmod
+        run: pnpm build:node && pnpm cli:build-bin -r bun -p linux-x64 && pnpm build:bun:chmod
 
       - name: "Run the node tests"
         run: pnpm vitest --project node
 
       - name: "Run the bun tests"
-        run: pnpm test:bun:prepare && pnpm vitest --project bun
+        run: pnpm vitest --project bun

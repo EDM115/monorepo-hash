@@ -500,8 +500,7 @@ Here's a quick guide for contributing to `monorepo-hash` :
   pnpm typecheck
   pnpm lint
   ```
-5. Test your changes (stage them before)  
-  Feel free to add tests to the `tests` directory.
+5. Test your changes (feel free to add tests to the `tests` directory)
   ```bash
   pnpm test
   ```
@@ -511,14 +510,17 @@ Here's a quick guide for contributing to `monorepo-hash` :
 ### Release process
 ```bash
 # bump the version in package.json
-git commit && git push
+git add -A && git status
 pnpm typecheck
+pnpm test
+git commit -m "the message" && git push
 pnpm build
-pnpm build:bun
 # run the action that builds the binaries and download the artifacts
-# create a draft release on GitHub with the bun artifacts
-# compare the benchmarks ran from master and the release and pick the best ones to include as a zip artifact & in the README
-git commit && git push
+# create a draft release on GitHub with the artifacts
+# run the benchmarks action and download the results, put in `bench-history-new`
+pnpm cli:get-bench-times
+# include them as a zip release artifact & in the README
+git commit -m "the message" && git push
 # un-draft and publish the release on GitHub as latest
 pnpm release
 ```

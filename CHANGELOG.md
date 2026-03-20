@@ -11,6 +11,7 @@
 📝 docs : add WinGet installation instructions  
 ✅ tests : fix async leaks  
 ♻️ refactor : move files around to better separate node & bun versions, in order to welcome future potential implementations (ex Go & Rust)  
+🔨🧑‍💻 scripts, dev : add a unified build script  
 ⬆️ deps : bump all deps
 
 **Full Changelog**: https://github.com/EDM115/monorepo-hash/compare/2.1.0...2.1.1

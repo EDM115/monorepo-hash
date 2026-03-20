@@ -114,7 +114,11 @@ for spec in "${REFS[@]}"; do
   BUILD_BUN=false
   if grep -q '"build:bun"' package.json; then
     BUILD_BUN=true
-    pnpm build:bun:linux-x64
+    if grep -q '"build:bun:linux-x64"' package.json; then
+      pnpm build:bun:linux-x64
+    else
+      pnpm cli:build-bin -r bun -p linux-x64
+    fi
     chmod +x bun-build/monorepo-hash-linux-x64
   fi
 

@@ -34,7 +34,7 @@ export default defineConfig({ test: {
   open: false,
   reporters:
     process.env.GITHUB_ACTIONS === "true"
-      ? ["dot", "tree", "github-actions"]
-      : ["dot", "tree"],
+      ? [ "dot", "tree", "github-actions" ]
+      : [ "dot", "tree" ],
   watch: false,
 } })
