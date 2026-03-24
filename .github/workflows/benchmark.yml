@@ -222,7 +222,7 @@ jobs:
             --export-markdown ../../benchmarks/node/wide-monorepo-warm.md \
             "node ${{ steps.prepare_benchs.outputs.js_name }} --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
-      - name: "Benchmark : small monorepo, bun (cold)"
+      - name: "Benchmark : small monorepo, bun, cold"
         if: contains(steps.get_benchs.outputs.benchs, 'small') && steps.get_benchs.outputs.build_bun == 'true'
         run: |
           cd tests/demo/small-monorepo
@@ -233,7 +233,7 @@ jobs:
             --export-markdown ../../benchmarks/bun/small-monorepo-cold.md \
             "./monorepo-hash --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
-      - name: "Benchmark : small monorepo, bun (warm)"
+      - name: "Benchmark : small monorepo, bun, warm"
         if: contains(steps.get_benchs.outputs.benchs, 'small') && steps.get_benchs.outputs.build_bun == 'true'
         run: |
           cd tests/demo/small-monorepo

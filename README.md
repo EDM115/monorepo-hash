@@ -437,7 +437,7 @@ This is especially useful because when you generate hashes, the action will pick
 For the very first run, you might need to create a workflow which will only checkout and save the .hash files in a cache for future runs.
 
 ## :construction: Limitations
-- If you use another Version Control System than `git`, we can't ignore your files correctly for the hashes generation
+- If you use another Version Control System than `git`, we can't ignore your files correctly for the hashes generation (note : any VCS that uses `.gitignore` files, such as [`Jujutsu`](https://www.jj-vcs.dev/latest/working-copy/#ignored-files) will work just fine)
 - Your EOL (End of Line) should be consistent across your monorepo's files and the different environments it's being used in. Since Docker containers and GitHub Actions runners are based on Linux, it's recommended to use `LF` as EOL.  
   I recommend to set this up in your IDE and formatter config.
 
@@ -463,8 +463,10 @@ Starting with `v2.0.0`, the benchmark methodology has changed : we re-runned the
 
 | Version                                   | Small               | Medium             | Large               | Wide               |
 | :---------------------------------------- | :------------------ | :----------------- | :------------------ | :----------------- |
-| `v2.1.0 (bun)` :chart_with_upwards_trend: | 208 ms (53.9 ms)    | 3.468 s (775.8 ms) | 49.896 s (12.169 s) | 3.816 s (862 ms) |
-| `v2.1.0` :chart_with_upwards_trend:       | 253.9 ms (116.5 ms) | 3.677 s (3.438 s)  | 52.091 s (67.068 s) | 5.883 s (5.614 s)  |
+| `v2.1.1 (bun)` :chart_with_upwards_trend: | 163.6 ms (50.1 ms)  | 2.994 s (715 ms)   | 40.29 s (10.887 s)  | 2.815 s (718.5 ms) |
+| `v2.1.1` :chart_with_upwards_trend:       | 239.4 ms (128.6 ms) | 3.755 s (3.942 s)  | 50.266 s (39.827 s) | 4.359 s (4.037 s)  |
+| `v2.1.0 (bun)` :chart_with_upwards_trend: | 208 ms (53.9 ms)    | 3.468 s (775.8 ms) | 49.896 s (12.169 s) | 3.816 s (862 ms)   |
+| `v2.1.0` :chart_with_downwards_trend:     | 253.9 ms (116.5 ms) | 3.677 s (3.438 s)  | 52.091 s (67.068 s) | 5.883 s (5.614 s)  |
 | `v2.0.0 (bun)` :chart_with_upwards_trend: | 231 ms (69.33 ms)   | 3.295 s (802.3 ms) | 41.083 s (17.319 s) | 3.081 s (761.9 ms) |
 | `v2.0.0` :chart_with_upwards_trend:       | 282.6 ms (124.1 ms) | 3.853 s (3.532 s)  | 36.773 s (35.706 s) | 4.447 s (3.599 s)  |
 | `v1.9.0 (bun)` :balance_scale:            | 224.3 ms (67.45 ms) | 3.347 s (719.9 ms) | 35.774 s (10.268 s) | 3.546 s (1.405 s)  |
