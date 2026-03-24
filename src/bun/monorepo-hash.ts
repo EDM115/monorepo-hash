@@ -191,6 +191,7 @@ const NullObj: {
     new<V = unknown>(): Record<string, V>;
   }
 })()
+
 Object.freeze(NullObj)
 
 async function getWorkspaceFileList(

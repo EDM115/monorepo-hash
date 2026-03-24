@@ -3,9 +3,11 @@
 ## v2.1.1
 ### Breaking changes
 💥🩹 small fix : not providing any argument will display the help instead of exiting with code `2`  
-🐛 fix : properly resolve the arm64 version of the binary on non-WinGet install
+🐛 fix : properly resolve the arm64 version of the binary on Windows
 
-✨ feat : add a `--version`/`-v` flag to display the version information and exit so [winget doesn't complain](https://github.com/microsoft/winget-pkgs/pull/346996#issuecomment-4034397380)  
+✨ feat : add a `--version`/`-v` flag to display the version information and exit so [WinGet doesn't complain](https://github.com/microsoft/winget-pkgs/pull/346996#issuecomment-4034397380)  
+✨ feat : if the binary couldn't be downloaded during the `postinstall` step, replace its file with the JS implementation. note that the `postinstall` script still need to be ran, this is just here in case your platform isn't supported, the download fails or the script couldn't obtain the package version. if you blocked the `postinstall` script or just didn't let it run, you should still use the `monorepo-hash-js` entrypoint. note that this is a band-aid that won't work when using Windows + non-node_modules package manager  
+🐛 fix : ensure the `postinstall` script doesn't run on dev  
 📦️ build : binaries are built with Bun `1.3.11` instead of `1.3.10`  
 📝 docs : add the WinGet manifests to the repo  
 📝 docs : add WinGet installation instructions  
