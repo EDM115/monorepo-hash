@@ -26,7 +26,7 @@ describe("hash generation", () => {
 
   beforeAll(async () => {
     cwd = globalThis.tmpRoot
-    cli = join(cwd, "bun", "monorepo-hash.exe")
+    cli = join(cwd, "go", "monorepo-hash.exe")
     demoDir = join(cwd, "small-monorepo")
 
     // Scaffold a small 5-package monorepo

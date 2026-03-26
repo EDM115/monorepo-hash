@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 45
 
     steps:
-      - name: Get the Git reference
+      - name: "Get the Git reference"
         id: get_ref
         run: |
           if [[ "${{ github.event.inputs.ref }}" != "" ]]; then
@@ -32,6 +32,15 @@ jobs:
           else
             ref="${{ github.ref }}"
             echo "ref=${ref##*/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: "Do we build Go"
+        id: build_go
+        run: |
+          if grep -q '"build:go"' package.json; then
+            echo "build_go=true" >> $GITHUB_OUTPUT
+          else
+            echo "build_go=false" >> $GITHUB_OUTPUT
           fi
 
       - name: "Checkout code at ${{ steps.get_ref.outputs.ref }}"
@@ -52,6 +61,14 @@ jobs:
       - name: "Install Bun"
         uses: oven-sh/setup-bun@v2
 
+      - name: "Install Go"
+        if: steps.build_go.outputs.build_go == 'true'
+        uses: actions/setup-go@v6
+        with:
+          cache-dependency-path: "./src/go/go.sum"
+          check-latest: true
+          go-version: "stable"
+
       - name: "Install dependencies"
         run: |
           pnpm i --frozen-lockfile
@@ -61,6 +78,9 @@ jobs:
           sudo add-apt-repository ppa:zhangsongcui3371/fastfetch -y
           sudo apt-get update
           sudo apt-get install fastfetch lshw -y
+          if [[ "${{ steps.build_go.outputs.build_go }}" == "true" ]]; then
+            cd src/go && go mod download && cd ../..
+          fi
 
       - name: "Get the system specs"
         run: |
@@ -101,6 +121,7 @@ jobs:
           else
             pnpm build
           fi
+          mkdir -p tests/benchmarks/node
           if [[ "${{ steps.get_benchs.outputs.build_bun }}" == "true" ]]; then
             if grep -q '"build:bun:linux-x64"' package.json; then
               pnpm build:bun:linux-x64
@@ -109,6 +130,11 @@ jobs:
             fi
             chmod +x bun-build/monorepo-hash-linux-x64
             mkdir -p tests/benchmarks/bun
+          fi
+          if [[ "${{ steps.build_go.outputs.build_go }}" == "true" ]]; then
+            pnpm cli:build-bin -r go -p linux-x64
+            chmod +x go-build/monorepo-hash-linux-x64
+            mkdir -p tests/benchmarks/go
           fi
           if [[ ! -f tests/demo/wide-monorepo.7z ]]; then
             wget https://raw.githubusercontent.com/EDM115/monorepo-hash/refs/heads/master/tests/demo/wide-monorepo.7z -O tests/demo/wide-monorepo.7z
@@ -119,13 +145,12 @@ jobs:
             js_name=monorepo-hash.mjs
           fi
           echo "js_name=$js_name" >> $GITHUB_OUTPUT
-          if grep -q '(-pm)' src/monorepo-hash.ts; then
+          if grep -q '(-pm)' dist/$js_name; then
             pm_arg='-pm=pnpm'
           else
             pm_arg=''
           fi
           echo "pm_arg=$pm_arg" >> $GITHUB_OUTPUT
-          mkdir -p tests/benchmarks/node
           IFS=',' read -ra BENCHES <<< "${{ steps.get_benchs.outputs.benchs }}"
           for b in "${BENCHES[@]}"; do
             b="$(echo "$b" | xargs)"
@@ -134,7 +159,10 @@ jobs:
             7z x "tests/demo/${b}-monorepo.7z" -o./tests/demo
             cp dist/$js_name "tests/demo/${b}-monorepo/$js_name"
             if [[ "${{ steps.get_benchs.outputs.build_bun }}" == "true" ]]; then
-              cp bun-build/monorepo-hash-linux-x64 "tests/demo/${b}-monorepo/monorepo-hash"
+              cp bun-build/monorepo-hash-linux-x64 "tests/demo/${b}-monorepo/monorepo-hash-bun"
+            fi
+            if [[ "${{ steps.build_go.outputs.build_go }}" == "true" ]]; then
+              cp go-build/monorepo-hash-linux-x64 "tests/demo/${b}-monorepo/monorepo-hash-go"
             fi
           done
 
@@ -231,7 +259,7 @@ jobs:
             --warmup 2 \
             --runs 10 \
             --export-markdown ../../benchmarks/bun/small-monorepo-cold.md \
-            "./monorepo-hash --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
+            "./monorepo-hash-bun --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
       - name: "Benchmark : small monorepo, bun, warm"
         if: contains(steps.get_benchs.outputs.benchs, 'small') && steps.get_benchs.outputs.build_bun == 'true'
@@ -241,7 +269,7 @@ jobs:
             --warmup 2 \
             --runs 10 \
             --export-markdown ../../benchmarks/bun/small-monorepo-warm.md \
-            "./monorepo-hash --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
+            "./monorepo-hash-bun --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
       - name: "Benchmark : medium monorepo, bun, cold"
         if: contains(steps.get_benchs.outputs.benchs, 'medium') && steps.get_benchs.outputs.build_bun == 'true'
@@ -252,7 +280,7 @@ jobs:
             --warmup 2 \
             --runs 10 \
             --export-markdown ../../benchmarks/bun/medium-monorepo-cold.md \
-            "./monorepo-hash --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
+            "./monorepo-hash-bun --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
       - name: "Benchmark : medium monorepo, bun, warm"
         if: contains(steps.get_benchs.outputs.benchs, 'medium') && steps.get_benchs.outputs.build_bun == 'true'
@@ -262,7 +290,7 @@ jobs:
             --warmup 2 \
             --runs 10 \
             --export-markdown ../../benchmarks/bun/medium-monorepo-warm.md \
-            "./monorepo-hash --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
+            "./monorepo-hash-bun --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
       - name: "Benchmark : large monorepo, bun, cold"
         if: contains(steps.get_benchs.outputs.benchs, 'large') && steps.get_benchs.outputs.build_bun == 'true'
@@ -273,7 +301,7 @@ jobs:
             --warmup 2 \
             --runs 10 \
             --export-markdown ../../benchmarks/bun/large-monorepo-cold.md \
-            "./monorepo-hash --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
+            "./monorepo-hash-bun --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
       - name: "Benchmark : large monorepo, bun, warm"
         if: contains(steps.get_benchs.outputs.benchs, 'large') && steps.get_benchs.outputs.build_bun == 'true'
@@ -283,7 +311,7 @@ jobs:
             --warmup 2 \
             --runs 10 \
             --export-markdown ../../benchmarks/bun/large-monorepo-warm.md \
-            "./monorepo-hash --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
+            "./monorepo-hash-bun --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
       - name: "Benchmark : wide monorepo, bun, cold"
         if: contains(steps.get_benchs.outputs.benchs, 'wide') && steps.get_benchs.outputs.build_bun == 'true'
@@ -294,7 +322,7 @@ jobs:
             --warmup 2 \
             --runs 10 \
             --export-markdown ../../benchmarks/bun/wide-monorepo-cold.md \
-            "./monorepo-hash --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
+            "./monorepo-hash-bun --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
       - name: "Benchmark : wide monorepo, bun, warm"
         if: contains(steps.get_benchs.outputs.benchs, 'wide') && steps.get_benchs.outputs.build_bun == 'true'
@@ -304,7 +332,91 @@ jobs:
             --warmup 2 \
             --runs 10 \
             --export-markdown ../../benchmarks/bun/wide-monorepo-warm.md \
-            "./monorepo-hash --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
+            "./monorepo-hash-bun --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
+
+      - name: "Benchmark : small monorepo, go, cold"
+        if: contains(steps.get_benchs.outputs.benchs, 'small') && steps.build_go.outputs.build_go == 'true'
+        run: |
+          cd tests/demo/small-monorepo
+          hyperfine \
+            --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches' \
+            --warmup 2 \
+            --runs 10 \
+            --export-markdown ../../benchmarks/go/small-monorepo-cold.md \
+            "./monorepo-hash-go --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
+
+      - name: "Benchmark : small monorepo, go, warm"
+        if: contains(steps.get_benchs.outputs.benchs, 'small') && steps.build_go.outputs.build_go == 'true'
+        run: |
+          cd tests/demo/small-monorepo
+          hyperfine \
+            --warmup 2 \
+            --runs 10 \
+            --export-markdown ../../benchmarks/go/small-monorepo-warm.md \
+            "./monorepo-hash-go --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
+
+      - name: "Benchmark : medium monorepo, go, cold"
+        if: contains(steps.get_benchs.outputs.benchs, 'medium') && steps.build_go.outputs.build_go == 'true'
+        run: |
+          cd tests/demo/medium-monorepo
+          hyperfine \
+            --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches' \
+            --warmup 2 \
+            --runs 10 \
+            --export-markdown ../../benchmarks/go/medium-monorepo-cold.md \
+            "./monorepo-hash-go --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
+
+      - name: "Benchmark : medium monorepo, go, warm"
+        if: contains(steps.get_benchs.outputs.benchs, 'medium') && steps.build_go.outputs.build_go == 'true'
+        run: |
+          cd tests/demo/medium-monorepo
+          hyperfine \
+            --warmup 2 \
+            --runs 10 \
+            --export-markdown ../../benchmarks/go/medium-monorepo-warm.md \
+            "./monorepo-hash-go --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
+
+      - name: "Benchmark : large monorepo, go, cold"
+        if: contains(steps.get_benchs.outputs.benchs, 'large') && steps.build_go.outputs.build_go == 'true'
+        run: |
+          cd tests/demo/large-monorepo
+          hyperfine \
+            --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches' \
+            --warmup 2 \
+            --runs 10 \
+            --export-markdown ../../benchmarks/go/large-monorepo-cold.md \
+            "./monorepo-hash-go --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
+
+      - name: "Benchmark : large monorepo, go, warm"
+        if: contains(steps.get_benchs.outputs.benchs, 'large') && steps.build_go.outputs.build_go == 'true'
+        run: |
+          cd tests/demo/large-monorepo
+          hyperfine \
+            --warmup 2 \
+            --runs 10 \
+            --export-markdown ../../benchmarks/go/large-monorepo-warm.md \
+            "./monorepo-hash-go --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
+
+      - name: "Benchmark : wide monorepo, go, cold"
+        if: contains(steps.get_benchs.outputs.benchs, 'wide') && steps.build_go.outputs.build_go == 'true'
+        run: |
+          cd tests/demo/wide-monorepo
+          hyperfine \
+            --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches' \
+            --warmup 2 \
+            --runs 10 \
+            --export-markdown ../../benchmarks/go/wide-monorepo-cold.md \
+            "./monorepo-hash-go --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
+
+      - name: "Benchmark : wide monorepo, go, warm"
+        if: contains(steps.get_benchs.outputs.benchs, 'wide') && steps.build_go.outputs.build_go == 'true'
+        run: |
+          cd tests/demo/wide-monorepo
+          hyperfine \
+            --warmup 2 \
+            --runs 10 \
+            --export-markdown ../../benchmarks/go/wide-monorepo-warm.md \
+            "./monorepo-hash-go --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
       - name: "Upload benchmarks results"
         uses: actions/upload-artifact@v7

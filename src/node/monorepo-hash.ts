@@ -90,7 +90,7 @@ export type Meta = {
 
 
 // #region CLI state
-const CLI_VERSION = "2.1.1"
+const CLI_VERSION = "2.2.0"
 let mode: "generate" | "compare" | null = null
 let targets: string[] | null = null
 let silent = false

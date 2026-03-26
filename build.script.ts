@@ -1,15 +1,26 @@
 import packageJson from "./package.json" with { type: "json" }
 
+import {
+  mkdir,
+  rm,
+  writeFile,
+} from "node:fs/promises"
 import { argv } from "node:process"
 import { x } from "tinyexec"
 
 const RUNTIMES = [ "bun", "rust", "go" ] as const
 const PLATFORMS = [ "darwin-arm64", "darwin-x64", "linux-arm64", "linux-arm64-musl", "linux-x64", "linux-x64-musl", "windows-arm64", "windows-x64" ] as const
 const packageVersion = process.env.npm_package_version || packageJson.version
+const normalizedPackageVersion = normalizeVersion(packageVersion)
 
 type Runtime = (typeof RUNTIMES)[number]
 
 type Platform = (typeof PLATFORMS)[number]
+
+type GoTarget = {
+  goos: "darwin" | "linux" | "windows"
+  goarch: "amd64" | "arm64"
+}
 
 function isValidRuntime(runtime: string): runtime is Runtime {
   return (RUNTIMES as readonly string[]).includes(runtime)
@@ -17,6 +28,185 @@ function isValidRuntime(runtime: string): runtime is Runtime {
 
 function isValidPlatform(platform: string): platform is Platform {
   return (PLATFORMS as readonly string[]).includes(platform)
+}
+
+function getGoTarget(platform: Platform): GoTarget {
+  switch (platform) {
+    case "darwin-arm64":
+      return { goos: "darwin", goarch: "arm64" }
+    case "darwin-x64":
+      return { goos: "darwin", goarch: "amd64" }
+    case "linux-arm64":
+    case "linux-arm64-musl":
+      return { goos: "linux", goarch: "arm64" }
+    case "linux-x64":
+    case "linux-x64-musl":
+      return { goos: "linux", goarch: "amd64" }
+    case "windows-arm64":
+      return { goos: "windows", goarch: "arm64" }
+    case "windows-x64":
+      return { goos: "windows", goarch: "amd64" }
+    default: {
+      console.error("❌ Unsupported Go platform, this should never happen")
+      process.exit(1)
+    }
+  }
+}
+
+function normalizeVersion(version: string): string {
+  const match = /^v?(\d+)\.(\d+)\.(\d+)/.exec(version.trim())
+
+  if (!match) {
+    return version
+  }
+
+  const [, major, minor, patch] = match
+  return `${major}.${minor}.${patch}`
+}
+
+function toWindowsVersionParts(version: string): [number, number, number, number] {
+  const core = normalizeVersion(version)
+  const rawParts = core.split(".").map((part) => Number.parseInt(part, 10))
+  const [major = 0, minor = 0, patch = 0] = rawParts
+  return [ major, minor, patch, 0 ]
+}
+
+function toWindowsVersionString(version: string): string {
+  return toWindowsVersionParts(version).join(".")
+}
+
+async function ensureGoversioninfoTool(): Promise<void> {
+  const args = [ "mod", "edit", "-json" ]
+  const { stdout, stderr, exitCode } = await x("go", args, {
+    nodeOptions: {
+      cwd: "./src/go",
+      stdio: "pipe",
+    },
+  })
+
+  if (stderr) {
+    console.error(stderr)
+  }
+
+  if (exitCode !== 0) {
+    console.error("❌ Failed to inspect ./src/go/go.mod")
+    process.exit(exitCode)
+  }
+
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+  const modJson = JSON.parse(stdout) as {
+    Tool?: Array<{
+      Path?: string
+    }>
+  }
+
+  const hasGoversioninfoTool = Array.isArray(modJson.Tool)
+    && modJson.Tool.some((tool) => tool.Path === "github.com/josephspurrier/goversioninfo/cmd/goversioninfo")
+
+  if (hasGoversioninfoTool) {
+    return
+  }
+
+  console.log("ℹ️  Adding goversioninfo as a Go tool dependency in ./src/go/go.mod\n")
+
+  const addToolArgs = [ "get", "-tool", "github.com/josephspurrier/goversioninfo/cmd/goversioninfo@latest" ]
+  const result = await x("go", addToolArgs, {
+    nodeOptions: {
+      cwd: "./src/go",
+      stdio: "inherit",
+    },
+  })
+
+  if (result.exitCode !== 0) {
+    console.error(`❌ Failed to add goversioninfo tool dependency (exit code ${result.exitCode})`)
+    process.exit(result.exitCode)
+  }
+
+  const tidyResult = await x("go", [ "mod", "tidy" ], {
+    nodeOptions: {
+      cwd: "./src/go",
+      stdio: "inherit",
+    },
+  })
+
+  if (tidyResult.exitCode !== 0) {
+    console.error(`❌ Failed to tidy Go module after adding tool dependency (exit code ${tidyResult.exitCode})`)
+    process.exit(tidyResult.exitCode)
+  }
+}
+
+// https://learn.microsoft.com/en-us/windows/win32/menurc/versioninfo-resource
+async function writeWindowsVersionInfo(): Promise<void> {
+  const [major, minor, patch, build] = toWindowsVersionParts(packageVersion)
+  const versionString = toWindowsVersionString(packageVersion)
+
+  const versionInfo = {
+    FixedFileInfo: {
+      FileVersion: {
+        Major: major,
+        Minor: minor,
+        Patch: patch,
+        Build: build,
+      },
+      ProductVersion: {
+        Major: major,
+        Minor: minor,
+        Patch: patch,
+        Build: build,
+      },
+      FileFlagsMask: "3f",
+      FileFlags: "00",
+      FileOS: "040004",
+      FileType: "01",
+      FileSubType: "00",
+    },
+    StringFileInfo: {
+      Comments: packageJson.description,
+      CompanyName: "EDM115",
+      FileDescription: packageJson.description,
+      FileVersion: versionString,
+      InternalName: "monorepo-hash",
+      LegalCopyright: "https://github.com/EDM115/monorepo-hash/blob/master/LICENSE",
+      OriginalFilename: "monorepo-hash.exe",
+      ProductName: packageJson.name,
+      ProductVersion: versionString,
+    },
+    IconPath: "../../logo.ico",
+  }
+
+  await writeFile("./src/go/versioninfo.json", JSON.stringify(versionInfo, null, 2))
+}
+
+async function generateWindowsSyso(goarch: GoTarget["goarch"]): Promise<void> {
+  await ensureGoversioninfoTool()
+  await writeWindowsVersionInfo()
+
+  const args = [
+    "tool",
+    "goversioninfo",
+    goarch === "amd64" ? "-64" : "-arm",
+    "-o",
+    "resource.syso",
+    "versioninfo.json",
+  ]
+
+  console.log(`🏁 go ${args.join(" ")}\n`)
+
+  const { stderr, exitCode } = await x("go", args, {
+    nodeOptions: {
+      cwd: "./src/go",
+      stdio: "inherit",
+    },
+  })
+
+  if (stderr) {
+    console.error(stderr)
+  }
+
+  if (exitCode !== 0) {
+    console.error(`❌ Windows resource generation failed with exit code ${exitCode}`)
+    process.exit(exitCode)
+  }
 }
 
 /**
@@ -87,10 +277,12 @@ async function main(options?: {
 
   switch (runtime) {
     case "bun": {
+      await mkdir("./bun-build", { recursive: true })
+
       const bin = "bun"
       const isWindows = platform.startsWith("windows")
       const baseCommand = "build --compile --minify --sourcemap --bytecode --format=esm"
-      const windowsSpecific = `--windows-icon=logo.ico --windows-title=monorepo-hash --windows-description=monorepo-hash --windows-publisher=EDM115 --windows-version=${packageVersion} --windows-copyright=https://github.com/EDM115/monorepo-hash/blob/master/LICENSE`
+      const windowsSpecific = `--windows-icon=logo.ico --windows-title=monorepo-hash --windows-description=monorepo-hash --windows-publisher=EDM115 --windows-version=${normalizedPackageVersion} --windows-copyright=https://github.com/EDM115/monorepo-hash/blob/master/LICENSE`
       const buildCommand = `--target=bun-${platform} ./src/bun/monorepo-hash.ts --outfile ./bun-build/monorepo-hash-${platform}${isWindows
         ? ".exe"
         : ""}`
@@ -118,11 +310,63 @@ async function main(options?: {
       }
 
       break
-    } case "rust": {
-      console.log("👀 Not yet...")
+    } case "go": {
+      await mkdir("./go-build", { recursive: true })
+
+      const target = getGoTarget(platform)
+      const isWindows = target.goos === "windows"
+      const outfile = `../../go-build/monorepo-hash-${platform}${isWindows ? ".exe" : ""}`
+
+      if (isWindows) {
+        await generateWindowsSyso(target.goarch)
+      }
+
+      const buildArgs = [
+        "build",
+        "-trimpath",
+        "-ldflags=-s -w",
+        "-o",
+        outfile,
+        ".",
+      ]
+
+      console.log(`🏁 go ${buildArgs.join(" ")}\n`)
+
+      const {
+        stdout, stderr, exitCode,
+      } = await x("go", buildArgs, {
+        nodeOptions: {
+          cwd: "./src/go",
+          stdio: "inherit",
+          env: {
+            ...process.env,
+            GOOS: target.goos,
+            GOARCH: target.goarch,
+            CGO_ENABLED: "0",
+          },
+        },
+      })
+
+      if (stdout) {
+        console.log(stdout)
+      }
+
+      if (stderr) {
+        console.error(stderr)
+      }
+
+      if (isWindows) {
+        await rm("./src/go/resource.syso", { force: true })
+        await rm("./src/go/versioninfo.json", { force: true })
+      }
+
+      if (exitCode !== 0) {
+        console.error(`❌ Build failed with exit code ${exitCode}`)
+        process.exit(exitCode)
+      }
 
       break
-    } case "go": {
+    } case "rust": {
       console.log("👀 Not yet...")
 
       break

@@ -87,14 +87,14 @@ await writeFile(
 
 const executableName = getBinaryBasename(await detectPlatformId() ?? "linux-x64")
 
-const src = resolve(__dirname, `../../bun-build/${executableName}`)
+const src = resolve(__dirname, `../../go-build/${executableName}`)
 
 if (!(await pathExists(src))) {
   throw new Error(`${executableName} not found at ${src}`)
 }
 
-await mkdirp(join(tmp, "bun"))
-await copyFile(src, join(tmp, "bun", "monorepo-hash.exe"))
+await mkdirp(join(tmp, "go"))
+await copyFile(src, join(tmp, "go", "monorepo-hash.exe"))
 
 globalThis.tmpRoot = tmp
 

@@ -31,6 +31,7 @@
   "oxc.enable.oxlint": true,
   "oxc.unusedDisableDirectives": "warn",
   "search.exclude": {
+    "src/go/go.sum": true,
     "pnpm-lock.yaml": true
   }
 }

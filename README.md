@@ -357,25 +357,25 @@ jobs:
         node-version: [25]
 
     steps:
-      - name: Checkout code
+      - name: "Checkout code"
         uses: actions/checkout@v6
 
-      - name: Set up Docker Buildx
+      - name: "Set up Docker Buildx"
         uses: docker/setup-buildx-action@v4
 
-      - name: Setup pnpm
+      - name: "Setup pnpm"
         uses: pnpm/action-setup@v5
 
-      - name: Use Node.js ${{ matrix.node-version }}
+      - name: "Use Node.js ${{ matrix.node-version }}"
         uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
           cache: "pnpm"
 
-      - name: Install dependencies
+      - name: "Install dependencies"
         run: pnpm i --frozen-lockfile
 
-      - name: Restore .hash cache
+      - name: "Restore .hash cache"
         id: restore-hash-cache
         uses: actions/cache/restore@v5
         with:
@@ -385,11 +385,11 @@ jobs:
           restore-keys: |
             hash-files-${{ runner.os }}-pnpm-
 
-      - name: Force rebuild if no cache has been found
+      - name: "Force rebuild if no cache has been found"
         if: steps.restore-hash-cache.outputs.cache-hit == ''
         run: rm -fr **/.hash
 
-      - name: Check if workspace-name is unchanged
+      - name: "Check if workspace-name is unchanged"
         id: check-workspace-name
         run: |
           # These 2 lines are useful only if you use act, as a way to ensure the images are built if not present
@@ -402,7 +402,7 @@ jobs:
 
       # Do this as much as needed for your workspaces
 
-      - name: Build the workspace-name Docker image
+      - name: "Build the workspace-name Docker image"
         if: steps.check-workspace-name.outputs.WORKSPACENAME_HASH_EXIT_CODE != '0'
         # act version :
         # if: (steps.check-workspace-name.outputs.WORKSPACENAME_HASH_EXIT_CODE != '0' || steps.check-workspace-name.outputs.WORKSPACENAME_DOCKER_EXISTS == '0')
@@ -416,11 +416,11 @@ jobs:
       # Build things and test them
 
       # Don't do that if you delete/add files during the action !
-      - name: Ensure hash files are up to date
+      - name: "Ensure hash files are up to date"
         run: |
           pnpm monorepo-hash --generate
 
-      - name: Save .hash cache
+      - name: "Save .hash cache"
         uses: actions/cache/save@v5
         with:
           path: |
@@ -488,12 +488,18 @@ Starting with `v2.0.0`, the benchmark methodology has changed : we re-runned the
 
 ## :hammer_and_wrench: Contributing
 Here's a quick guide for contributing to `monorepo-hash` :
+0. Requirements :
+  - Node.js v25+
+  - PNPM v10+
+  - Bun v1.3+
+  - Go 1.26+
 1. Fork the repository (and star it :wink:)
 2. Clone your fork
   ```bash
   git clone https://github.com/USERNAME/monorepo-hash.git
   cd monorepo-hash
   pnpm i --frozen-lockfile
+  cd src/go && go mod download && cd ../..
   ```
 3. Do your changes
 4. Format, typecheck and lint your code

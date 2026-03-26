@@ -1,0 +1,49 @@
+name: Builds the Go binaries on all platforms
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-go:
+    name: "Build Go binaries"
+    runs-on: ubuntu-slim
+    timeout-minutes: 20
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v6
+
+      - name: "Install pnpm"
+        uses: pnpm/action-setup@v5
+
+      - name: "Bump Node.js to v25"
+        uses: actions/setup-node@v6
+        with:
+          check-latest: true
+          cache: "pnpm"
+          node-version: 25
+
+      - name: "Install Go"
+        uses: actions/setup-go@v6
+        with:
+          cache-dependency-path: "./src/go/go.sum"
+          check-latest: true
+          go-version: "stable"
+
+      - name: "Install dependencies"
+        run: |
+          pnpm i --frozen-lockfile
+          cd src/go && go mod download
+
+      - name: "Build all binaries"
+        run: build:go
+
+      - name: "Test one of the binaries"
+        run: ./bun-build/monorepo-hash-linux-x64 --help
+
+      - name: "Upload the binaries"
+        uses: actions/upload-artifact@v7
+        with:
+          compression-level: 0
+          name: go-binaries
+          path: ./go-build/

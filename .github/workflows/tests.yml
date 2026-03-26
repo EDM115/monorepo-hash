@@ -32,8 +32,17 @@ jobs:
       - name: "Install Bun"
         uses: oven-sh/setup-bun@v2
 
+      - name: "Install Go"
+        uses: actions/setup-go@v6
+        with:
+          cache-dependency-path: "./src/go/go.sum"
+          check-latest: true
+          go-version: "stable"
+
       - name: "Install dependencies"
-        run: pnpm i --frozen-lockfile
+        run: |
+          pnpm i --frozen-lockfile
+          cd src/go && go mod download
 
       - name: "Lint check"
         run: pnpm lint
@@ -42,10 +51,18 @@ jobs:
         run: pnpm typecheck
 
       - name: "Build the project"
-        run: pnpm build:node && pnpm cli:build-bin -r bun -p linux-x64 && pnpm build:bun:chmod
+        run: |
+          pnpm build:node
+          pnpm cli:build-bin -r bun -p linux-x64
+          pnpm build:bun:chmod
+          pnpm cli:build-bin -r go -p linux-x64
+          pnpm build:go:chmod
 
       - name: "Run the node tests"
         run: pnpm vitest --project node
 
       - name: "Run the bun tests"
         run: pnpm vitest --project bun
+
+      - name: "Run the Go tests"
+        run: pnpm vitest --project go

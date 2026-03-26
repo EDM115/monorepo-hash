@@ -22,10 +22,10 @@
     "ignore": "~7.0.5",
     "jiti": "~2.6.1",
     "oxlint": "~1.57.0",
-    "oxlint-tsgolint": "~0.17.3",
+    "oxlint-tsgolint": "~0.17.4",
     "tinyexec": "~1.0.4",
     "tinyglobby": "~0.2.15",
-    "tsdown": "~0.21.4",
+    "tsdown": "~0.21.5",
     "unplugin-unused": "~0.5.7",
     "vitest": "~4.1.1",
     "yaml": "~2.8.3"
@@ -82,7 +82,7 @@
   ],
   "license": "MIT",
   "name": "monorepo-hash",
-  "packageManager": "pnpm@10.32.1",
+  "packageManager": "pnpm@10.33.0",
   "publishConfig": {
     "access": "public"
   },
@@ -91,23 +91,29 @@
     "url": "git+https://github.com/EDM115/monorepo-hash.git"
   },
   "scripts": {
-    "build": "pnpm build:node && pnpm build:bun",
+    "build": "pnpm build:node && pnpm build:bun && pnpm build:go",
     "build:bun": "pnpm cli:build-bin -r bun -p all && pnpm build:bun:chmod",
     "build:bun:chmod": "node -e \"const { chmodSync } = require('fs'); const { readdirSync } = require('fs'); const path = require('path'); const dir = path.join(__dirname, 'bun-build'); for (const file of readdirSync(dir)) { if (!file.includes('.')) { chmodSync(path.join(dir, file), 0o755); } }\"",
     "build:decoy": "node -e \"require('fs').writeFileSync('./dist/monorepo-hash.exe', '', 'utf8')\"",
+    "build:go": "pnpm cli:build-bin -r go -p all && pnpm build:go:chmod",
+    "build:go:chmod": "node -e \"const { chmodSync, existsSync, readdirSync } = require('fs'); const path = require('path'); const dir = path.join(__dirname, 'go-build'); if (existsSync(dir)) { for (const file of readdirSync(dir)) { if (!file.includes('.exe')) { chmodSync(path.join(dir, file), 0o755); } } }\"",
     "build:node": "tsdown && pnpm build:decoy",
     "cli:build-bin": "jiti ./build.script.ts",
     "cli:get-bench-times": "jiti ./get-bench-times.script.ts",
-    "format": "eslint -c eslint.stylistic.config.ts --concurrency=auto --fix .",
-    "lint": "oxlint",
-    "lint:fix": "oxlint --fix",
+    "format": "pnpm format:ts && pnpm format:go",
+    "format:ts": "eslint -c eslint.stylistic.config.ts --concurrency=auto --fix .",
+    "format:go": "gofmt -w ./src/go",
+    "lint": "pnpm lint:ts && pnpm lint:go",
+    "lint:ts": "oxlint",
+    "lint:go": "cd src/go && go vet ./... && go tool staticcheck ./...",
     "postinstall": "node -e \"const fs = require('fs'); const path = require('path'); const installBinaryPath = path.join(__dirname, 'dist', 'install-binary.mjs'); const srcPath = path.join(__dirname, 'src'); if (fs.existsSync(installBinaryPath) && !fs.existsSync(srcPath)) { const child_process = require('child_process'); child_process.execFileSync(process.execPath, [installBinaryPath], { stdio: 'inherit' }); }\"",
     "release": "pnpm publish",
-    "test": "pnpm test:node && pnpm test:bun",
+    "test": "pnpm test:node && pnpm test:bun && pnpm test:go",
     "test:bun": "pnpm build:bun && vitest --project bun",
+    "test:go": "pnpm build:go && vitest --project go",
     "test:node": "pnpm build:node && vitest --project node",
     "typecheck": "tsgo --noEmit"
   },
   "type": "module",
-  "version": "2.1.1"
+  "version": "2.2.0-beta.go.1"
 }
