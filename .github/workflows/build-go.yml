@@ -36,7 +36,7 @@ jobs:
           cd src/go && go mod download
 
       - name: "Build all binaries"
-        run: pnpm run build:go
+        run: pnpm build:go
 
       - name: "Test one of the binaries"
         run: ./go-build/monorepo-hash-linux-x64 --help
