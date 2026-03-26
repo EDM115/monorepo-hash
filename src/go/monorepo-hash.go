@@ -895,14 +895,12 @@ func computeOwnHashFromPerFile(perFile map[string]string) ([]byte, error) {
 	}
 	sort.Strings(keys)
 	h := sha256.New()
-	buf := make([]byte, 32)
 	for _, k := range keys {
 		decoded, err := hex.DecodeString(perFile[k])
 		if err != nil {
 			return nil, err
 		}
-		copy(buf, decoded)
-		h.Write(buf)
+		h.Write(decoded)
 	}
 	return h.Sum(nil), nil
 }

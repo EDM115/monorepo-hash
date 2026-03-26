@@ -34,6 +34,11 @@ jobs:
             echo "ref=${ref##*/}" >> $GITHUB_OUTPUT
           fi
 
+      - name: "Checkout code at ${{ steps.get_ref.outputs.ref }}"
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.get_ref.outputs.ref }}
+
       - name: "Do we build Go"
         id: build_go
         run: |
@@ -42,11 +47,6 @@ jobs:
           else
             echo "build_go=false" >> $GITHUB_OUTPUT
           fi
-
-      - name: "Checkout code at ${{ steps.get_ref.outputs.ref }}"
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ steps.get_ref.outputs.ref }}
 
       - name: "Install pnpm"
         uses: pnpm/action-setup@v5

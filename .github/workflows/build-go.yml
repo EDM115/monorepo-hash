@@ -36,10 +36,10 @@ jobs:
           cd src/go && go mod download
 
       - name: "Build all binaries"
-        run: build:go
+        run: pnpm run build:go
 
       - name: "Test one of the binaries"
-        run: ./bun-build/monorepo-hash-linux-x64 --help
+        run: ./go-build/monorepo-hash-linux-x64 --help
 
       - name: "Upload the binaries"
         uses: actions/upload-artifact@v7
