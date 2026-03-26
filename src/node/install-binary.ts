@@ -9,7 +9,10 @@ import {
   readFile,
   unlink,
 } from "node:fs/promises"
-import { get } from "node:https"
+import {
+  Agent,
+  get,
+} from "node:https"
 import {
   dirname,
   join,
@@ -32,6 +35,7 @@ import {
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
+const noKeepAliveAgent = new Agent({ keepAlive: false })
 
 /**
  * Convert an unknown error to a string message
@@ -168,14 +172,13 @@ export async function getVersion(): Promise<string> {
  */
 export function download(url: string, dest: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    const file = createWriteStream(dest, { mode: 0o755 })
+    let file: ReturnType<typeof createWriteStream> | null = null
 
-    get(url, (res) => {
+    get(url, { agent: noKeepAliveAgent }, (res) => {
       if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         const redirected = new URL(res.headers.location, url)
           .toString()
 
-        file.close()
         void download(redirected, dest)
           .then(resolve, reject)
 
@@ -183,15 +186,16 @@ export function download(url: string, dest: string): Promise<void> {
       }
 
       if (res.statusCode !== 200) {
-        file.close()
+        res.resume()
         reject(new Error(`Download failed with status ${res.statusCode} for ${url}`))
 
         return
       }
 
+      file = createWriteStream(dest, { mode: 0o755 })
       res.pipe(file)
       file.on("finish", () => {
-        file.close()
+        file!.close()
 
         try {
           chmodSync(dest, 0o755)
@@ -203,7 +207,7 @@ export function download(url: string, dest: string): Promise<void> {
       })
     })
       .on("error", (err) => {
-        file.close()
+        file?.close()
         reject(err)
       })
   })

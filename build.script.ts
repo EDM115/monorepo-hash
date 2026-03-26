@@ -18,8 +18,8 @@ type Runtime = (typeof RUNTIMES)[number]
 type Platform = (typeof PLATFORMS)[number]
 
 type GoTarget = {
-  goos: "darwin" | "linux" | "windows"
-  goarch: "amd64" | "arm64"
+  goos: "darwin" | "linux" | "windows";
+  goarch: "amd64" | "arm64";
 }
 
 function isValidRuntime(runtime: string): runtime is Runtime {
@@ -33,19 +33,31 @@ function isValidPlatform(platform: string): platform is Platform {
 function getGoTarget(platform: Platform): GoTarget {
   switch (platform) {
     case "darwin-arm64":
-      return { goos: "darwin", goarch: "arm64" }
+      return {
+        goos: "darwin", goarch: "arm64",
+      }
     case "darwin-x64":
-      return { goos: "darwin", goarch: "amd64" }
+      return {
+        goos: "darwin", goarch: "amd64",
+      }
     case "linux-arm64":
     case "linux-arm64-musl":
-      return { goos: "linux", goarch: "arm64" }
+      return {
+        goos: "linux", goarch: "arm64",
+      }
     case "linux-x64":
     case "linux-x64-musl":
-      return { goos: "linux", goarch: "amd64" }
+      return {
+        goos: "linux", goarch: "amd64",
+      }
     case "windows-arm64":
-      return { goos: "windows", goarch: "arm64" }
+      return {
+        goos: "windows", goarch: "arm64",
+      }
     case "windows-x64":
-      return { goos: "windows", goarch: "amd64" }
+      return {
+        goos: "windows", goarch: "amd64",
+      }
     default: {
       console.error("❌ Unsupported Go platform, this should never happen")
       process.exit(1)
@@ -54,30 +66,36 @@ function getGoTarget(platform: Platform): GoTarget {
 }
 
 function normalizeVersion(version: string): string {
-  const match = /^v?(\d+)\.(\d+)\.(\d+)/.exec(version.trim())
+  const match = (/^v?(\d+)\.(\d+)\.(\d+)/).exec(version.trim())
 
   if (!match) {
     return version
   }
 
-  const [, major, minor, patch] = match
+  const [ , major, minor, patch ] = match
+
   return `${major}.${minor}.${patch}`
 }
 
 function toWindowsVersionParts(version: string): [number, number, number, number] {
   const core = normalizeVersion(version)
-  const rawParts = core.split(".").map((part) => Number.parseInt(part, 10))
-  const [major = 0, minor = 0, patch = 0] = rawParts
+  const rawParts = core.split(".")
+    .map((part) => Number.parseInt(part, 10))
+  const [ major = 0, minor = 0, patch = 0 ] = rawParts
+
   return [ major, minor, patch, 0 ]
 }
 
 function toWindowsVersionString(version: string): string {
-  return toWindowsVersionParts(version).join(".")
+  return toWindowsVersionParts(version)
+    .join(".")
 }
 
 async function ensureGoversioninfoTool(): Promise<void> {
   const args = [ "mod", "edit", "-json" ]
-  const { stdout, stderr, exitCode } = await x("go", args, {
+  const {
+    stdout, stderr, exitCode,
+  } = await x("go", args, {
     nodeOptions: {
       cwd: "./src/go",
       stdio: "pipe",
@@ -96,8 +114,8 @@ async function ensureGoversioninfoTool(): Promise<void> {
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion
   const modJson = JSON.parse(stdout) as {
     Tool?: Array<{
-      Path?: string
-    }>
+      Path?: string;
+    }>;
   }
 
   const hasGoversioninfoTool = Array.isArray(modJson.Tool)
@@ -137,7 +155,7 @@ async function ensureGoversioninfoTool(): Promise<void> {
 
 // https://learn.microsoft.com/en-us/windows/win32/menurc/versioninfo-resource
 async function writeWindowsVersionInfo(): Promise<void> {
-  const [major, minor, patch, build] = toWindowsVersionParts(packageVersion)
+  const [ major, minor, patch, build ] = toWindowsVersionParts(packageVersion)
   const versionString = toWindowsVersionString(packageVersion)
 
   const versionInfo = {
@@ -184,7 +202,9 @@ async function generateWindowsSyso(goarch: GoTarget["goarch"]): Promise<void> {
   const args = [
     "tool",
     "goversioninfo",
-    goarch === "amd64" ? "-64" : "-arm",
+    goarch === "amd64"
+      ? "-64"
+      : "-arm",
     "-o",
     "resource.syso",
     "versioninfo.json",
@@ -192,7 +212,9 @@ async function generateWindowsSyso(goarch: GoTarget["goarch"]): Promise<void> {
 
   console.log(`🏁 go ${args.join(" ")}\n`)
 
-  const { stderr, exitCode } = await x("go", args, {
+  const {
+    stderr, exitCode,
+  } = await x("go", args, {
     nodeOptions: {
       cwd: "./src/go",
       stdio: "inherit",
@@ -315,7 +337,9 @@ async function main(options?: {
 
       const target = getGoTarget(platform)
       const isWindows = target.goos === "windows"
-      const outfile = `../../go-build/monorepo-hash-${platform}${isWindows ? ".exe" : ""}`
+      const outfile = `../../go-build/monorepo-hash-${platform}${isWindows
+        ? ".exe"
+        : ""}`
 
       if (isWindows) {
         await generateWindowsSyso(target.goarch)
