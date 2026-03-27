@@ -15,6 +15,9 @@
   },
   "files.eol": "\n",
   "files.insertFinalNewline": true,
+  "go.toolsEnvVars": {
+    "GOEXPERIMENT": "jsonv2",
+  },
   "gremlins.showInProblemPane": true,
   "importCost.fontStyle": "italic",
   "importCost.largePackageDarkColor": "#FF5555",

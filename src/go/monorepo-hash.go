@@ -4,7 +4,6 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json/jsontext"
@@ -14,15 +13,16 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"path"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"slices"
 	"sort"
 	"strings"
 	"sync"
-	"unicode"
+
+	"github.com/bmatcuk/doublestar/v4"
+	gitignore "github.com/go-git/go-git/v6/plumbing/format/gitignore"
+	yaml "go.yaml.in/yaml/v4"
 )
 
 var packageManagers = []string{"pnpm", "npm", "deno", "bun", "yarn"}
@@ -90,146 +90,33 @@ type compareResult struct {
 	MissingTargets   []compareMissing `json:"missingTargets"`
 }
 
-type rule struct {
-	pattern  string
-	negated  bool
-	dirOnly  bool
-	hasSlash bool
-	anchored bool
-	re       *regexp.Regexp
-}
-
 type ignoreMatcher struct {
-	rules []rule
+	m gitignore.Matcher
 }
 
 func (m *ignoreMatcher) shouldIgnore(rel string, isDir bool) bool {
+	if m == nil || m.m == nil {
+		return false
+	}
 	rel = toPosix(rel)
-	if rel == "" {
+	if rel == "" || rel == "." {
 		return false
 	}
-	ignored := false
-	for _, r := range m.rules {
-		if matchRule(r, rel, isDir) {
-			ignored = !r.negated
-		}
-	}
-	return ignored
+	parts := strings.Split(rel, "/")
+	return m.m.Match(parts, isDir)
 }
 
-func matchRule(r rule, rel string, isDir bool) bool {
-	if r.dirOnly {
-		if r.hasSlash {
-			p := r.pattern
-			if rel == p || strings.HasPrefix(rel, p+"/") || strings.Contains(rel, "/"+p+"/") {
-				return true
-			}
-			if r.re != nil && r.re.MatchString(rel) {
-				return true
-			}
-			return false
-		}
-		parts := strings.Split(rel, "/")
-		for i, part := range parts {
-			if matchSimplePattern(r.pattern, part) && (i < len(parts)-1 || isDir) {
-				return true
-			}
-		}
-		return false
-	}
-
-	if r.hasSlash {
-		if r.re != nil && r.re.MatchString(rel) {
-			return true
-		}
-		if !r.anchored {
-			return strings.Contains(rel, "/"+r.pattern)
-		}
-		return false
-	}
-
-	parts := strings.SplitSeq(rel, "/")
-	for part := range parts {
-		if matchSimplePattern(r.pattern, part) {
-			return true
-		}
-	}
-	return false
-}
-
-func parseIgnore(content string) *ignoreMatcher {
+func newIgnoreMatcher(content string, domain []string) *ignoreMatcher {
+	patterns := make([]gitignore.Pattern, 0, 32)
 	scanner := bufio.NewScanner(strings.NewReader(content))
-	m := &ignoreMatcher{}
 	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, "#") {
+		line := scanner.Text()
+		if strings.TrimSpace(line) == "" {
 			continue
 		}
-		r := rule{}
-		if strings.HasPrefix(line, "!") {
-			r.negated = true
-			line = strings.TrimPrefix(line, "!")
-		}
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "/") {
-			r.anchored = true
-			line = strings.TrimPrefix(line, "/")
-		}
-		if strings.HasSuffix(line, "/") {
-			r.dirOnly = true
-			line = strings.TrimSuffix(line, "/")
-		}
-		line = toPosix(strings.TrimSpace(line))
-		if line == "" {
-			continue
-		}
-		r.pattern = line
-		r.hasSlash = strings.Contains(line, "/")
-		re, err := compileGlob(line, r.anchored)
-		if err == nil {
-			r.re = re
-		}
-		m.rules = append(m.rules, r)
+		patterns = append(patterns, gitignore.ParsePattern(line, domain))
 	}
-	return m
-}
-
-func compileGlob(glob string, anchored bool) (*regexp.Regexp, error) {
-	var b strings.Builder
-	if anchored {
-		b.WriteString("^")
-	} else {
-		b.WriteString("(^|.*/)")
-	}
-	for i := 0; i < len(glob); i++ {
-		ch := glob[i]
-		switch ch {
-		case '*':
-			if i+1 < len(glob) && glob[i+1] == '*' {
-				b.WriteString(".*")
-				i++
-			} else {
-				b.WriteString("[^/]*")
-			}
-		case '?':
-			b.WriteString("[^/]")
-		case '.', '+', '(', ')', '[', ']', '{', '}', '^', '$', '|', '\\':
-			b.WriteByte('\\')
-			b.WriteByte(ch)
-		default:
-			b.WriteByte(ch)
-		}
-	}
-	b.WriteString("$")
-	return regexp.Compile(b.String())
-}
-
-func matchSimplePattern(pattern, name string) bool {
-	ok, err := path.Match(pattern, name)
-	if err != nil {
-		return pattern == name
-	}
-	return ok
+	return &ignoreMatcher{m: gitignore.NewMatcher(patterns)}
 }
 
 func toPosix(p string) string {
@@ -251,68 +138,6 @@ func displayPath(p string, forceDisableCache bool) string {
 	}
 	displayPathCache.Store(p, transformed)
 	return transformed
-}
-
-func parseJSONC(input string) string {
-	var out bytes.Buffer
-	inString := false
-	escaped := false
-	inLineComment := false
-	inBlockComment := false
-
-	for i := 0; i < len(input); i++ {
-		c := input[i]
-		next := byte(0)
-		if i+1 < len(input) {
-			next = input[i+1]
-		}
-
-		if inLineComment {
-			if c == '\n' {
-				inLineComment = false
-				out.WriteByte(c)
-			}
-			continue
-		}
-		if inBlockComment {
-			if c == '*' && next == '/' {
-				inBlockComment = false
-				i++
-			}
-			continue
-		}
-		if inString {
-			out.WriteByte(c)
-			if escaped {
-				escaped = false
-				continue
-			}
-			switch c {
-			case '\\':
-				escaped = true
-			case '"':
-				inString = false
-			}
-			continue
-		}
-		if c == '"' {
-			inString = true
-			out.WriteByte(c)
-			continue
-		}
-		if c == '/' && next == '/' {
-			inLineComment = true
-			i++
-			continue
-		}
-		if c == '/' && next == '*' {
-			inBlockComment = true
-			i++
-			continue
-		}
-		out.WriteByte(c)
-	}
-	return out.String()
 }
 
 func isPackageManager(value string) bool {
@@ -376,82 +201,6 @@ func findUpFile(startDir, name string) (string, bool) {
 	}
 }
 
-func parsePnpmWorkspace(content string) []string {
-	scanner := bufio.NewScanner(strings.NewReader(content))
-	inPackages := false
-	globs := make([]string, 0, 8)
-	for scanner.Scan() {
-		line := scanner.Text()
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
-			continue
-		}
-		if !inPackages {
-			if strings.HasPrefix(trimmed, "packages:") {
-				inPackages = true
-			}
-			continue
-		}
-		if !strings.HasPrefix(trimmed, "-") {
-			if !strings.HasPrefix(line, " ") && !strings.HasPrefix(line, "\t") {
-				break
-			}
-			continue
-		}
-		v := strings.TrimSpace(strings.TrimPrefix(trimmed, "-"))
-		v = stripYAMLInlineComment(v)
-		v = strings.Trim(v, "\"'")
-		if v != "" {
-			if after, ok := strings.CutPrefix(v, "!"); ok {
-				n := toPosix(strings.TrimSuffix(after, "/"))
-				if n != "" {
-					globs = append(globs, "!"+n)
-				}
-			} else {
-				globs = append(globs, toPosix(strings.TrimSuffix(v, "/")))
-			}
-		}
-	}
-	return globs
-}
-
-func stripYAMLInlineComment(s string) string {
-	inSingle := false
-	inDouble := false
-	escaped := false
-	for i, r := range s {
-		if inDouble && escaped {
-			escaped = false
-			continue
-		}
-		switch r {
-		case '\\':
-			if inDouble {
-				escaped = true
-			}
-		case '\'':
-			if !inDouble {
-				inSingle = !inSingle
-			}
-		case '"':
-			if !inSingle {
-				inDouble = !inDouble
-			}
-		case '#':
-			if !inSingle && !inDouble {
-				if i == 0 {
-					return ""
-				}
-				prev := rune(s[i-1])
-				if unicode.IsSpace(prev) {
-					return strings.TrimSpace(s[:i])
-				}
-			}
-		}
-	}
-	return strings.TrimSpace(s)
-}
-
 func detectPNPM(start string) (*detected, error) {
 	wsPath, ok := findUpFile(start, "pnpm-workspace.yaml")
 	if !ok {
@@ -461,7 +210,26 @@ func detectPNPM(start string) (*detected, error) {
 	if err != nil {
 		return nil, err
 	}
-	globs := parsePnpmWorkspace(string(content))
+	var config struct {
+		Packages []string `yaml:"packages"`
+	}
+	if err := yaml.Load(content, &config); err != nil {
+		return nil, err
+	}
+	globs := make([]string, 0, len(config.Packages))
+	for _, g := range config.Packages {
+		if g == "" {
+			continue
+		}
+		if after, ok := strings.CutPrefix(g, "!"); ok {
+			n := toPosix(strings.TrimSuffix(after, "/"))
+			if n != "" {
+				globs = append(globs, "!"+n)
+			}
+		} else {
+			globs = append(globs, toPosix(strings.TrimSuffix(g, "/")))
+		}
+	}
 	if len(globs) == 0 {
 		return nil, nil
 	}
@@ -483,7 +251,7 @@ func detectDeno(start string) (*detected, error) {
 	var config struct {
 		Workspace []string `json:"workspace"`
 	}
-	if err := json.Unmarshal([]byte(parseJSONC(string(content))), &config); err != nil {
+	if err := json.Unmarshal(content, &config); err != nil {
 		return nil, nil
 	}
 	if len(config.Workspace) == 0 {
@@ -738,63 +506,40 @@ func generateDebug(opts options, out io.Writer, info pkgInfo, oldDebug map[strin
 }
 
 func collectWorkspacePackageJSONs(root string, globs []string) ([]string, error) {
-	type workspacePattern struct {
-		negated bool
-		re      *regexp.Regexp
-	}
-	compiled := make([]workspacePattern, 0, len(globs))
+	matches := make([]string, 0, 64)
+	seen := map[string]struct{}{}
+
 	for _, g := range globs {
 		negated := strings.HasPrefix(g, "!")
-		if negated {
-			g = strings.TrimPrefix(g, "!")
-		}
-		g = toPosix(strings.TrimSuffix(strings.TrimPrefix(g, "./"), "/"))
-		if g == "" {
+		pattern := strings.TrimPrefix(g, "!")
+		pattern = strings.TrimSuffix(strings.TrimPrefix(pattern, "./"), "/")
+		if pattern == "" {
 			continue
 		}
-		re, err := compileGlob(g, true)
+		pattern = filepath.Join(root, filepath.FromSlash(pattern), "package.json")
+
+		found, err := doublestar.FilepathGlob(pattern)
 		if err != nil {
 			return nil, err
 		}
-		compiled = append(compiled, workspacePattern{negated: negated, re: re})
-	}
-	paths := make([]string, 0, 64)
-	err := filepath.WalkDir(root, func(current string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() {
-			name := d.Name()
-			if name == "node_modules" || name == ".git" {
-				return filepath.SkipDir
+
+		if negated {
+			for _, p := range found {
+				delete(seen, filepath.Clean(p))
 			}
-			return nil
+			continue
 		}
-		if d.Name() != "package.json" {
-			return nil
+
+		for _, p := range found {
+			seen[filepath.Clean(p)] = struct{}{}
 		}
-		rel, err := filepath.Rel(root, filepath.Dir(current))
-		if err != nil {
-			return err
-		}
-		rel = toPosix(rel)
-		included := false
-		for _, p := range compiled {
-			if p.re.MatchString(rel) {
-				included = !p.negated
-			}
-		}
-		if included {
-			paths = append(paths, current)
-			return nil
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
 	}
-	sort.Strings(paths)
-	return paths, nil
+
+	for p := range seen {
+		matches = append(matches, p)
+	}
+	sort.Strings(matches)
+	return matches, nil
 }
 
 func getWorkspaceFileList(pkgDir, relDir string, rootIgnore, pkgIgnore *ignoreMatcher) ([]string, error) {
@@ -819,7 +564,7 @@ func getWorkspaceFileList(pkgDir, relDir string, rootIgnore, pkgIgnore *ignoreMa
 			if relDir != "" {
 				repoPath = relDir + "/" + rel
 			}
-			if rootIgnore.shouldIgnore(repoPath, true) || pkgIgnore.shouldIgnore(rel, true) {
+			if rootIgnore.shouldIgnore(repoPath, true) || pkgIgnore.shouldIgnore(repoPath, true) {
 				return filepath.SkipDir
 			}
 			return nil
@@ -831,7 +576,7 @@ func getWorkspaceFileList(pkgDir, relDir string, rootIgnore, pkgIgnore *ignoreMa
 		if relDir != "" {
 			repoPath = relDir + "/" + rel
 		}
-		if rootIgnore.shouldIgnore(repoPath, false) || pkgIgnore.shouldIgnore(rel, false) {
+		if rootIgnore.shouldIgnore(repoPath, false) || pkgIgnore.shouldIgnore(repoPath, false) {
 			return nil
 		}
 		files = append(files, rel)
@@ -1308,12 +1053,8 @@ func execute(args []string, stdout, stderr io.Writer) int {
 	rootIgnore := &ignoreMatcher{}
 	rootGitignorePath := filepath.Join(repoRoot, ".gitignore")
 	if content, err := os.ReadFile(rootGitignorePath); err == nil {
-		rootIgnore = parseIgnore(string(content))
+		rootIgnore = newIgnoreMatcher(string(content), nil)
 	}
-	rootIgnore.rules = append(rootIgnore.rules,
-		rule{pattern: "**/.hash", hasSlash: true, re: mustGlob("**/.hash")},
-		rule{pattern: "**/.debug-hash", hasSlash: true, re: mustGlob("**/.debug-hash")},
-	)
 
 	pkgJSONPaths, err := collectWorkspacePackageJSONs(repoRoot, d.globs)
 	if err != nil {
@@ -1419,7 +1160,11 @@ func execute(args []string, stdout, stderr io.Writer) int {
 		m := meta[name]
 		pkgIgnore := &ignoreMatcher{}
 		if content, err := os.ReadFile(filepath.Join(m.dir, ".gitignore")); err == nil {
-			pkgIgnore = parseIgnore(string(content))
+			domain := []string{}
+			if m.relDir != "" {
+				domain = strings.Split(toPosix(m.relDir), "/")
+			}
+			pkgIgnore = newIgnoreMatcher(string(content), domain)
 		}
 		files, err := getWorkspaceFileList(m.dir, m.relDir, rootIgnore, pkgIgnore)
 		if err != nil {
@@ -1437,7 +1182,7 @@ func execute(args []string, stdout, stderr io.Writer) int {
 			return 99
 		}
 		pkgs[name] = pkgInfo{dir: m.dir, relDir: m.relDir, deps: m.deps, perFileHashes: perFile, ownHash: ownHash}
-		logf(opts, stdout, true, "🔄 Computing hashes (%s/%d) • %s", zeroPad(idx+1, pad), total, m.relDir)
+		logf(opts, stdout, true, "🔄 Computing hashes (%s/%d) • %s", zeroPad(idx+1, pad), total, displayPath(m.relDir, false))
 		if opts.debug && opts.mode == "generate" {
 			if opts.unified {
 				debugRootOutput[m.relDir] = perFile
@@ -1480,11 +1225,6 @@ func execute(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 	return 0
-}
-
-func mustGlob(g string) *regexp.Regexp {
-	re, _ := compileGlob(g, false)
-	return re
 }
 
 func main() {

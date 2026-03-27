@@ -1,6 +1,6 @@
 # monorepo-hash changelog
 
-## v2.2.0-beta.go.1
+## v2.2.0
 ### Breaking changes
 💥✨⚡️ feat/perf : the bundled binary is made with Go. beta, more details to come later. check [#25](https://github.com/EDM115/monorepo-hash/pull/25)
 
