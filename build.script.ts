@@ -202,13 +202,14 @@ async function generateWindowsSyso(goarch: GoTarget["goarch"]): Promise<void> {
   const args = [
     "tool",
     "goversioninfo",
-    goarch === "amd64"
-      ? "-64"
-      : "-arm",
+    goarch === "arm64"
+      ? "-arm"
+      : "",
+    "-64",
     "-o",
     "resource.syso",
     "versioninfo.json",
-  ]
+  ].filter((part) => part !== "")
 
   console.log(`🏁 go ${args.join(" ")}\n`)
 
