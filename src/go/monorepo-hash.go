@@ -7,7 +7,8 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
+	"encoding/json/jsontext"
+	json "encoding/json/v2"
 	"errors"
 	"fmt"
 	"io"
@@ -978,7 +979,7 @@ func writeRootHashFile(root string, update map[string]string) error {
 	for _, k := range keys {
 		ordered[k] = normalized[k]
 	}
-	content, err := json.MarshalIndent(ordered, "", "  ")
+	content, err := json.Marshal(ordered, jsontext.WithIndent("  "))
 	if err != nil {
 		return err
 	}
@@ -995,7 +996,7 @@ func writeDebugFile(dir string, m map[string]string) error {
 	for _, k := range keys {
 		ordered[displayPath(k, false)] = m[k]
 	}
-	content, err := json.MarshalIndent(ordered, "", "  ")
+	content, err := json.Marshal(ordered, jsontext.WithIndent("  "))
 	if err != nil {
 		return err
 	}
@@ -1016,7 +1017,7 @@ func writeRootDebugFile(root string, m map[string]map[string]string) error {
 		}
 		ordered[displayPath(k, false)] = normPerFile
 	}
-	content, err := json.MarshalIndent(ordered, "", "  ")
+	content, err := json.Marshal(ordered, jsontext.WithIndent("  "))
 	if err != nil {
 		return err
 	}

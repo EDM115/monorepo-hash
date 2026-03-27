@@ -364,6 +364,7 @@ async function main(options?: {
           stdio: "inherit",
           env: {
             ...process.env,
+            GOEXPERIMENT: "jsonv2",
             GOOS: target.goos,
             GOARCH: target.goarch,
             CGO_ENABLED: "0",
