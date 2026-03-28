@@ -296,7 +296,7 @@ describe("monorepo-hash API output", () => {
       expect(parsed).not.toBeNull()
       expect(parsed?.missingTargets)
         .toHaveLength(1)
-      expect(parsed?.missingTargets?.[0].name)
+      expect(parsed?.missingTargets?.[0]?.name)
         .toBe("packages/pkg-a")
     })
 
@@ -367,7 +367,7 @@ describe("monorepo-hash API output", () => {
       expect(parsed).not.toBeNull()
       expect(parsed?.missingTargets)
         .toHaveLength(1)
-      expect(parsed?.missingTargets?.[0].name)
+      expect(parsed?.missingTargets?.[0]?.name)
         .toBe("packages/pkg-a")
     })
 

@@ -790,7 +790,11 @@ func generateHashes(opts options, out io.Writer, repoRoot string, pkgs map[strin
 					continue
 				}
 			}
-			m[rel] = finalCache[name]
+			hash, ok := finalCache[name]
+			if !ok {
+				return fmt.Errorf("final hash missing for package %s", name)
+			}
+			m[rel] = hash
 		}
 		if err := writeRootHashFile(repoRoot, m); err != nil {
 			return err
@@ -813,7 +817,10 @@ func generateHashes(opts options, out io.Writer, repoRoot string, pkgs map[strin
 				continue
 			}
 		}
-		hash := finalCache[name]
+		hash, ok := finalCache[name]
+		if !ok {
+			return fmt.Errorf("final hash missing for package %s", name)
+		}
 		if err := os.WriteFile(filepath.Join(p.dir, ".hash"), []byte(hash), 0o644); err != nil {
 			return err
 		}
@@ -906,7 +913,10 @@ func compareHashes(opts options, out io.Writer, repoRoot string, pkgs map[string
 
 	for _, pkgName := range toCheck {
 		info := pkgs[pkgName]
-		newHash := finalCache[pkgName]
+		newHash, ok := finalCache[pkgName]
+		if !ok {
+			return res, fmt.Errorf("final hash missing for package %s", pkgName)
+		}
 		oldHash, hasOld := oldHashMap[pkgName]
 		posixRel := displayPath(info.relDir, false)
 		if !hasOld {
@@ -933,7 +943,9 @@ func compareHashes(opts options, out io.Writer, repoRoot string, pkgs map[string
 		depsChanged := make([]string, 0)
 		for dep := range getTransitive(pkgName) {
 			if _, ok := allChanged[dep]; ok {
-				depsChanged = append(depsChanged, displayPath(pkgs[dep].relDir, false))
+				if depInfo, ok := pkgs[dep]; ok {
+					depsChanged = append(depsChanged, displayPath(depInfo.relDir, false))
+				}
 			}
 		}
 		sort.Strings(depsChanged)

@@ -109,11 +109,13 @@ export async function deferToJSImplementation(): Promise<void> {
   const destPs1 = `${destBase}.ps1`
 
   try {
-    await Promise.all([
+    const binMappings: Array<readonly [string, string]> = [
       [ jsImplBase, destBase ],
       [ jsImplCmd, destCmd ],
       [ jsImplPs1, destPs1 ],
-    ].map(async ([ src, dest ]) => {
+    ]
+
+    await Promise.all(binMappings.map(async ([ src, dest ]) => {
       await unlink(dest)
         .catch((err: unknown) => {
           if (
@@ -152,8 +154,10 @@ export async function deferToJSImplementation(): Promise<void> {
  * @returns A promise that resolves to the version string
  */
 export async function getVersion(): Promise<string> {
-  if (typeof env.npm_package_version === "string" && env.npm_package_version.length > 0) {
-    return env.npm_package_version
+  const npmPackageVersion = env["npm_package_version"]
+
+  if (typeof npmPackageVersion === "string" && npmPackageVersion.length > 0) {
+    return npmPackageVersion
   }
 
   const pkgPath = join(__dirname, "..", "package.json")

@@ -236,9 +236,14 @@ export async function mapLimit<T, R>(
   async function worker() {
     while (idx < items.length) {
       const current = idx++
+      const item = items[current]
+
+      if (item === undefined) {
+        continue
+      }
 
       // oxlint-disable-next-line no-await-in-loop
-      results[current] = await fn(items[current])
+      results[current] = await fn(item)
     }
   }
 
@@ -719,7 +724,13 @@ export function computeOwnHashFromPerFile(
   const rawBuffer = Buffer.allocUnsafe(32)
 
   for (const key of sortedKeys) {
-    rawBuffer.write(perFileMap[key], "hex")
+    const hex = perFileMap[key]
+
+    if (hex === undefined) {
+      continue
+    }
+
+    rawBuffer.write(hex, "hex")
     h.update(rawBuffer)
   }
 
@@ -758,14 +769,25 @@ export function computeFinalHash(
 
   const pkg = pkgs[pkgName]
 
+  if (!pkg) {
+    log(`❌ Package metadata missing for ${pkgName}`, false, "error")
+    safeExit(99)
+
+    throw new Error(`Package metadata missing for ${pkgName}`)
+  }
+
   if (!pkg.ownHash) {
     log(`❌ ownHash missing for package ${pkgName}`, false, "error")
     safeExit(99)
+
+    throw new Error(`ownHash missing for package ${pkgName}`)
   }
+
+  const ownHash = pkg.ownHash
 
   // Start the chain
   const chain = createHash("sha256")
-    .update(pkg.ownHash!)
+    .update(ownHash)
 
   // Then incorporate each dependency's final hash (as Buffer)
   for (const dep of pkg.deps) {
@@ -845,7 +867,16 @@ export async function generateHashes(
     const map: Record<string, string> = new NullObj<string>()
 
     for (const [ name, { relDir }] of entries) {
-      map[displayPath(relDir)] = finalCache[name]
+      const current = finalCache[name]
+
+      if (current === undefined) {
+        log(`❌ final hash missing for package ${name}`, false, "error")
+        safeExit(99)
+
+        throw new Error(`final hash missing for package ${name}`)
+      }
+
+      map[displayPath(relDir)] = current
     }
 
     await writeRootHashFile(repoRoot, map)
@@ -866,6 +897,14 @@ export async function generateHashes(
       },
     ]) => {
       const current = finalCache[name]
+
+      if (current === undefined) {
+        log(`❌ final hash missing for package ${name}`, false, "error")
+        safeExit(99)
+
+        throw new Error(`final hash missing for package ${name}`)
+      }
+
       const hashPath = join(dir, ".hash")
 
       await writeFile(hashPath, current)
@@ -976,7 +1015,7 @@ export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCach
     }
 
     const visited = new Set<string>()
-    const stack = [...adjacency[pkgName]]
+    const stack = [...(adjacency[pkgName] ?? [])]
 
     while (stack.length > 0) {
       const dep = stack.pop()!
@@ -1023,6 +1062,14 @@ export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCach
 
   const checkResults = await Promise.all(toCheck.map(async ([ pkgName, info ]) => {
     const newHash = finalCache[pkgName]
+
+    if (newHash === undefined) {
+      log(`❌ final hash missing for package ${pkgName}`, false, "error")
+      safeExit(99)
+
+      throw new Error(`final hash missing for package ${pkgName}`)
+    }
+
     const posixRel = displayPath(info.relDir)
     const oldHash = pkgName in oldHashMap
       ? oldHashMap[pkgName]
@@ -1053,7 +1100,9 @@ export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCach
     const transitiveDeps = getTransitiveDeps(pkgName)
     const depsChanged = Array.from(transitiveDeps)
       .filter((d) => allChanged.has(d))
-    const changedDepsRelDir = depsChanged.map((d) => pkgs[d].relDir)
+    const changedDepsRelDir = depsChanged
+      .map((d) => pkgs[d]?.relDir)
+      .filter((relDir): relDir is string => typeof relDir === "string")
 
     if (oldHash !== newHash || depsChanged.length > 0) {
       return {
@@ -1405,7 +1454,8 @@ export async function runCli(customArgv?: string[]): Promise<Awaited<ReturnType<
 
       mode = "compare"
     } else if (arg.startsWith("--target=") || arg.startsWith("-t=")) {
-      const [ , val ] = arg.split("=")
+      const [ , rawVal ] = arg.split("=")
+      const val = rawVal ?? ""
 
       targets = val.split(",")
         .map((p) => p.replace(/\/+$/, ""))
@@ -1416,16 +1466,17 @@ export async function runCli(customArgv?: string[]): Promise<Awaited<ReturnType<
     } else if (arg === "--workspaces" || arg === "-w") {
       unified = false
     } else if (arg.startsWith("--packagemanager=") || arg.startsWith("-pm=")) {
-      const [ , val ] = arg.split("=")
+      const [ , rawVal ] = arg.split("=")
+      const val = rawVal ?? ""
 
       if (!isPackageManager(val)) {
         log(`❌ Invalid package manager ("${val}"), supported values are : ${PACKAGE_MANAGERS.join(", ")}`, false, "error")
         safeExit(2)
+
+        throw new Error(`Invalid package manager: ${val}`)
       }
 
-      pmOption = isPackageManager(val)
-        ? val
-        : null
+      pmOption = val
     } else if (arg === "--nopathcache" || arg === "-npc") {
       usePathCache = false
     } else if (arg === "--help" || arg === "-h") {

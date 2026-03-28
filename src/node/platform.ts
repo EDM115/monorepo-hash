@@ -40,15 +40,15 @@ export async function detectLibcFamily(): Promise<LibcFamily> {
     const header = ((processReport as { header?: Record<string, unknown> } | undefined)?.header
       ?? {})
 
-    const glibcVersion = header.glibcVersionRuntime
+    const glibcVersion = header["glibcVersionRuntime"]
 
     if (typeof glibcVersion === "string" && glibcVersion.length > 0) {
       return "glibc"
     }
 
-    const maybeLibc = header.libcVersionRuntime
-      ?? header.runtimeLibc
-      ?? header.muslVersionRuntime
+    const maybeLibc = header["libcVersionRuntime"]
+      ?? header["runtimeLibc"]
+      ?? header["muslVersionRuntime"]
 
     if (typeof maybeLibc === "string" && maybeLibc.toLowerCase()
       .includes("musl")) {

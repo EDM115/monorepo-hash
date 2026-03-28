@@ -73,8 +73,8 @@ describe("edge cases", () => {
 
       expect(pkgFiles)
         .toBeDefined()
-      expect(Object.keys(pkgFiles)).not.toContain("debug.log")
-      expect(Object.keys(pkgFiles)
+      expect(Object.keys(pkgFiles ?? {})).not.toContain("debug.log")
+      expect(Object.keys(pkgFiles ?? {})
         .some((k) => k.startsWith("dist/")))
         .toBe(false)
     })
@@ -86,8 +86,8 @@ describe("edge cases", () => {
       const debugContent = JSON.parse(await readFile(debugPath, "utf8")) as Record<string, Record<string, string>>
       const pkgFiles = debugContent["packages/pkg-gitignore"]
 
-      expect(Object.keys(pkgFiles)).not.toContain("temp.tmp")
-      expect(Object.keys(pkgFiles))
+      expect(Object.keys(pkgFiles ?? {})).not.toContain("temp.tmp")
+      expect(Object.keys(pkgFiles ?? {}))
         .toContain("index.js")
     })
   })
@@ -130,7 +130,7 @@ describe("edge cases", () => {
         .toBeDefined()
       expect(typeof content["packages/pkg-empty"])
         .toBe("string")
-      expect(content["packages/pkg-empty"].length)
+      expect(content["packages/pkg-empty"]?.length)
         .toBe(64)
     })
   })
@@ -172,7 +172,7 @@ describe("edge cases", () => {
       const debugContent = JSON.parse(await readFile(debugPath, "utf8")) as Record<string, Record<string, string>>
       const pkgFiles = debugContent["packages/pkg-special"]
 
-      expect(Object.keys(pkgFiles))
+      expect(Object.keys(pkgFiles ?? {}))
         .toContain("hello-world.js")
     })
 
@@ -183,7 +183,7 @@ describe("edge cases", () => {
       const debugContent = JSON.parse(await readFile(debugPath, "utf8")) as Record<string, Record<string, string>>
       const pkgFiles = debugContent["packages/pkg-special"]
 
-      expect(Object.keys(pkgFiles))
+      expect(Object.keys(pkgFiles ?? {}))
         .toContain("file with spaces.txt")
     })
   })
