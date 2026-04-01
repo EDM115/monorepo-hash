@@ -109,8 +109,8 @@
     "postinstall": "node -e \"const fs = require('fs'); const path = require('path'); const installBinaryPath = path.join(__dirname, 'dist', 'install-binary.mjs'); const srcPath = path.join(__dirname, 'src'); if (fs.existsSync(installBinaryPath) && !fs.existsSync(srcPath)) { const child_process = require('child_process'); child_process.execFileSync(process.execPath, [installBinaryPath], { stdio: 'inherit' }); }\"",
     "release": "pnpm publish",
     "test": "pnpm test:node && pnpm test:bun && pnpm test:go",
-    "test:bun": "pnpm build:bun && vitest --project bun",
-    "test:go": "pnpm build:go && vitest --project go",
+    "test:bun": "pnpm cli:build-bin -r bun -p current && pnpm build:bun:chmod && vitest --project bun",
+    "test:go": "pnpm cli:build-bin -r go -p current && pnpm build:go:chmod && vitest --project go",
     "test:node": "pnpm build:node && vitest --project node",
     "typecheck": "tsgo --noEmit"
   },

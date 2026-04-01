@@ -46,6 +46,74 @@ describe("exit codes", () => {
       .toBe(0)
   })
 
+  it("keeps --silent for --help output", async () => {
+    const result = await x(cli, [ "--silent", "--help" ], {
+      nodeOptions: { cwd },
+    })
+
+    expect(result.exitCode)
+      .toBe(0)
+    expect(result.stdout)
+      .toBe("")
+    expect(result.stderr)
+      .toBe("")
+  })
+
+  it("keeps --silent for --version output", async () => {
+    const result = await x(cli, [ "--silent", "--version" ], {
+      nodeOptions: { cwd },
+    })
+
+    expect(result.exitCode)
+      .toBe(0)
+    expect(result.stdout)
+      .toBe("")
+    expect(result.stderr)
+      .toBe("")
+  })
+
+  it("keeps --silent for no-mode help output", async () => {
+    const result = await x(cli, ["--silent"], {
+      nodeOptions: { cwd },
+    })
+
+    expect(result.exitCode)
+      .toBe(0)
+    expect(result.stdout)
+      .toBe("")
+    expect(result.stderr)
+      .toBe("")
+  })
+
+  it("does not let --help bypass unknown options", async () => {
+    const result = await x(cli, [ "--help", "--edm115" ], {
+      nodeOptions: { cwd },
+    })
+
+    expect(result.exitCode)
+      .toBe(3)
+  })
+
+  it("does not let --version bypass unknown options", async () => {
+    const result = await x(cli, [ "--version", "--edm115" ], {
+      nodeOptions: { cwd },
+    })
+
+    expect(result.exitCode)
+      .toBe(3)
+  })
+
+  it("keeps silent parse errors quiet", async () => {
+    const result = await x(cli, [ "--silent", "--edm115" ], {
+      nodeOptions: { cwd },
+    })
+
+    expect(result.exitCode)
+      .toBe(3)
+    expect(result.stderr)
+      .toBe("")
+  })
+
   it("returns 2 when both --generate and --compare are specified", async () => {
     const result = await x(cli, [ "--generate", "--compare" ], {
       nodeOptions: { cwd },
@@ -86,6 +154,24 @@ describe("exit codes", () => {
 
     expect(result.exitCode)
       .toBe(5)
+  })
+
+  it("returns 4 when workspace globs resolve to no package.json files", async () => {
+    const noPkgDir = join(cwd, "workspace-without-packages")
+
+    await mkdirp(noPkgDir)
+    await writeFile(join(noPkgDir, "pnpm-workspace.yaml"), "packages:\n  - \"packages/*\"\n")
+
+    try {
+      const result = await x(cli, ["--generate"], {
+        nodeOptions: { cwd: noPkgDir },
+      })
+
+      expect(result.exitCode)
+        .toBe(4)
+    } finally {
+      await remove(noPkgDir)
+    }
   })
 
   // technically an edge case but here since it throws an exit code

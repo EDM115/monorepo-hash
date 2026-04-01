@@ -252,6 +252,34 @@ describe("edge cases", () => {
       expect(keys).not.toContain("packages/pkg-2")
     })
 
+    it("preserves spaces in comma-separated target values", async () => {
+      await remove(join(targetDir, ".hash"))
+      await x(cli, [ targetCliScript, "--generate", "--target=packages/pkg-1, packages/pkg-3" ], { nodeOptions: { cwd: targetDir } })
+      const hashPath = join(targetDir, ".hash")
+      // oxlint-disable-next-line no-unsafe-type-assertion
+      const content = JSON.parse(await readFile(hashPath, "utf8")) as Record<string, string>
+      const keys = Object.keys(content)
+
+      expect(keys)
+        .toHaveLength(1)
+      expect(keys)
+        .toContain("packages/pkg-1")
+      expect(keys).not.toContain("packages/pkg-3")
+    })
+
+    it("treats empty --target value as an explicit empty target list", async () => {
+      await remove(join(targetDir, ".hash"))
+      const result = await x(cli, [ targetCliScript, "--generate", "--target=" ], { nodeOptions: { cwd: targetDir } })
+      const hashPath = join(targetDir, ".hash")
+      // oxlint-disable-next-line no-unsafe-type-assertion
+      const content = JSON.parse(await readFile(hashPath, "utf8")) as Record<string, string>
+
+      expect(result.exitCode)
+        .toBe(0)
+      expect(Object.keys(content))
+        .toHaveLength(0)
+    })
+
     it("compares only specified target", async () => {
       await x(cli, [ targetCliScript, "--generate" ], { nodeOptions: { cwd: targetDir } })
       await writeFile(join(targetDir, "packages", "pkg-1", "index.js"), "export const pkg_1 = false\n")
@@ -259,6 +287,98 @@ describe("edge cases", () => {
 
       expect(result.exitCode)
         .toBe(0)
+    })
+  })
+
+  describe("workspace detection robustness", () => {
+    it("falls back from invalid deno.json to package.json workspaces", async () => {
+      const dir = join(cwd, "invalid-deno-fallback")
+
+      await mkdirp(join(dir, "packages", "pkg-a"))
+      await writeFile(join(dir, "deno.json"), "{ invalid json }")
+      await writeJson(join(dir, "package.json"), { workspaces: ["packages/*"] }, { spaces: 2 })
+      await writeFile(join(dir, "package-lock.json"), "")
+      await writeJson(join(dir, "packages", "pkg-a", "package.json"), {
+        name: "pkg-a",
+        version: "1.0.0",
+      }, { spaces: 2 })
+      await writeFile(join(dir, "packages", "pkg-a", "index.js"), "export const a = 1\n")
+
+      try {
+        const result = await x(cli, [ cliScript, "--generate" ], {
+          nodeOptions: { cwd: dir },
+        })
+
+        expect(result.exitCode)
+          .toBe(0)
+      } finally {
+        await remove(dir)
+      }
+    })
+
+    it("returns 99 for malformed pnpm-workspace.yaml", async () => {
+      const dir = join(cwd, "invalid-pnpm-workspace")
+
+      await mkdirp(join(dir, "packages", "pkg-a"))
+      await writeFile(join(dir, "pnpm-workspace.yaml"), "packages: [")
+      await writeJson(join(dir, "package.json"), { workspaces: ["packages/*"] }, { spaces: 2 })
+      await writeJson(join(dir, "packages", "pkg-a", "package.json"), {
+        name: "pkg-a",
+        version: "1.0.0",
+      }, { spaces: 2 })
+
+      try {
+        const result = await x(cli, [ cliScript, "--generate" ], {
+          nodeOptions: { cwd: dir },
+        })
+
+        expect(result.exitCode)
+          .toBe(99)
+      } finally {
+        await remove(dir)
+      }
+    })
+
+    it("supports extglob workspace patterns", async () => {
+      const dir = join(cwd, "extglob-workspaces")
+
+      await mkdirp(join(dir, "packages", "pkg-1"))
+      await mkdirp(join(dir, "packages", "pkg-2"))
+      await mkdirp(join(dir, "packages", "pkg-3"))
+      await writeFile(join(dir, "pnpm-workspace.yaml"), "packages:\n  - \"packages/@(pkg-1|pkg-2)\"\n")
+
+      await writeJson(join(dir, "packages", "pkg-1", "package.json"), {
+        name: "pkg-1",
+        version: "1.0.0",
+      }, { spaces: 2 })
+      await writeJson(join(dir, "packages", "pkg-2", "package.json"), {
+        name: "pkg-2",
+        version: "1.0.0",
+      }, { spaces: 2 })
+      await writeJson(join(dir, "packages", "pkg-3", "package.json"), {
+        name: "pkg-3",
+        version: "1.0.0",
+      }, { spaces: 2 })
+
+      try {
+        const result = await x(cli, [ cliScript, "--generate" ], {
+          nodeOptions: { cwd: dir },
+        })
+        const hashPath = join(dir, ".hash")
+        // oxlint-disable-next-line no-unsafe-type-assertion
+        const content = JSON.parse(await readFile(hashPath, "utf8")) as Record<string, string>
+        const keys = Object.keys(content)
+
+        expect(result.exitCode)
+          .toBe(0)
+        expect(keys)
+          .toContain("packages/pkg-1")
+        expect(keys)
+          .toContain("packages/pkg-2")
+        expect(keys).not.toContain("packages/pkg-3")
+      } finally {
+        await remove(dir)
+      }
     })
   })
 })

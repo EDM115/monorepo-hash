@@ -37,6 +37,7 @@ type options struct {
 	mode      string
 	targets   []string
 	silent    bool
+	help      bool
 	debug     bool
 	unified   bool
 	pmOption  string
@@ -123,6 +124,100 @@ func toPosix(p string) string {
 	return strings.ReplaceAll(p, "\\", "/")
 }
 
+func findFirstSupportedExtglob(pattern string) (int, byte) {
+	for i := 0; i+1 < len(pattern); i++ {
+		if (pattern[i] == '@' || pattern[i] == '?') && pattern[i+1] == '(' {
+			return i, pattern[i]
+		}
+	}
+
+	return -1, 0
+}
+
+func findMatchingParen(pattern string, open int) int {
+	depth := 0
+
+	for i := open; i < len(pattern); i++ {
+		switch pattern[i] {
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth == 0 {
+				return i
+			}
+		}
+	}
+
+	return -1
+}
+
+func splitExtglobAlternatives(body string) []string {
+	if body == "" {
+		return []string{""}
+	}
+
+	parts := make([]string, 0, 4)
+	start := 0
+	depth := 0
+
+	for i := 0; i < len(body); i++ {
+		switch body[i] {
+		case '(':
+			depth++
+		case ')':
+			if depth > 0 {
+				depth--
+			}
+		case '|':
+			if depth == 0 {
+				parts = append(parts, body[start:i])
+				start = i + 1
+			}
+		}
+	}
+
+	parts = append(parts, body[start:])
+
+	return parts
+}
+
+func expandSupportedExtglob(pattern string) []string {
+	idx, op := findFirstSupportedExtglob(pattern)
+	if idx < 0 {
+		return []string{pattern}
+	}
+
+	open := idx + 1
+	close := findMatchingParen(pattern, open)
+	if close < 0 {
+		return []string{pattern}
+	}
+
+	alts := splitExtglobAlternatives(pattern[open+1 : close])
+	replacements := make([]string, 0, len(alts)+1)
+	switch op {
+	case '@':
+		replacements = append(replacements, alts...)
+	case '?':
+		replacements = append(replacements, "")
+		replacements = append(replacements, alts...)
+	default:
+		return []string{pattern}
+	}
+
+	prefix := pattern[:idx]
+	suffix := pattern[close+1:]
+	expanded := make([]string, 0, len(replacements))
+
+	for _, rep := range replacements {
+		next := prefix + rep + suffix
+		expanded = append(expanded, expandSupportedExtglob(next)...)
+	}
+
+	return expanded
+}
+
 func displayPath(p string, forceDisableCache bool) string {
 	if !needsPathConversion {
 		return p
@@ -177,6 +272,10 @@ func logf(opts options, out io.Writer, overwrite bool, format string, args ...an
 	msg := fmt.Sprintf(format, args...)
 	if overwrite && canOverwriteLine(out) {
 		fmt.Fprintf(out, "\r\x1b[2K%s", msg)
+		return
+	}
+	if overwrite {
+		fmt.Fprintln(out, "\r"+msg)
 		return
 	}
 	fmt.Fprintln(out, msg)
@@ -379,12 +478,9 @@ func parseArgs(args []string) (options, int, error) {
 			parts := strings.SplitN(arg, "=", 2)
 			if len(parts) == 2 {
 				targets := strings.Split(parts[1], ",")
-				opts.targets = opts.targets[:0]
-				for _, t := range targets {
-					t = strings.TrimSpace(strings.TrimSuffix(toPosix(t), "/"))
-					if t != "" {
-						opts.targets = append(opts.targets, t)
-					}
+				opts.targets = make([]string, len(targets))
+				for i, t := range targets {
+					opts.targets[i] = strings.TrimRight(toPosix(t), "/")
 				}
 			}
 		case arg == "--silent" || arg == "-s":
@@ -400,7 +496,7 @@ func parseArgs(args []string) (options, int, error) {
 			}
 			opts.pmOption = parts[1]
 		case arg == "--help" || arg == "-h":
-			return opts, 0, nil
+			opts.help = true
 		case arg == "--version" || arg == "-v":
 			opts.version = true
 		case arg == "--nopathcache" || arg == "-npc":
@@ -409,12 +505,10 @@ func parseArgs(args []string) (options, int, error) {
 			return opts, 3, fmt.Errorf("Unknown option : %s", arg)
 		}
 	}
-	if opts.version {
+	if opts.mode == "" || opts.help {
 		return opts, 0, nil
 	}
-	if opts.mode == "" {
-		return opts, 0, nil
-	}
+
 	return opts, -1, nil
 }
 
@@ -516,22 +610,26 @@ func collectWorkspacePackageJSONs(root string, globs []string) ([]string, error)
 		if pattern == "" {
 			continue
 		}
-		pattern = filepath.Join(root, filepath.FromSlash(pattern), "package.json")
 
-		found, err := doublestar.FilepathGlob(pattern)
-		if err != nil {
-			return nil, err
-		}
+		expandedPatterns := expandSupportedExtglob(pattern)
+		for _, expanded := range expandedPatterns {
+			fullPattern := filepath.Join(root, filepath.FromSlash(expanded), "package.json")
 
-		if negated {
-			for _, p := range found {
-				delete(seen, filepath.Clean(p))
+			found, err := doublestar.FilepathGlob(fullPattern)
+			if err != nil {
+				return nil, err
 			}
-			continue
-		}
 
-		for _, p := range found {
-			seen[filepath.Clean(p)] = struct{}{}
+			if negated {
+				for _, p := range found {
+					delete(seen, filepath.Clean(p))
+				}
+				continue
+			}
+
+			for _, p := range found {
+				seen[filepath.Clean(p)] = struct{}{}
+			}
 		}
 	}
 
@@ -703,6 +801,47 @@ func loadRootHashFile(root string) (map[string]string, error) {
 	return parsed, nil
 }
 
+func marshalSortedStringMap(m map[string]string) ([]byte, error) {
+	if len(m) == 0 {
+		return []byte("{}"), nil
+	}
+
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	var b strings.Builder
+	b.Grow(len(keys) * 80)
+	b.WriteString("{\n")
+
+	for i, k := range keys {
+		keyJSON, err := json.Marshal(k)
+		if err != nil {
+			return nil, err
+		}
+		valueJSON, err := json.Marshal(m[k])
+		if err != nil {
+			return nil, err
+		}
+
+		b.WriteString("  ")
+		b.Write(keyJSON)
+		b.WriteString(": ")
+		b.Write(valueJSON)
+		if i < len(keys)-1 {
+			b.WriteString(",\n")
+		} else {
+			b.WriteString("\n")
+		}
+	}
+
+	b.WriteString("}")
+
+	return []byte(b.String()), nil
+}
+
 func writeRootHashFile(root string, update map[string]string) error {
 	normalized := map[string]string{}
 	existing, err := loadRootHashFile(root)
@@ -715,16 +854,7 @@ func writeRootHashFile(root string, update map[string]string) error {
 	for k, v := range update {
 		normalized[displayPath(k, false)] = v
 	}
-	keys := make([]string, 0, len(normalized))
-	for k := range normalized {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	ordered := make(map[string]string, len(keys))
-	for _, k := range keys {
-		ordered[k] = normalized[k]
-	}
-	content, err := json.Marshal(ordered, jsontext.WithIndent("  "))
+	content, err := marshalSortedStringMap(normalized)
 	if err != nil {
 		return err
 	}
@@ -845,7 +975,7 @@ func compareHashes(opts options, out io.Writer, repoRoot string, pkgs map[string
 			}
 		}
 		for pkgName, info := range pkgs {
-			if old, ok := rootHashes[displayPath(info.relDir, false)]; ok {
+			if old, ok := rootHashes[displayPath(info.relDir, false)]; ok && old != "" {
 				oldHashMap[pkgName] = old
 			}
 		}
@@ -925,9 +1055,11 @@ func compareHashes(opts options, out io.Writer, repoRoot string, pkgs map[string
 		}
 		if opts.debug {
 			if opts.unified {
-				_, err := generateDebug(opts, out, info, rootDebug[posixRel])
-				if err != nil {
-					return res, err
+				if rootDebug != nil {
+					_, err := generateDebug(opts, out, info, rootDebug[posixRel])
+					if err != nil {
+						return res, err
+					}
 				}
 			} else {
 				oldDebug, err := loadDebugFile(info.dir)
@@ -997,28 +1129,32 @@ func execute(args []string, stdout, stderr io.Writer) int {
 	opts, code, err := parseArgs(args)
 	usePathCache = opts.pathCache
 	displayPathCache = sync.Map{}
-	if opts.version {
-		fmt.Fprintf(stdout, "monorepo-hash v%s\n", CLI_VERSION)
-		return 0
-	}
-	if code == 0 && err == nil && opts.mode == "" {
-		printHelp(stdout)
-		return 0
-	}
 	if err != nil {
-		fmt.Fprintf(stderr, "❌ %s\n", err.Error())
+		if !opts.silent {
+			fmt.Fprintf(stderr, "❌ %s\n", err.Error())
+		}
 		return code
+	}
+	if opts.version {
+		linef(opts, stdout, "monorepo-hash v%s", CLI_VERSION)
+		return 0
+	}
+	if code == 0 && (opts.mode == "" || opts.help) {
+		if !opts.silent {
+			printHelp(stdout)
+		}
+		return 0
 	}
 
 	if opts.mode == "generate" {
 		if len(opts.targets) > 0 {
-			linef(opts, stdout, "ℹ️  Generating hashes for specified targets... (%s)", strings.Join(opts.targets, ","))
+			linef(opts, stdout, "ℹ️  Generating hashes for specified targets... (%s)\n", strings.Join(opts.targets, ", "))
 		} else {
 			linef(opts, stdout, "ℹ️  Generating hashes for all workspaces...\n")
 		}
 	} else {
 		if len(opts.targets) > 0 {
-			linef(opts, stdout, "ℹ️  Comparing hashes for specified targets... (%s)", strings.Join(opts.targets, ","))
+			linef(opts, stdout, "ℹ️  Comparing hashes for specified targets... (%s)\n", strings.Join(opts.targets, ", "))
 		} else {
 			linef(opts, stdout, "ℹ️  Comparing hashes for all workspaces...\n")
 		}
@@ -1211,7 +1347,7 @@ func execute(args []string, stdout, stderr io.Writer) int {
 		}
 	}
 	logf(opts, stdout, true, "✅ Computed all hashes (%d)", total)
-	linef(opts, stdout, "")
+	linef(opts, stdout, "\n")
 
 	finalCache := make(map[string]string, len(pkgs))
 	for _, name := range toHash {

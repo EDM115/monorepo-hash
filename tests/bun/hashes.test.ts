@@ -195,6 +195,33 @@ packages:
       expect(cliToolsExists)
         .toBe(false)
     })
+
+    it("writes root .hash entries sorted by workspace key", async () => {
+      const rootPath = join(demoDir, ".hash")
+
+      await writeFile(rootPath, JSON.stringify({
+        "zzz/legacy": "111",
+        "packages/linter": "222",
+        "database": "333",
+      }, null, 2))
+
+      await x(cli, [ "--generate", "--target=packages/cli-tools" ], { nodeOptions: { cwd: demoDir } })
+
+      const raw = await readFile(rootPath, "utf8")
+      const indexDatabase = raw.indexOf("\"database\"")
+      const indexCliTools = raw.indexOf("\"packages/cli-tools\"")
+      const indexLinter = raw.indexOf("\"packages/linter\"")
+      const indexLegacy = raw.indexOf("\"zzz/legacy\"")
+
+      expect(indexDatabase)
+        .toBeGreaterThanOrEqual(0)
+      expect(indexCliTools)
+        .toBeGreaterThan(indexDatabase)
+      expect(indexLinter)
+        .toBeGreaterThan(indexCliTools)
+      expect(indexLegacy)
+        .toBeGreaterThan(indexLinter)
+    })
   })
 
   describe("workspaces", () => {

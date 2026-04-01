@@ -8,6 +8,8 @@ import {
 import { argv } from "node:process"
 import { x } from "tinyexec"
 
+import { detectPlatformId } from "./src/node/platform"
+
 const RUNTIMES = [ "bun", "rust", "go" ] as const
 const PLATFORMS = [ "darwin-arm64", "darwin-x64", "linux-arm64", "linux-arm64-musl", "linux-x64", "linux-x64-musl", "windows-arm64", "windows-x64" ] as const
 const packageVersion = process.env.npm_package_version || packageJson.version
@@ -243,7 +245,8 @@ async function generateWindowsSyso(goarch: GoTarget["goarch"]): Promise<void> {
  * Available platforms : `darwin-arm64`, `darwin-x64`, `linux-arm64`, `linux-arm64-musl`, `linux-x64`, `linux-x64-musl`, `windows-arm64`, `windows-x64`.  
  * Shorthands : `-r bun`, `-p linux-x64-musl`.  
  * Exits with code 1 when not both params are provided or when an invalid param is provided.  
- * Ability to use `all` as platform to build for all platforms.
+ * Ability to use `all` as platform to build for all platforms.  
+ * Ability to use `current` as platform to build for the current platform.
  */
 async function main(options?: {
   runtime: string; platform: string;
@@ -288,6 +291,22 @@ async function main(options?: {
     }
 
     return
+  }
+
+  if (!options && argPlatform === "current") {
+    const detectedPlatform = await detectPlatformId()
+
+    if (!detectedPlatform) {
+      console.error("❌ Failed to detect current platform")
+      process.exit(1)
+    }
+
+    if (!isValidPlatform(detectedPlatform)) {
+      console.error("❌ Unsupported platform, this should never happen")
+      process.exit(1)
+    }
+
+    argPlatform = detectedPlatform
   }
 
   if (!isValidPlatform(argPlatform)) {

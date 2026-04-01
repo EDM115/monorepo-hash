@@ -7,8 +7,8 @@ The original CLI have been written in pure TS to run in NodeJS.
 When editing the source of other implementations, make sure that they follow the same logic as the original one.  
 When adding features/fixing bugs, make sure to do it everywhere.  
 `src/node-install-binary.ts` is the script ran as a `postinstall` step of the NPM package. `monorepo-hash` is solely distributed through the NPM registry, and the generated binary is also grabbed on install to be ran faster. When installed, the `monorepo-hash` endpoint points to the binary, while `monorepo-hash-js` allows to run the original NodeJS version. This script is never ran in development.  
-`src/bun/monorepo-hash.ts` have been written to generate a binary using Bun. It uses Bun's internals to run faster, and was distributed as the binary from v1.8.0 to v2.2.1. Its behavior is identical to the NodeJS version.  
-`src/go/monorepo-hash.go` is the Go implementation of the CLI. It should be as close as possible to the original one, but some differences may be acceptable if they are justified by the language differences. Behavior must be identical, but not all functions should behave the same. The goal is to have something at least a little bit idiomatic to Go, while still being as close as possible to the original.  
+`src/bun/monorepo-hash.ts` have been written to generate a binary using Bun. It uses Bun's internals to run faster, and was distributed as the binary from v1.8.0 to v2.1.1. Its behavior is identical to the NodeJS version.  
+`src/go/monorepo-hash.go` is the Go implementation of the CLI. It should be as close as possible to the original one, but some differences may be acceptable if they are justified by the language differences. Behavior must be identical, but not all functions should behave the same. The goal is to have something at least a little bit idiomatic to Go, while still being as close as possible to the original. It will replace the Bun binary starting v2.2.0.  
 **All versions should prioritize 3 aspects (in order) :**
 1. Speed
 2. Behavior consistency
@@ -32,4 +32,6 @@ The NodeJS version is built using `tsdown`. No third-party dependency is ever sh
 - The CLI must be cross-platform. Check what we do (ex path normalization)
 - It should be deterministic
 - It's fine to derive from the OG implementation when it leads to one of the 3 aspects being better (ex more optimized function declaration in Go), as long as it doesn't introduce any change that might be considered breaking by existing users. Even tiny things like what's logged could be relied on by users.
-- When in doubt, ask the developer.
+- When in doubt, ask the developer
+- A lot of the behavior is explained in the `README.md`
+- When running tests by directly calling `pnpm vitest`, use the `--reporter=agent` flag

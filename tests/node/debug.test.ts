@@ -24,6 +24,28 @@ describe("debug mode", () => {
   })
 
   describe("unified", () => {
+    it("does not report missing workspace debug files when root .debug-hash is absent", async () => {
+      const rootDebug = join(cwd, ".debug-hash")
+
+      if (await pathExists(rootDebug)) {
+        await remove(rootDebug)
+      }
+
+      await x(cli, [ cliScript, "--generate" ], { nodeOptions: { cwd } })
+      const result = await x(
+        cli,
+        [ cliScript, "--compare", "--debug" ],
+        {
+          nodeOptions: { cwd },
+        },
+      )
+
+      expect(result.exitCode)
+        .toBe(0)
+      expect(result.stdout)
+        .not.toContain("has no .debug-hash to compare")
+    })
+
     it("creates root .debug-hash file and reports mismatched files", async () => {
       await x(cli, [ cliScript, "--generate", "--debug" ], { nodeOptions: { cwd } })
 

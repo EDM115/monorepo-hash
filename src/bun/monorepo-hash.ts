@@ -304,9 +304,16 @@ async function detectDeno(): Promise<{
   }
 
   const root = dirname(denoPath)
-  // oxlint-disable-next-line no-unsafe-type-assertion
-  const config = await file(denoPath)
-    .json() as { workspace?: string[] }
+  let config: { workspace?: string[] }
+
+  try {
+    // oxlint-disable-next-line no-unsafe-type-assertion
+    config = await file(denoPath)
+      .json() as { workspace?: string[] }
+  } catch {
+    return null
+  }
+
   const globs: string[] = Array.isArray(config.workspace)
     ? config.workspace
     : []
@@ -678,7 +685,11 @@ async function writeRootHashFile(
     normalized[displayPath(key)] = value
   }
 
-  await write(p, JSON.stringify(normalized, null, 2))
+  const sortedEntries = Object.entries(normalized)
+    // oxlint-disable-next-line no-array-sort
+    .sort((a, b) => a[0].localeCompare(b[0]))
+
+  await write(p, JSON.stringify(Object.fromEntries(sortedEntries), null, 2))
 }
 
 async function generateHashes(
@@ -1025,6 +1036,11 @@ async function hash(): Promise<Awaited<ReturnType<typeof generateHashes>> | Awai
     },
   )
 
+  if (pkgJsonPaths.length === 0) {
+    log("❌ No package.json files found in workspaces", false, "error")
+    exit(4)
+  }
+
   // 2) read package.json files to gather basic info (without hashing yet)
   const meta: Map<string, Meta> = new Map()
   const relToName: Map<string, string> = new Map()
@@ -1236,6 +1252,7 @@ async function runCli(customArgv?: string[]): Promise<Awaited<ReturnType<typeof 
   pmOption = null
   usePathCache = true
   let helpRequested = false
+  let versionRequested = false
 
   // Clear caches for fresh runs
   existsCache.clear()
@@ -1284,12 +1301,16 @@ async function runCli(customArgv?: string[]): Promise<Awaited<ReturnType<typeof 
     } else if (arg === "--help" || arg === "-h") {
       helpRequested = true
     } else if (arg === "--version" || arg === "-v") {
-      log(`monorepo-hash v${CLI_VERSION}`)
-      exit(0)
+      versionRequested = true
     } else {
       log(`❌ Unknown option : ${arg}`, false, "error")
       exit(3)
     }
+  }
+
+  if (versionRequested) {
+    log(`monorepo-hash v${CLI_VERSION}`)
+    exit(0)
   }
 
   if (!mode || helpRequested) {
@@ -1342,49 +1363,49 @@ Arguments :
     }
   }
 
-  const detected = pmOption
-    ? await detectSpecified(pmOption)
-    : await autoDetect()
+  try {
+    const detected = pmOption
+      ? await detectSpecified(pmOption)
+      : await autoDetect()
 
-  if (!detected) {
-    if (pmOption) {
-      const auto = await autoDetect()
+    if (!detected) {
+      if (pmOption) {
+        const auto = await autoDetect()
 
-      if (auto) {
-        log(`❌ ${pmOption} workspaces not found. Did you mean --packagemanager=${auto.pm}?`, false, "error")
-      } else {
-        log("❌ Specified package manager not found and no supported package manager detected", false, "error")
+        if (auto) {
+          log(`❌ ${pmOption} workspaces not found. Did you mean --packagemanager=${auto.pm}?`, false, "error")
+        } else {
+          log("❌ Specified package manager not found and no supported package manager detected", false, "error")
+        }
+
+        exit(5)
       }
 
-      exit(5)
+      log("❌ No workspaces found or unsupported package manager", false, "error")
+      exit(4)
     }
 
-    log("❌ No workspaces found or unsupported package manager", false, "error")
-    exit(4)
-  }
+    packageManager = detected?.pm ?? null
+    repoRoot = detected?.root ?? ""
+    workspaceGlobs = detected?.globs ?? []
 
-  packageManager = detected?.pm ?? null
-  repoRoot = detected?.root ?? ""
-  workspaceGlobs = detected?.globs ?? []
+    log(`ℹ️  Using ${packageManager} workspaces from ${repoRoot}\n`)
 
-  log(`ℹ️  Using ${packageManager} workspaces from ${repoRoot}\n`)
-
-  // Compile root .gitignore
-  globalRootIgnore = ignore()
-  const rootGit: string = join(repoRoot, ".gitignore")
-
-  if (await exists(rootGit)) {
-    const rootGitContents = await file(rootGit)
-      .text()
-
+    // Compile root .gitignore
     globalRootIgnore = ignore()
-      .add(rootGitContents)
-    // Ignore hashes
-    globalRootIgnore.add("**/.hash")
-    globalRootIgnore.add("**/.debug-hash")
-  }
+    const rootGit: string = join(repoRoot, ".gitignore")
 
-  try {
+    if (await exists(rootGit)) {
+      const rootGitContents = await file(rootGit)
+        .text()
+
+      globalRootIgnore = ignore()
+        .add(rootGitContents)
+      // Ignore hashes
+      globalRootIgnore.add("**/.hash")
+      globalRootIgnore.add("**/.debug-hash")
+    }
+
     return await hash()
   } catch (err) {
     log("❌ Unexpected error :", false, "error")

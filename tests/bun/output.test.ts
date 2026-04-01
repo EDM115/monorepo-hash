@@ -90,6 +90,27 @@ describe("monorepo-hash CLI output", () => {
         .toContain("• packages/pkg-a")
     })
 
+    it("treats empty old hash values as missing entries", async () => {
+      await x(cli, ["--generate"], { nodeOptions: { cwd } })
+      const rootHashPath = join(cwd, ".hash")
+      // oxlint-disable-next-line no-unsafe-type-assertion
+      const content = JSON.parse(await readFile(rootHashPath, "utf8")) as Record<string, string>
+
+      content["packages/pkg-a"] = ""
+      await writeFile(rootHashPath, `${JSON.stringify(content, null, 2)}\n`)
+
+      const result = await x(cli, ["--compare"], {
+        nodeOptions: { cwd },
+      })
+
+      expect(result.exitCode)
+        .toBe(1)
+      expect(result.stdout)
+        .toContain("❓ Missing .hash files")
+      expect(result.stdout)
+        .toContain("• packages/pkg-a")
+    })
+
     it("produces deterministic hashes across consecutive --generate runs", async () => {
       await x(cli, ["--generate"], { nodeOptions: { cwd } })
       const rootHashPath = join(cwd, ".hash")
