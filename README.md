@@ -533,6 +533,10 @@ git commit -m "the message" && git push
 pnpm release
 ```
 
+### Update process
+- PNPM (Node.js/Bun) : `pnpm up -L`
+- Go : `cd src/go && go get -u && go get -u tool && go mod tidy && cd ../..`
+
 ## :eyes: Who uses `monorepo-hash` ?
 - [Nexelec](https://nexelec.eu), at least during my internship there
 - [Me](https://github.com/EDM115) :smile:

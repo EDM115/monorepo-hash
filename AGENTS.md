@@ -1,0 +1,35 @@
+# AI Agents guidance - `monorepo-hash`
+
+## Structure
+### CLI
+The original CLI have been written in pure TS to run in NodeJS.  
+`src/node/monorepo-hash.ts` is the source of truth for any other modifications. Its existing behavior (ex logs, capitalization, punctuation, ...) should be preserved as much as possible.  
+When editing the source of other implementations, make sure that they follow the same logic as the original one.  
+When adding features/fixing bugs, make sure to do it everywhere.  
+`src/node-install-binary.ts` is the script ran as a `postinstall` step of the NPM package. `monorepo-hash` is solely distributed through the NPM registry, and the generated binary is also grabbed on install to be ran faster. When installed, the `monorepo-hash` endpoint points to the binary, while `monorepo-hash-js` allows to run the original NodeJS version. This script is never ran in development.  
+`src/bun/monorepo-hash.ts` have been written to generate a binary using Bun. It uses Bun's internals to run faster, and was distributed as the binary from v1.8.0 to v2.2.1. Its behavior is identical to the NodeJS version.  
+`src/go/monorepo-hash.go` is the Go implementation of the CLI. It should be as close as possible to the original one, but some differences may be acceptable if they are justified by the language differences. Behavior must be identical, but not all functions should behave the same. The goal is to have something at least a little bit idiomatic to Go, while still being as close as possible to the original.  
+**All versions should prioritize 3 aspects (in order) :**
+1. Speed
+2. Behavior consistency
+3. Low memory usage
+
+### Tests
+`tests/node` houses all the tests for `monorepo-hash`. They include more tests than the ones for binaries since users can import the package to use it programmatically, hence a need to validate the behavior of the exported functions.  
+`tests/bun` houses all the tests for the Bun binary. They are exactly the same (and have same snapshots) as the NodeJS ones, without the ones related to the programmatic usage of the package.  
+`tests/go` houses all the tests for the Go binary. Exactly the same as the Bun ones.  
+When adding new tests (ex for a new feature), make sure to add them everywhere. When fixing bugs, make sure to add a test that validates the fix, and add it everywhere.  
+We use Vitest and projects to separate tests between the implementations.
+
+## Scripts & Deps
+Everything is in the `package.json`. This project *isn't* a monorepo.  
+We use `PNPM` as a package manager **and** a task runner (even for non-Node related tasks).  
+Dependencies in the `package.json` are shared between the NodeJS and Bun implementations. For Go, see `src/go/go.mod`.  
+For building the binaries, we have a custom script (`build.script.ts`) that calls `bun` or `go` directly and crafts the right arguments to pass.  
+The NodeJS version is built using `tsdown`. No third-party dependency is ever shipped to users on install.
+
+## To keep in mind
+- The CLI must be cross-platform. Check what we do (ex path normalization)
+- It should be deterministic
+- It's fine to derive from the OG implementation when it leads to one of the 3 aspects being better (ex more optimized function declaration in Go), as long as it doesn't introduce any change that might be considered breaking by existing users. Even tiny things like what's logged could be relied on by users.
+- When in doubt, ask the developer.
