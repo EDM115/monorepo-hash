@@ -30,7 +30,7 @@ jobs:
         run: pnpm i --frozen-lockfile
 
       - name: "Build the Darwin arm64 binary"
-        run: pnpm cli:build-bin -r bun -p darwin-arm64 && pnpm build:bun:chmod
+        run: pnpm cli:build-bin -r bun -p darwin-arm64 && pnpm cli:chmod
 
       - name: "Test the binary"
         run: ./bun-build/monorepo-hash-darwin-arm64 --help
@@ -67,7 +67,7 @@ jobs:
         run: pnpm i --frozen-lockfile
 
       - name: "Build the Darwin x64 binary"
-        run: pnpm cli:build-bin -r bun -p darwin-x64 && pnpm build:bun:chmod
+        run: pnpm cli:build-bin -r bun -p darwin-x64 && pnpm cli:chmod
 
       - name: "Test the binary"
         run: ./bun-build/monorepo-hash-darwin-x64 --help
@@ -104,7 +104,7 @@ jobs:
         run: pnpm i --frozen-lockfile
 
       - name: "Build the Linux arm64 binary"
-        run: pnpm cli:build-bin -r bun -p linux-arm64 && pnpm build:bun:chmod
+        run: pnpm cli:build-bin -r bun -p linux-arm64 && pnpm cli:chmod
 
       - name: "Test the binary"
         run: ./bun-build/monorepo-hash-linux-arm64 --help
@@ -148,7 +148,7 @@ jobs:
               && export BUN_INSTALL="$HOME/.bun" \
               && export PATH="$BUN_INSTALL/bin:$PATH" \
               && pnpm cli:build-bin -r bun -p linux-arm64-musl \
-              && pnpm build:bun:chmod \
+              && pnpm cli:chmod \
               && ./bun-build/monorepo-hash-linux-arm64-musl --help
             '
 
@@ -184,7 +184,7 @@ jobs:
         run: pnpm i --frozen-lockfile
 
       - name: "Build the Linux x64 binary"
-        run: pnpm cli:build-bin -r bun -p linux-x64 && pnpm build:bun:chmod
+        run: pnpm cli:build-bin -r bun -p linux-x64 && pnpm cli:chmod
 
       - name: "Test the binary"
         run: ./bun-build/monorepo-hash-linux-x64 --help
@@ -228,7 +228,7 @@ jobs:
               && export BUN_INSTALL="$HOME/.bun" \
               && export PATH="$BUN_INSTALL/bin:$PATH" \
               && pnpm cli:build-bin -r bun -p linux-x64-musl \
-              && pnpm build:bun:chmod \
+              && pnpm cli:chmod \
               && ./bun-build/monorepo-hash-linux-x64-musl --help
             '
 

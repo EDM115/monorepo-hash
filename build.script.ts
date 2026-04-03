@@ -1,14 +1,20 @@
 import packageJson from "./package.json" with { type: "json" }
 
 import {
+  chmod,
   mkdir,
+  readdir,
   rm,
   writeFile,
 } from "node:fs/promises"
+import { join } from "node:path"
 import { argv } from "node:process"
 import { x } from "tinyexec"
 
-import { detectPlatformId } from "./src/node/platform"
+import {
+  detectPlatformId,
+  exists,
+} from "./src/node/platform"
 
 const RUNTIMES = [ "bun", "rust", "go" ] as const
 const PLATFORMS = [ "darwin-arm64", "darwin-x64", "linux-arm64", "linux-arm64-musl", "linux-x64", "linux-x64-musl", "windows-arm64", "windows-x64" ] as const
@@ -30,6 +36,38 @@ function isValidRuntime(runtime: string): runtime is Runtime {
 
 function isValidPlatform(platform: string): platform is Platform {
   return (PLATFORMS as readonly string[]).includes(platform)
+}
+
+async function chmodBinaries() {
+  const filesToChmod: string[] = []
+
+  const bunBuildPath = "./bun-build"
+  const bunPathExists = await exists(bunBuildPath)
+
+  if (bunPathExists) {
+    const bunBuildFiles = await readdir(bunBuildPath, { withFileTypes: true })
+
+    for (const file of bunBuildFiles) {
+      if (file.isFile() && !file.name.includes(".")) {
+        filesToChmod.push(join(bunBuildPath, file.name))
+      }
+    }
+  }
+
+  const goBuildPath = "./go-build"
+  const goPathExists = await exists(goBuildPath)
+
+  if (goPathExists) {
+    const goBuildFiles = await readdir(goBuildPath, { withFileTypes: true })
+
+    for (const file of goBuildFiles) {
+      if (file.isFile() && !file.name.includes(".")) {
+        filesToChmod.push(join(goBuildPath, file.name))
+      }
+    }
+  }
+
+  await Promise.all(filesToChmod.map(async (file) => await chmod(file, 0o755)))
 }
 
 function getGoTarget(platform: Platform): GoTarget {
@@ -246,7 +284,8 @@ async function generateWindowsSyso(goarch: GoTarget["goarch"]): Promise<void> {
  * Shorthands : `-r bun`, `-p linux-x64-musl`.  
  * Exits with code 1 when not both params are provided or when an invalid param is provided.  
  * Ability to use `all` as platform to build for all platforms.  
- * Ability to use `current` as platform to build for the current platform.
+ * Ability to use `current` as platform to build for the current platform.  
+ * Ability to just run `jiti ./build.script.ts --chmod` to chmod +x all generated binaries (for example after a `--platform=all` build on a non-Windows platform).
  */
 async function main(options?: {
   runtime: string; platform: string;
@@ -265,6 +304,12 @@ async function main(options?: {
         argRuntime = args[args.indexOf(arg) + 1]
       } else if (arg === "-p") {
         argPlatform = args[args.indexOf(arg) + 1]
+      } else if (arg === "--chmod") {
+        // oxlint-disable-next-line no-await-in-loop
+        await chmodBinaries()
+        console.log("✅ Successfully chmod +x binaries\n")
+
+        return
       }
     }
   } else {

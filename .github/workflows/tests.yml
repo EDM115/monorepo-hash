@@ -54,9 +54,8 @@ jobs:
         run: |
           pnpm build:node
           pnpm cli:build-bin -r bun -p linux-x64
-          pnpm build:bun:chmod
           pnpm cli:build-bin -r go -p linux-x64
-          pnpm build:go:chmod
+          pnpm cli:chmod
 
       - name: "Run the node tests"
         run: pnpm vitest --project node
