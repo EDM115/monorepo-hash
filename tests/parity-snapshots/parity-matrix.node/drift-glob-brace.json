@@ -1,0 +1,14 @@
+{
+  "args": [
+    "--generate",
+    "--silent"
+  ],
+  "pre": [],
+  "exitCode": 0,
+  "stdout": "",
+  "stderr": "",
+  "stdoutNorm": "",
+  "files": {
+    ".hash": "{\n  \"packages/a\": \"11d2c9bfc9beab67209489aa66da7582d58abdf992aeb74a6f485fcf230fc134\",\n  \"packages/b\": \"df780d82cec68d99b68ba54367b735d6050f8e98093efc4ea07a4bcff683dc77\"\n}"
+  }
+}

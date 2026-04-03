@@ -1232,7 +1232,7 @@ func execute(args []string, stdout, stderr io.Writer) int {
 		if opts.pmOption != "" {
 			auto, _ := autoDetect(wd)
 			if auto != nil {
-				linef(opts, stderr, "❌ %s workspaces not found. Did you mean --packagemanager=%s?\n", opts.pmOption, auto.pm)
+				linef(opts, stderr, "❌ %s workspaces not found. Did you mean --packagemanager=%s?", opts.pmOption, auto.pm)
 			} else {
 				linef(opts, stderr, "❌ Specified package manager not found and no supported package manager detected")
 			}

@@ -1,0 +1,12 @@
+{
+  "args": [
+    "--generate",
+    "--compare"
+  ],
+  "pre": [],
+  "exitCode": 2,
+  "stdout": "",
+  "stderr": "❌ Cannot specify both --generate and --compare\n",
+  "stdoutNorm": "",
+  "files": {}
+}
