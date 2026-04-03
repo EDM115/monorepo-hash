@@ -137,9 +137,7 @@ packages:
       const keys = Object.keys(content)
 
       expect(keys)
-        .toContain("packages/cli-tools")
-      expect(keys)
-        .toHaveLength(1)
+        .toEqual(["packages/cli-tools"])
     })
 
     it("produces the same hash for a workspace with transitive deps as in full generate", async () => {

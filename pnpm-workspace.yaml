@@ -1,7 +1,7 @@
-dedupePeers: true
+allowBuilds:
+  esbuild: true
+  unrs-resolver: true
 
-onlyBuiltDependencies:
-  - esbuild
-  - unrs-resolver
+dedupePeers: true
 
 shellEmulator: true

@@ -1,4 +1,7 @@
-import { writeFile } from "node:fs/promises"
+import {
+  readFile,
+  writeFile,
+} from "node:fs/promises"
 import { join } from "node:path"
 import {
   beforeAll,
@@ -83,6 +86,25 @@ describe("debug mode", () => {
       expect(pkgADebugExists)
         .toBe(false)
     })
+
+    it("writes root .debug-hash entries sorted by workspace and file keys", async () => {
+      await x(cli, [ "--generate", "--debug" ], { nodeOptions: { cwd } })
+
+      const rootDebug = join(cwd, ".debug-hash")
+      // oxlint-disable-next-line no-unsafe-type-assertion
+      const content = JSON.parse(await readFile(rootDebug, "utf8")) as Record<string, Record<string, string>>
+      const workspaceKeys = Object.keys(content)
+
+      expect(workspaceKeys)
+        .toEqual([...workspaceKeys].toSorted())
+
+      for (const workspaceKey of workspaceKeys) {
+        const fileKeys = Object.keys(content[workspaceKey] ?? {})
+
+        expect(fileKeys)
+          .toEqual([...fileKeys].toSorted())
+      }
+    })
   })
 
   describe("workspaces", () => {
@@ -128,6 +150,20 @@ describe("debug mode", () => {
 
       expect(pkgADebugExists)
         .toBe(true)
+    })
+
+    it("writes per-workspace .debug-hash entries sorted by file keys", async () => {
+      await x(cli, [ "--generate", "--debug", "--workspaces" ], { nodeOptions: { cwd } })
+
+      for (const pkg of [ "pkg-a", "pkg-b", "pkg-c" ]) {
+        const debugPath = join(cwd, "packages", pkg, ".debug-hash")
+        // oxlint-disable-next-line no-unsafe-type-assertion no-await-in-loop
+        const content = JSON.parse(await readFile(debugPath, "utf8")) as Record<string, string>
+        const fileKeys = Object.keys(content)
+
+        expect(fileKeys)
+          .toEqual([...fileKeys].toSorted())
+      }
     })
   })
 })

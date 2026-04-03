@@ -35,14 +35,16 @@ describe("monorepo-hash CLI output", () => {
       expect(result.exitCode)
         .toBe(0)
 
+      const expectedPattern = new RegExp(
+        "✅ Unchanged \\(3\\) :\\s*"
+        + "• packages/pkg-a\\s*"
+        + "• packages/pkg-b\\s*"
+        + "• packages/pkg-c",
+        "ms",
+      )
+
       expect(result.stdout)
-        .toMatch(/✅ Unchanged \(3\) :/m)
-      expect(result.stdout)
-        .toMatch(new RegExp("• packages/pkg-a", "m"))
-      expect(result.stdout)
-        .toMatch(new RegExp("• packages/pkg-b", "m"))
-      expect(result.stdout)
-        .toMatch(new RegExp("• packages/pkg-c", "m"))
+        .toMatch(expectedPattern)
     })
 
     it("detects a file change and exits with non-zero, listing the changed workspace", async () => {
@@ -226,13 +228,7 @@ describe("monorepo-hash API output", () => {
 
       expect(parsed).not.toBeNull()
       expect(parsed?.unchangedTargets)
-        .toHaveLength(3)
-      expect(parsed?.unchangedTargets)
-        .toContain("packages/pkg-a")
-      expect(parsed?.unchangedTargets)
-        .toContain("packages/pkg-b")
-      expect(parsed?.unchangedTargets)
-        .toContain("packages/pkg-c")
+        .toEqual([ "packages/pkg-a", "packages/pkg-b", "packages/pkg-c" ])
     })
 
     it("detects a file change and lists the changed workspace", async () => {
@@ -267,17 +263,13 @@ describe("monorepo-hash API output", () => {
 
       expect(parsed).not.toBeNull()
       expect(parsed?.unchangedTargets)
-        .toHaveLength(1)
-      expect(parsed?.unchangedTargets)
-        .toContain("packages/pkg-c")
+        .toEqual(["packages/pkg-c"])
       expect(parsed?.changedTargets)
         .toHaveLength(2)
       const changedNames = parsed?.changedTargets.map((t) => t.name) ?? []
 
       expect(changedNames)
-        .toContain("packages/pkg-a")
-      expect(changedNames)
-        .toContain("packages/pkg-b")
+        .toEqual([ "packages/pkg-a", "packages/pkg-b" ])
     })
 
     it("reports missing .hash if you delete an entry and run --compare", async () => {

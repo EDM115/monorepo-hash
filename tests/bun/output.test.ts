@@ -32,14 +32,16 @@ describe("monorepo-hash CLI output", () => {
       expect(result.exitCode)
         .toBe(0)
 
+      const expectedPattern = new RegExp(
+        "✅ Unchanged \\(3\\) :\\s*"
+        + "• packages/pkg-a\\s*"
+        + "• packages/pkg-b\\s*"
+        + "• packages/pkg-c",
+        "ms",
+      )
+
       expect(result.stdout)
-        .toMatch(/✅ Unchanged \(3\) :/m)
-      expect(result.stdout)
-        .toMatch(new RegExp("• packages/pkg-a", "m"))
-      expect(result.stdout)
-        .toMatch(new RegExp("• packages/pkg-b", "m"))
-      expect(result.stdout)
-        .toMatch(new RegExp("• packages/pkg-c", "m"))
+        .toMatch(expectedPattern)
     })
 
     it("detects a file change and exits with non-zero, listing the changed workspace", async () => {

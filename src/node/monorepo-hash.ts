@@ -586,7 +586,11 @@ export async function writeDebugFile(
     normalizedMap[displayPath(key)] = value
   }
 
-  await writeFile(debugPath, JSON.stringify(normalizedMap, null, 2), "utf8")
+  const sortedEntries = Object.entries(normalizedMap)
+    // oxlint-disable-next-line no-array-sort
+    .sort((a, b) => a[0].localeCompare(b[0]))
+
+  await writeFile(debugPath, JSON.stringify(Object.fromEntries(sortedEntries), null, 2), "utf8")
 }
 
 /**
@@ -626,10 +630,18 @@ export async function writeRootDebugFile(
       normPerFile[displayPath(fileKey)] = fileHash
     }
 
-    normalizedMap[normWsKey] = normPerFile
+    const sortedPerFileEntries = Object.entries(normPerFile)
+      // oxlint-disable-next-line no-array-sort
+      .sort((a, b) => a[0].localeCompare(b[0]))
+
+    normalizedMap[normWsKey] = Object.fromEntries(sortedPerFileEntries)
   }
 
-  await writeFile(p, JSON.stringify(normalizedMap, null, 2), "utf8")
+  const sortedWorkspaceEntries = Object.entries(normalizedMap)
+    // oxlint-disable-next-line no-array-sort
+    .sort((a, b) => a[0].localeCompare(b[0]))
+
+  await writeFile(p, JSON.stringify(Object.fromEntries(sortedWorkspaceEntries), null, 2), "utf8")
 }
 
 /**

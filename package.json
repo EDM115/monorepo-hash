@@ -17,7 +17,7 @@
     "@typescript/native-preview": "latest",
     "edm115-lint": "~0.2.1",
     "empathic": "~2.0.0",
-    "eslint": "~10.1.0",
+    "eslint": "~10.2.0",
     "globals": "~17.4.0",
     "ignore": "~7.0.5",
     "jiti": "~2.6.1",
@@ -115,5 +115,5 @@
     "typecheck": "tsgo --noEmit"
   },
   "type": "module",
-  "version": "2.2.0-beta.go.2"
+  "version": "2.2.0-beta.go.3"
 }

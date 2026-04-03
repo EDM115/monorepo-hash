@@ -9,7 +9,7 @@ tool (
 
 require (
 	github.com/bmatcuk/doublestar/v4 v4.10.0
-	github.com/go-git/go-git/v6 v6.0.0-20260331140939-8126d61b3452
+	github.com/go-git/go-git/v6 v6.0.0-alpha.1
 	go.yaml.in/yaml/v4 v4.0.0-rc.4
 )
 

@@ -470,7 +470,11 @@ async function writeDebugFile(
     normalizedMap[displayPath(key)] = value
   }
 
-  await write(debugPath, JSON.stringify(normalizedMap, null, 2))
+  const sortedEntries = Object.entries(normalizedMap)
+    // oxlint-disable-next-line no-array-sort
+    .sort((a, b) => a[0].localeCompare(b[0]))
+
+  await write(debugPath, JSON.stringify(Object.fromEntries(sortedEntries), null, 2))
 }
 
 async function loadRootDebugFile(rootDir: string): Promise<Record<string, Record<string, string>> | null> {
@@ -500,10 +504,18 @@ async function writeRootDebugFile(
       normPerFile[displayPath(fileKey)] = fileHash
     }
 
-    normalizedMap[normWsKey] = normPerFile
+    const sortedPerFileEntries = Object.entries(normPerFile)
+      // oxlint-disable-next-line no-array-sort
+      .sort((a, b) => a[0].localeCompare(b[0]))
+
+    normalizedMap[normWsKey] = Object.fromEntries(sortedPerFileEntries)
   }
 
-  await write(p, JSON.stringify(normalizedMap, null, 2))
+  const sortedWorkspaceEntries = Object.entries(normalizedMap)
+    // oxlint-disable-next-line no-array-sort
+    .sort((a, b) => a[0].localeCompare(b[0]))
+
+  await write(p, JSON.stringify(Object.fromEntries(sortedWorkspaceEntries), null, 2))
 }
 
 async function generateDebug(

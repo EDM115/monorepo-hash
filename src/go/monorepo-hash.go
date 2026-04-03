@@ -6,7 +6,6 @@ import (
 	"bufio"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json/jsontext"
 	json "encoding/json/v2"
 	"errors"
 	"fmt"
@@ -842,6 +841,64 @@ func marshalSortedStringMap(m map[string]string) ([]byte, error) {
 	return []byte(b.String()), nil
 }
 
+func marshalSortedNestedStringMap(m map[string]map[string]string) ([]byte, error) {
+	if len(m) == 0 {
+		return []byte("{}"), nil
+	}
+
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	var b strings.Builder
+	b.Grow(len(keys) * 160)
+	b.WriteString("{\n")
+
+	for i, k := range keys {
+		keyJSON, err := json.Marshal(k)
+		if err != nil {
+			return nil, err
+		}
+
+		inner, err := marshalSortedStringMap(m[k])
+		if err != nil {
+			return nil, err
+		}
+
+		innerLines := strings.Split(string(inner), "\n")
+
+		b.WriteString("  ")
+		b.Write(keyJSON)
+		b.WriteString(": ")
+
+		if len(innerLines) == 1 {
+			b.WriteString(innerLines[0])
+		} else {
+			b.WriteString(innerLines[0])
+			b.WriteByte('\n')
+			for lineIndex := 1; lineIndex < len(innerLines); lineIndex++ {
+				b.WriteString("  ")
+				b.WriteString(innerLines[lineIndex])
+				if lineIndex < len(innerLines)-1 {
+					b.WriteByte('\n')
+				}
+			}
+		}
+
+		if i < len(keys)-1 {
+			b.WriteString(",\n")
+		} else {
+			b.WriteByte('\n')
+		}
+	}
+
+	b.WriteString("}")
+
+	return []byte(b.String()), nil
+}
+
 func writeRootHashFile(root string, update map[string]string) error {
 	normalized := map[string]string{}
 	existing, err := loadRootHashFile(root)
@@ -862,16 +919,12 @@ func writeRootHashFile(root string, update map[string]string) error {
 }
 
 func writeDebugFile(dir string, m map[string]string) error {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
+	normalized := make(map[string]string, len(m))
+	for k, v := range m {
+		normalized[displayPath(k, false)] = v
 	}
-	sort.Strings(keys)
-	ordered := make(map[string]string, len(keys))
-	for _, k := range keys {
-		ordered[displayPath(k, false)] = m[k]
-	}
-	content, err := json.Marshal(ordered, jsontext.WithIndent("  "))
+
+	content, err := marshalSortedStringMap(normalized)
 	if err != nil {
 		return err
 	}
@@ -879,20 +932,16 @@ func writeDebugFile(dir string, m map[string]string) error {
 }
 
 func writeRootDebugFile(root string, m map[string]map[string]string) error {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	ordered := make(map[string]map[string]string, len(keys))
-	for _, k := range keys {
-		normPerFile := make(map[string]string, len(m[k]))
-		for fk, fv := range m[k] {
+	normalized := make(map[string]map[string]string, len(m))
+	for k, perFile := range m {
+		normPerFile := make(map[string]string, len(perFile))
+		for fk, fv := range perFile {
 			normPerFile[displayPath(fk, false)] = fv
 		}
-		ordered[displayPath(k, false)] = normPerFile
+		normalized[displayPath(k, false)] = normPerFile
 	}
-	content, err := json.Marshal(ordered, jsontext.WithIndent("  "))
+
+	content, err := marshalSortedNestedStringMap(normalized)
 	if err != nil {
 		return err
 	}
@@ -1130,9 +1179,7 @@ func execute(args []string, stdout, stderr io.Writer) int {
 	usePathCache = opts.pathCache
 	displayPathCache = sync.Map{}
 	if err != nil {
-		if !opts.silent {
-			fmt.Fprintf(stderr, "❌ %s\n", err.Error())
-		}
+		linef(opts, stderr, "❌ %s", err.Error())
 		return code
 	}
 	if opts.version {
@@ -1168,7 +1215,7 @@ func execute(args []string, stdout, stderr io.Writer) int {
 
 	wd, err := os.Getwd()
 	if err != nil {
-		fmt.Fprintf(stderr, "❌ %s\n", err.Error())
+		linef(opts, stderr, "❌ %s\n", err.Error())
 		return 99
 	}
 	var d *detected
@@ -1178,20 +1225,20 @@ func execute(args []string, stdout, stderr io.Writer) int {
 		d, err = autoDetect(wd)
 	}
 	if err != nil {
-		fmt.Fprintf(stderr, "❌ %s\n", err.Error())
+		linef(opts, stderr, "❌ %s\n", err.Error())
 		return 99
 	}
 	if d == nil {
 		if opts.pmOption != "" {
 			auto, _ := autoDetect(wd)
 			if auto != nil {
-				fmt.Fprintf(stderr, "❌ %s workspaces not found. Did you mean --packagemanager=%s?\n", opts.pmOption, auto.pm)
+				linef(opts, stderr, "❌ %s workspaces not found. Did you mean --packagemanager=%s?\n", opts.pmOption, auto.pm)
 			} else {
-				fmt.Fprintln(stderr, "❌ Specified package manager not found and no supported package manager detected")
+				linef(opts, stderr, "❌ Specified package manager not found and no supported package manager detected")
 			}
 			return 5
 		}
-		fmt.Fprintln(stderr, "❌ No workspaces found or unsupported package manager")
+		linef(opts, stderr, "❌ No workspaces found or unsupported package manager")
 		return 4
 	}
 
@@ -1206,11 +1253,11 @@ func execute(args []string, stdout, stderr io.Writer) int {
 
 	pkgJSONPaths, err := collectWorkspacePackageJSONs(repoRoot, d.globs)
 	if err != nil {
-		fmt.Fprintf(stderr, "❌ %s\n", err.Error())
+		linef(opts, stderr, "❌ %s\n", err.Error())
 		return 99
 	}
 	if len(pkgJSONPaths) == 0 {
-		fmt.Fprintln(stderr, "❌ No package.json files found in workspaces")
+		linef(opts, stderr, "❌ No package.json files found in workspaces")
 		return 4
 	}
 
@@ -1220,16 +1267,16 @@ func execute(args []string, stdout, stderr io.Writer) int {
 	for _, pkgPath := range pkgJSONPaths {
 		content, err := os.ReadFile(pkgPath)
 		if err != nil {
-			fmt.Fprintf(stderr, "❌ %s\n", err.Error())
+			linef(opts, stderr, "❌ %s\n", err.Error())
 			return 99
 		}
 		var manifest packageManifest
 		if err := json.Unmarshal(content, &manifest); err != nil {
-			fmt.Fprintf(stderr, "❌ Invalid JSON in %s\n", pkgPath)
+			linef(opts, stderr, "❌ Invalid JSON in %s\n", pkgPath)
 			return 99
 		}
 		if manifest.Name == "" {
-			fmt.Fprintf(stderr, "❌ Missing package name in %s\n", pkgPath)
+			linef(opts, stderr, "❌ Missing package name in %s\n", pkgPath)
 			return 99
 		}
 		dir := filepath.Dir(pkgPath)
@@ -1316,17 +1363,17 @@ func execute(args []string, stdout, stderr io.Writer) int {
 		}
 		files, err := getWorkspaceFileList(m.dir, m.relDir, rootIgnore, pkgIgnore)
 		if err != nil {
-			fmt.Fprintf(stderr, "❌ %s\n", err.Error())
+			linef(opts, stderr, "❌ %s\n", err.Error())
 			return 99
 		}
 		perFile, err := computePerFileHashes(m.dir, files)
 		if err != nil {
-			fmt.Fprintf(stderr, "❌ %s\n", err.Error())
+			linef(opts, stderr, "❌ %s\n", err.Error())
 			return 99
 		}
 		ownHash, err := computeOwnHashFromPerFile(perFile)
 		if err != nil {
-			fmt.Fprintf(stderr, "❌ %s\n", err.Error())
+			linef(opts, stderr, "❌ %s\n", err.Error())
 			return 99
 		}
 		pkgs[name] = pkgInfo{dir: m.dir, relDir: m.relDir, deps: m.deps, perFileHashes: perFile, ownHash: ownHash}
@@ -1335,14 +1382,14 @@ func execute(args []string, stdout, stderr io.Writer) int {
 			if opts.unified {
 				debugRootOutput[m.relDir] = perFile
 			} else if err := writeDebugFile(m.dir, perFile); err != nil {
-				fmt.Fprintf(stderr, "❌ %s\n", err.Error())
+				linef(opts, stderr, "❌ %s\n", err.Error())
 				return 99
 			}
 		}
 	}
 	if opts.mode == "generate" && opts.debug && opts.unified {
 		if err := writeRootDebugFile(repoRoot, debugRootOutput); err != nil {
-			fmt.Fprintf(stderr, "❌ %s\n", err.Error())
+			linef(opts, stderr, "❌ %s\n", err.Error())
 			return 99
 		}
 	}
@@ -1352,21 +1399,21 @@ func execute(args []string, stdout, stderr io.Writer) int {
 	finalCache := make(map[string]string, len(pkgs))
 	for _, name := range toHash {
 		if _, err := computeFinalHash(name, pkgs, finalCache, []string{}, map[string]int{}); err != nil {
-			fmt.Fprintf(stderr, "❌ %s\n", err.Error())
+			linef(opts, stderr, "❌ %s\n", err.Error())
 			return 6
 		}
 	}
 
 	if opts.mode == "generate" {
 		if err := generateHashes(opts, stdout, repoRoot, pkgs, finalCache); err != nil {
-			fmt.Fprintf(stderr, "❌ %s\n", err.Error())
+			linef(opts, stderr, "❌ %s\n", err.Error())
 			return 99
 		}
 		return 0
 	}
 	compareRes, err := compareHashes(opts, stdout, repoRoot, pkgs, finalCache)
 	if err != nil {
-		fmt.Fprintf(stderr, "❌ %s\n", err.Error())
+		linef(opts, stderr, "❌ %s\n", err.Error())
 		return 99
 	}
 	if len(compareRes.ChangedTargets) > 0 || len(compareRes.MissingTargets) > 0 {
