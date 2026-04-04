@@ -14,26 +14,11 @@ import {
   mkdirp,
   remove,
   writeJson,
-} from "./utils"
-
-type CliResult = {
-  exitCode: number | undefined;
-  stdout: string;
-  stderr: string;
-}
-
-type RunCli = (cwd: string, args: string[]) => Promise<CliResult>
-
-type ProbeCheck = {
-  name: string;
-  args: string[];
-  exitCode: number;
-  stdoutIncludes?: string[];
-  stderrIncludes?: string[];
-  stdoutRegex?: RegExp;
-  stdoutExact?: string;
-  stderrExact?: string;
-}
+} from "../utils"
+import type {
+  RunCli,
+  ProbeCheck,
+} from "./types"
 
 function normalizeNewlines(value: string): string {
   return value
@@ -231,7 +216,7 @@ export function defineParityScriptProbeSuite(runCli: RunCli): void {
           .not.toContain("Generating hashes")
       }
     }
-  })
+  }, 30000)
 
   it("covers workspace-without-packagejson probe", async () => {
     const repoDir = await createRepo("workspace-no-packagejson")

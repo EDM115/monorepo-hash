@@ -1,0 +1,21 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`hash generation > unified > generates all hashes and matches snapshot 1`] = `
+{
+  "database": "4fd660d2b0881cf3554460f6fdbb49c6e0254e0734877409260576d22f8cd998",
+  "packages/cli-tools": "3cb7ab8f6442d61e8672ec34c6bd90ebeb7c77c66a697e210cf39600605e599d",
+  "packages/linter": "4c2f2891a2d9f0e61d4d8d7f62d1e40588ced6ce1ff440a656d5c46eead366c6",
+  "services/backend": "a187ceff599ebb8d43d8db405200f05d77e25260fdb53250d1b6c0f47a770061",
+  "services/frontend": "e39869da166c1e770aa6a0567a0f28baf507150777bbe5c41f2c7131de6774c1",
+}
+`;
+
+exports[`hash generation > workspaces > generates all hashes and matches snapshot 1`] = `
+{
+  "database": "4fd660d2b0881cf3554460f6fdbb49c6e0254e0734877409260576d22f8cd998",
+  "packages/cli-tools": "3cb7ab8f6442d61e8672ec34c6bd90ebeb7c77c66a697e210cf39600605e599d",
+  "packages/linter": "4c2f2891a2d9f0e61d4d8d7f62d1e40588ced6ce1ff440a656d5c46eead366c6",
+  "services/backend": "a187ceff599ebb8d43d8db405200f05d77e25260fdb53250d1b6c0f47a770061",
+  "services/frontend": "e39869da166c1e770aa6a0567a0f28baf507150777bbe5c41f2c7131de6774c1",
+}
+`;

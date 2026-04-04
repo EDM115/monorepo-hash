@@ -17,32 +17,12 @@ import {
   it,
 } from "vitest"
 
-import { remove } from "./utils"
-
-type CliResult = {
-  exitCode: number | undefined;
-  stdout: string;
-  stderr: string;
-}
-
-type RunCli = (cwd: string, args: string[]) => Promise<CliResult>
-
-type MatrixCase = {
-  name: string;
-  pre?: string[];
-  run: string[];
-  mutate?: (repoDir: string, caseName: string) => Promise<void>;
-}
-
-type SnapshotResult = {
-  args: string[];
-  pre: string[];
-  exitCode: number;
-  stdout: string;
-  stderr: string;
-  stdoutNorm: string;
-  files: Record<string, string>;
-}
+import { remove } from "../utils"
+import type {
+  RunCli,
+  MatrixCase,
+  SnapshotResult,
+} from "./types"
 
 function matrixCaseTitle(name: string): string {
   const titles: Record<string, string> = {
@@ -193,7 +173,7 @@ export function defineParityScriptMatrixSnapshotSuite(
 ): void {
   const __filename = fileURLToPath(import.meta.url)
   const __dirname = dirname(__filename)
-  const snapshotDir = join(__dirname, "parity-snapshots", "parity-matrix.node")
+  const snapshotDir = join(__dirname, "__snapshots__", "parity-matrix.node")
 
   let suiteRoot = ""
   let repoCounter = 0
@@ -234,7 +214,7 @@ export function defineParityScriptMatrixSnapshotSuite(
       const preResult = await runCli(repoDir, pre)
 
       if (preResult.exitCode !== 0) {
-        throw new Error(`Pre command failed for ${caseDef.name}: ${preResult.exitCode}\n${preResult.stdout}\n${preResult.stderr}`)
+        throw new Error(`Pre command failed for ${caseDef.name} : ${preResult.exitCode}\n${preResult.stdout}\n${preResult.stderr}`)
       }
     }
 
