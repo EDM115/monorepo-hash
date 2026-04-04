@@ -10,7 +10,12 @@ import {
   it,
 } from "vitest"
 
-import { remove } from "../utils"
+import {
+  mkdirp,
+  pathExists,
+  remove,
+  writeJson,
+} from "../utils"
 import type { RunCli } from "./types"
 
 export function defineOutputSuite(runCli: RunCli): void {
@@ -21,6 +26,62 @@ export function defineOutputSuite(runCli: RunCli): void {
   })
 
   describe("unified", () => {
+    it("normalizes root workspace key to empty string when workspaces include '.'", async () => {
+      const rootWorkspaceDir = join(cwd, "root-workspace-rel-dir-test")
+      const rootHashPath = join(rootWorkspaceDir, ".hash")
+      const rootIndexPath = join(rootWorkspaceDir, "index.js")
+
+      try {
+        if (await pathExists(rootWorkspaceDir)) {
+          await remove(rootWorkspaceDir)
+        }
+
+        await mkdirp(join(rootWorkspaceDir, "packages", "pkg-nested"))
+        await writeFile(join(rootWorkspaceDir, "pnpm-workspace.yaml"), "packages:\n  - \".\"\n  - \"packages/*\"\n")
+        await writeJson(join(rootWorkspaceDir, "package.json"), {
+          name: "root-workspace",
+          version: "1.0.0",
+          type: "module",
+        }, { spaces: 2 })
+        await writeFile(rootIndexPath, "export const root = true\n")
+        await writeJson(join(rootWorkspaceDir, "packages", "pkg-nested", "package.json"), {
+          name: "pkg-nested",
+          version: "1.0.0",
+          type: "module",
+        }, { spaces: 2 })
+        await writeFile(join(rootWorkspaceDir, "packages", "pkg-nested", "index.js"), "export const nested = true\n")
+
+        await runCli(rootWorkspaceDir, ["--generate"])
+
+        // oxlint-disable-next-line no-unsafe-type-assertion
+        const fullContent = JSON.parse(await readFile(rootHashPath, "utf8")) as Record<string, string>
+
+        expect(fullContent[""])
+          .toBeDefined()
+        expect(fullContent["."])
+          .toBeUndefined()
+
+        await remove(rootHashPath)
+        await runCli(rootWorkspaceDir, [ "--generate", "--target=" ])
+
+        // oxlint-disable-next-line no-unsafe-type-assertion
+        const targetedContent = JSON.parse(await readFile(rootHashPath, "utf8")) as Record<string, string>
+
+        expect(Object.keys(targetedContent))
+          .toEqual([""])
+
+        await writeFile(rootIndexPath, "export const root = false\n")
+        const compareResult = await runCli(rootWorkspaceDir, [ "--compare", "--target=" ])
+
+        expect(compareResult.exitCode)
+          .toBe(1)
+      } finally {
+        if (await pathExists(rootWorkspaceDir)) {
+          await remove(rootWorkspaceDir)
+        }
+      }
+    })
+
     it("reports unchanged when no files changed, and exit code 0", async () => {
       await runCli(cwd, ["--generate"])
       const result = await runCli(cwd, ["--compare"])
@@ -128,12 +189,66 @@ export function defineOutputSuite(runCli: RunCli): void {
   })
 
   describe("workspaces", () => {
+    it("handles root workspace target when workspaces include '.'", async () => {
+      const rootWorkspaceDir = join(cwd, "root-workspace-rel-dir-test-workspaces")
+      const rootHashPath = join(rootWorkspaceDir, ".hash")
+      const rootIndexPath = join(rootWorkspaceDir, "index.js")
+      const nestedHashPath = join(rootWorkspaceDir, "packages", "pkg-nested", ".hash")
+
+      try {
+        if (await pathExists(rootWorkspaceDir)) {
+          await remove(rootWorkspaceDir)
+        }
+
+        await mkdirp(join(rootWorkspaceDir, "packages", "pkg-nested"))
+        await writeFile(join(rootWorkspaceDir, "pnpm-workspace.yaml"), "packages:\n  - \".\"\n  - \"packages/*\"\n")
+        await writeJson(join(rootWorkspaceDir, "package.json"), {
+          name: "root-workspace",
+          version: "1.0.0",
+          type: "module",
+        }, { spaces: 2 })
+        await writeFile(rootIndexPath, "export const root = true\n")
+        await writeJson(join(rootWorkspaceDir, "packages", "pkg-nested", "package.json"), {
+          name: "pkg-nested",
+          version: "1.0.0",
+          type: "module",
+        }, { spaces: 2 })
+        await writeFile(join(rootWorkspaceDir, "packages", "pkg-nested", "index.js"), "export const nested = true\n")
+
+        await runCli(rootWorkspaceDir, [ "--generate", "--workspaces" ])
+
+        expect(await pathExists(rootHashPath))
+          .toBe(true)
+        expect(await pathExists(nestedHashPath))
+          .toBe(true)
+
+        await remove(rootHashPath)
+        await remove(nestedHashPath)
+        await runCli(rootWorkspaceDir, [ "--generate", "--workspaces", "--target=" ])
+
+        expect(await pathExists(rootHashPath))
+          .toBe(true)
+        expect(await pathExists(nestedHashPath))
+          .toBe(false)
+
+        await writeFile(rootIndexPath, "export const root = false\n")
+        const compareResult = await runCli(rootWorkspaceDir, [ "--compare", "--workspaces", "--target=" ])
+
+        expect(compareResult.exitCode)
+          .toBe(1)
+      } finally {
+        if (await pathExists(rootWorkspaceDir)) {
+          await remove(rootWorkspaceDir)
+        }
+      }
+    })
+
     it("reports missing .hash if you delete a hash file and run --compare", async () => {
-      await runCli(cwd, ["--generate", "--workspaces"])
+      await runCli(cwd, [ "--generate", "--workspaces" ])
       const hashAPath = join(cwd, "packages", "pkg-a", ".hash")
 
       await remove(hashAPath)
-      const result = await runCli(cwd, ["--compare", "--workspaces"])
+      const result = await runCli(cwd, [ "--compare", "--workspaces" ])
 
       expect(result.exitCode)
         .toBe(1)
@@ -144,7 +259,7 @@ export function defineOutputSuite(runCli: RunCli): void {
     })
 
     it("produces deterministic hashes across consecutive --generate runs", async () => {
-      await runCli(cwd, ["--generate", "--workspaces"])
+      await runCli(cwd, [ "--generate", "--workspaces" ])
       const aPath = join(cwd, "packages", "pkg-a", ".hash")
       const bPath = join(cwd, "packages", "pkg-b", ".hash")
       const firstA = (await readFile(aPath, "utf8")).trim()
@@ -152,7 +267,7 @@ export function defineOutputSuite(runCli: RunCli): void {
 
       await remove(aPath)
       await remove(bPath)
-      await runCli(cwd, ["--generate", "--workspaces"])
+      await runCli(cwd, [ "--generate", "--workspaces" ])
       const secondA = (await readFile(aPath, "utf8")).trim()
       const secondB = (await readFile(bPath, "utf8")).trim()
 

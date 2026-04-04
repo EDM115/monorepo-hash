@@ -17,6 +17,7 @@ When adding features/fixing bugs, make sure to do it everywhere.
 ### Tests
 We use Vitest and projects to separate tests between the implementations.  
 When adding new tests (ex for a new feature), make sure to add them everywhere. When fixing bugs, make sure to add a test that validates the fix, and add it everywhere.  
+When editing source for any of the 3 implementations, make sure to re-build them before running tests to not run them against stale code.  
 `tests/harnesses` houses all the actual tests. This is done to avoid duplicating the exact same things between implementations. It also houses the test snapshots. When adding tests, make sure to add them here, and then import them in the right test files for each implementation.  
 `tests/node` include more tests than the shared ones since users can import the package to use it programmatically, hence a need to validate the behavior of the exported functions.  
 `tests/bun` and `tests/go` only run the shared tests from `harnesses`.

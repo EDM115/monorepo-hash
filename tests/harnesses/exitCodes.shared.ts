@@ -63,7 +63,7 @@ export function defineExitCodesSuite(runCli: RunCli): void {
   })
 
   it("keeps --silent for no-mode help output", async () => {
-    const result = await runCli(cwd, [ "--silent" ])
+    const result = await runCli(cwd, ["--silent"])
 
     expect(result.exitCode)
       .toBe(0)
@@ -74,7 +74,7 @@ export function defineExitCodesSuite(runCli: RunCli): void {
   })
 
   it("does not let --help bypass unknown options", async () => {
-    const result = await runCli(cwd, ["--help", "--edm115"])
+    const result = await runCli(cwd, [ "--help", "--edm115" ])
 
     expect(result.exitCode)
       .toBe(3)

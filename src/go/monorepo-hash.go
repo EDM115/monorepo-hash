@@ -1282,6 +1282,9 @@ func execute(args []string, stdout, stderr io.Writer) int {
 		dir := filepath.Dir(pkgPath)
 		relDirNative, _ := filepath.Rel(repoRoot, dir)
 		relDir := toPosix(relDirNative)
+		if relDir == "." {
+			relDir = ""
+		}
 		meta[manifest.Name] = pkgMeta{name: manifest.Name, dir: dir, relDir: relDir}
 		relToName[relDir] = manifest.Name
 		manifests[manifest.Name] = manifest
