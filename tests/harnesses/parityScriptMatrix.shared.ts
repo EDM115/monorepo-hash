@@ -539,7 +539,7 @@ export function defineParityScriptMatrixSnapshotSuite(
         try {
           await access(snapshotPath)
         } catch {
-          throw new Error(`Node parity snapshot missing for case ${matrixCase.name} at ${snapshotPath}. Run node matrix test with -u first.`)
+          throw new Error(`Node parity snapshot missing for case ${matrixCase.name} at ${snapshotPath}. Run Node matrix test with -u first.`)
         }
       }
 

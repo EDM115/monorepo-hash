@@ -44,10 +44,10 @@ jobs:
             echo "build_go=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: "Install pnpm"
+      - name: "Install PNPM"
         uses: pnpm/action-setup@v5
 
-      - name: "Bump Node.js to v25"
+      - name: "Bump Node to v25"
         uses: actions/setup-node@v6
         with:
           check-latest: true

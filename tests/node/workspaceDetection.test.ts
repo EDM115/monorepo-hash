@@ -47,7 +47,7 @@ describe("workspace detection", () => {
     return dir
   }
 
-  it("detects pnpm workspaces", async () => {
+  it("detects PNPM workspaces", async () => {
     const dir = await setupDir("pnpm-")
 
     const workspaceYaml = `
@@ -91,7 +91,7 @@ console.log(JSON.stringify(result))
       .toEqual(["packages/add"])
   })
 
-  it("detects npm workspaces", async () => {
+  it("detects NPM workspaces", async () => {
     const dir = await setupDir("npm-")
 
     await writeJson(join(dir, "package.json"), { workspaces: ["packages/*"] }, { spaces: 2 })
@@ -128,7 +128,7 @@ console.log(JSON.stringify(result))
       .toEqual(["packages/*"])
   })
 
-  it("detects yarn workspaces", async () => {
+  it("detects Yarn workspaces", async () => {
     const dir = await setupDir("yarn-")
 
     await writeJson(join(dir, "package.json"), { workspaces: ["packages/*"] }, { spaces: 2 })
@@ -165,7 +165,7 @@ console.log(JSON.stringify(result))
       .toEqual(["packages/*"])
   })
 
-  it("detects bun workspaces", async () => {
+  it("detects Bun workspaces", async () => {
     const dir = await setupDir("bun-")
 
     await writeJson(join(dir, "package.json"), { workspaces: ["packages/*"] }, { spaces: 2 })
@@ -202,7 +202,7 @@ console.log(JSON.stringify(result))
       .toEqual(["packages/*"])
   })
 
-  it("detects deno workspaces", async () => {
+  it("detects Deno workspaces", async () => {
     const dir = await setupDir("deno-")
 
     await writeJson(join(dir, "deno.json"), { workspace: ["packages/add"] }, { spaces: 2 })

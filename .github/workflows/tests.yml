@@ -19,10 +19,10 @@ jobs:
       - name: "Checkout"
         uses: actions/checkout@v6
 
-      - name: "Install pnpm"
+      - name: "Install PNPM"
         uses: pnpm/action-setup@v5
 
-      - name: "Bump Node.js to v25"
+      - name: "Bump Node to v25"
         uses: actions/setup-node@v6
         with:
           check-latest: true
@@ -57,10 +57,10 @@ jobs:
           pnpm cli:build-bin -r go -p linux-x64
           pnpm cli:chmod
 
-      - name: "Run the node tests"
+      - name: "Run the Node tests"
         run: pnpm vitest --project node
 
-      - name: "Run the bun tests"
+      - name: "Run the Bun tests"
         run: pnpm vitest --project bun
 
       - name: "Run the Go tests"

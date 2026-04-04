@@ -8,7 +8,7 @@
 ![NPM Version](https://img.shields.io/npm/v/monorepo-hash) ![NPM Downloads](https://img.shields.io/npm/dt/monorepo-hash) ![Total binaries downloads](https://img.shields.io/github/downloads/EDM115/monorepo-hash/total?label=Total%20binaries%20downloads) [![More info](https://img.shields.io/badge/npmx-More_info-orange?logo=npm)](https://npmx.dev/monorepo-hash)
 
 ## :memo: Features
-:runner: **Fast** : Runs in huge monorepos [in no time](#rocket-benchmarks), processes workspaces in parallel, powered by Bun  
+:runner: **Fast** : Runs in huge monorepos [in no time](#rocket-benchmarks), processes workspaces in parallel, powered by Go  
 :dart: **Accurate** : Generates hashes based on every tracked file  
 :left_right_arrow: **Complete** : Supports transitive workspace dependencies  
 :ok_hand: **No config** : Drop-in and instantly usable  
@@ -52,9 +52,10 @@ On Windows only, you can also install it globally using WinGet :
 winget install EDM115.monorepo-hash
 ```
 > [!IMPORTANT]  
-> Since `v2.0.0`, the `monorepo-hash` cli command is a direct binary made with Bun that cut the Node.js overhead and enables faster I/O. To enable this, the postinstall script needs to be run, which is disabled by default in PNPM/Bun/Deno for security reasons.  
+> Since `v2.0.0`, the `monorepo-hash` cli command is a direct binary that cut the Node overhead and allows for faster I/O. To enable this, the postinstall script needs to be run, which is disabled by default in PNPM/Bun/Deno for security reasons.  
 > You can totally refuse to use it (whether it is for security reasons or size constraints). In such case, either run the older Node + plain JS version (`monorepo-hash-js`) or use the [programmatic API](#usage-outside-of-the-cli).  
-> If you added `monorepo-hash` without allowing the postinstall script to run, you can do it later at anytime with `pnpm approve-scripts`, `bun pm trust monorepo-hash` or `deno approve-scripts`.
+> If you added `monorepo-hash` without allowing the postinstall script to run, you can do it later at anytime with `pnpm approve-scripts`, `bun pm trust monorepo-hash` or `deno approve-scripts`.  
+> From `v1.8.0` up to `v2.1.1` the binary have been made with Bun. Starting with `v2.2.0` onwards, it is made with Go.
 
 > [!TIP]  
 > Make sure that your workspace configuration is set up correctly (`pnpm-workspace.yaml`, `package.json` workspaces or `deno.json(c)` workspace) as `monorepo-hash` will use it to find your workspaces. Globs are supported.  
@@ -363,10 +364,10 @@ jobs:
       - name: "Set up Docker Buildx"
         uses: docker/setup-buildx-action@v4
 
-      - name: "Setup pnpm"
+      - name: "Setup PNPM"
         uses: pnpm/action-setup@v5
 
-      - name: "Use Node.js ${{ matrix.node-version }}"
+      - name: "Use Node ${{ matrix.node-version }}"
         uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
@@ -443,10 +444,11 @@ For the very first run, you might need to create a workflow which will only chec
 
 ## :rocket: Benchmarks
 These benchmarks have been realised on Standard GitHub-hosted runner (`ubuntu-24.04`) that you can get by running any Action.  
-The specs as I'm writing this are an AMD EPYC 7763 64-Core (4) @ 3.24 GHz CPU, 15.62 GiB of RAM and 71.61 GiB of SSD storage. Keep in mind that since the servers are shared between multiple users, the performance may vary slightly between runs.  
+The specs as I'm writing this are an AMD EPYC 7763 64-Core (4) @ 3.25 GHz CPU, 15.61 GiB of RAM and 144.26 GiB of SSD storage. Keep in mind that since the servers are shared between multiple users, the performance may vary slightly between runs.  
 They have been reproduced 10 times with a cold and warm disk cache thanks to [hyperfine](https://github.com/sharkdp/hyperfine).  
-Cold cache results are more representative of a first run in CI or on a fresh boot. The script run speed doesn't really change, the only performance overhead on a cold cache is the time it takes to run Node.js/Bun (and reading files from the disk). You can expect warm cache runs to be at least 1/3 faster than cold cache ones.  
-The versions denoted with `(bun)` are using the Bun binary build of `monorepo-hash`, which removes the Node.js overhead, uses Bun internal replacements and is generally faster. This build is the default one since `v2.0.0`.  
+Cold cache results are more representative of a first run in CI or on a fresh boot. The script run speed doesn't really change, the only performance overhead on a cold cache is the time it takes to run Node/Bun/Go (and reading files from the disk). You can expect warm cache runs to be at least 1/3 faster than cold cache ones.  
+The versions denoted with `(bun)` are using the Bun binary build of `monorepo-hash`, which removes the Node overhead, uses Bun internal replacements and is generally faster. This build is the default one since `v2.0.0`.  
+The versions denoted with `(go)` are using the Go binary build of `monorepo-hash`, which is even faster than the Go version and 95% smaller. This build is the default one since `v2.2.0`.  
 Starting with `v2.0.0`, the benchmark methodology has changed : we re-runned them for all versions in *the same runner and script* to avoid noisy neighbor effects and massive drifts in perf for no reason, and we also started to measure warm cache runs, noted in parenthesis. As a consequence, previous results that you could find in the releases aren't comparable with these new ones. More info here : [[INFO] 📣 A change in the benchmarks methodology (#20)](https://github.com/EDM115/monorepo-hash/issues/20)
 > [!NOTE]  
 > Here are the details of each demo monorepo used for the benchmarks :
@@ -456,7 +458,7 @@ Starting with `v2.0.0`, the benchmark methodology has changed : we re-runned the
 > - **Wide monorepo** : 50 workspaces of 10 folders each, with each folder containing 100 files, files composed of 10 lines of text *(the most representative of a real-world monorepo with many packages)*
 >
 > In order to not clunk up Git, these [demo repos](./tests/demo/) are 7z ultra compressed.  
-> Symbols (comparing Node with Node, Bun with Bun, the first Bun version is compared with the same version's Node, wide > small > medium > large, warm > cold) :
+> Symbols (comparing Node with Node, Bun with Bun, Go with Go, the first Bun/Go version is compared with the same version's Node, wide > small > medium > large, warm > cold) :
 > - :chart_with_upwards_trend: : Faster than the previous version
 > - :chart_with_downwards_trend: : Slower than the previous version
 > - :balance_scale: : Negligible or no perceivable change in performance compared to the previous version
@@ -489,7 +491,7 @@ Starting with `v2.0.0`, the benchmark methodology has changed : we re-runned the
 ## :hammer_and_wrench: Contributing
 Here's a quick guide for contributing to `monorepo-hash` :
 0. Requirements :
-  - Node.js v25+
+  - Node v25+
   - PNPM v10+
   - Bun v1.3+
   - Go 1.26+
@@ -534,7 +536,7 @@ pnpm release
 ```
 
 ### Update process
-- PNPM (Node.js/Bun) : `pnpm up -L`
+- PNPM (Node/Bun) : `pnpm up -L`
 - Go : `cd src/go && go get -u && go get -u tool && go mod tidy && cd ../..`
 
 ## :eyes: Who uses `monorepo-hash` ?
@@ -545,8 +547,7 @@ pnpm release
 If you use `monorepo-hash` in your project(s), whether you're an individual or a company, please let me know by opening an issue or a pull request, and I'll add you to this list !
 
 ## :money_with_wings: Donate
-I'm a young developer from France, and as I write this I'm actively seeking for a job.  
-If you want to support me, here's how you can do it :
+I'm a young developer from France. If you want to support me, here's how you can do it :
 - Star this repository
 - Follow me on [GitHub](https://github.com/EDM115)
 - Donate :

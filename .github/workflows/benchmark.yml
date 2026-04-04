@@ -48,10 +48,10 @@ jobs:
             echo "build_go=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: "Install pnpm"
+      - name: "Install PNPM"
         uses: pnpm/action-setup@v5
 
-      - name: "Bump Node.js to v25"
+      - name: "Bump Node to v25"
         uses: actions/setup-node@v6
         with:
           check-latest: true
@@ -166,7 +166,7 @@ jobs:
             fi
           done
 
-      - name: "Benchmark : small monorepo, node, cold"
+      - name: "Benchmark : small monorepo, Node, cold"
         if: contains(steps.get_benchs.outputs.benchs, 'small')
         run: |
           cd tests/demo/small-monorepo
@@ -177,7 +177,7 @@ jobs:
             --export-markdown ../../benchmarks/node/small-monorepo-cold.md \
             "node ${{ steps.prepare_benchs.outputs.js_name }} --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
-      - name: "Benchmark : small monorepo, node, warm"
+      - name: "Benchmark : small monorepo, Node, warm"
         if: contains(steps.get_benchs.outputs.benchs, 'small')
         run: |
           cd tests/demo/small-monorepo
@@ -187,7 +187,7 @@ jobs:
             --export-markdown ../../benchmarks/node/small-monorepo-warm.md \
             "node ${{ steps.prepare_benchs.outputs.js_name }} --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
-      - name: "Benchmark : medium monorepo, node, cold"
+      - name: "Benchmark : medium monorepo, Node, cold"
         if: contains(steps.get_benchs.outputs.benchs, 'medium')
         run: |
           cd tests/demo/medium-monorepo
@@ -198,7 +198,7 @@ jobs:
             --export-markdown ../../benchmarks/node/medium-monorepo-cold.md \
             "node ${{ steps.prepare_benchs.outputs.js_name }} --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
-      - name: "Benchmark : medium monorepo, node, warm"
+      - name: "Benchmark : medium monorepo, Node, warm"
         if: contains(steps.get_benchs.outputs.benchs, 'medium')
         run: |
           cd tests/demo/medium-monorepo
@@ -208,7 +208,7 @@ jobs:
             --export-markdown ../../benchmarks/node/medium-monorepo-warm.md \
             "node ${{ steps.prepare_benchs.outputs.js_name }} --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
-      - name: "Benchmark : large monorepo, node, cold"
+      - name: "Benchmark : large monorepo, Node, cold"
         if: contains(steps.get_benchs.outputs.benchs, 'large')
         run: |
           cd tests/demo/large-monorepo
@@ -219,7 +219,7 @@ jobs:
             --export-markdown ../../benchmarks/node/large-monorepo-cold.md \
             "node ${{ steps.prepare_benchs.outputs.js_name }} --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
-      - name: "Benchmark : large monorepo, node, warm"
+      - name: "Benchmark : large monorepo, Node, warm"
         if: contains(steps.get_benchs.outputs.benchs, 'large')
         run: |
           cd tests/demo/large-monorepo
@@ -229,7 +229,7 @@ jobs:
             --export-markdown ../../benchmarks/node/large-monorepo-warm.md \
             "node ${{ steps.prepare_benchs.outputs.js_name }} --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
-      - name: "Benchmark : wide monorepo, node, cold"
+      - name: "Benchmark : wide monorepo, Node, cold"
         if: contains(steps.get_benchs.outputs.benchs, 'wide')
         run: |
           cd tests/demo/wide-monorepo
@@ -240,7 +240,7 @@ jobs:
             --export-markdown ../../benchmarks/node/wide-monorepo-cold.md \
             "node ${{ steps.prepare_benchs.outputs.js_name }} --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
-      - name: "Benchmark : wide monorepo, node, warm"
+      - name: "Benchmark : wide monorepo, Node, warm"
         if: contains(steps.get_benchs.outputs.benchs, 'wide')
         run: |
           cd tests/demo/wide-monorepo
@@ -250,7 +250,7 @@ jobs:
             --export-markdown ../../benchmarks/node/wide-monorepo-warm.md \
             "node ${{ steps.prepare_benchs.outputs.js_name }} --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
-      - name: "Benchmark : small monorepo, bun, cold"
+      - name: "Benchmark : small monorepo, Bun, cold"
         if: contains(steps.get_benchs.outputs.benchs, 'small') && steps.get_benchs.outputs.build_bun == 'true'
         run: |
           cd tests/demo/small-monorepo
@@ -261,7 +261,7 @@ jobs:
             --export-markdown ../../benchmarks/bun/small-monorepo-cold.md \
             "./monorepo-hash-bun --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
-      - name: "Benchmark : small monorepo, bun, warm"
+      - name: "Benchmark : small monorepo, Bun, warm"
         if: contains(steps.get_benchs.outputs.benchs, 'small') && steps.get_benchs.outputs.build_bun == 'true'
         run: |
           cd tests/demo/small-monorepo
@@ -271,7 +271,7 @@ jobs:
             --export-markdown ../../benchmarks/bun/small-monorepo-warm.md \
             "./monorepo-hash-bun --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
-      - name: "Benchmark : medium monorepo, bun, cold"
+      - name: "Benchmark : medium monorepo, Bun, cold"
         if: contains(steps.get_benchs.outputs.benchs, 'medium') && steps.get_benchs.outputs.build_bun == 'true'
         run: |
           cd tests/demo/medium-monorepo
@@ -282,7 +282,7 @@ jobs:
             --export-markdown ../../benchmarks/bun/medium-monorepo-cold.md \
             "./monorepo-hash-bun --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
-      - name: "Benchmark : medium monorepo, bun, warm"
+      - name: "Benchmark : medium monorepo, Bun, warm"
         if: contains(steps.get_benchs.outputs.benchs, 'medium') && steps.get_benchs.outputs.build_bun == 'true'
         run: |
           cd tests/demo/medium-monorepo
@@ -292,7 +292,7 @@ jobs:
             --export-markdown ../../benchmarks/bun/medium-monorepo-warm.md \
             "./monorepo-hash-bun --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
-      - name: "Benchmark : large monorepo, bun, cold"
+      - name: "Benchmark : large monorepo, Bun, cold"
         if: contains(steps.get_benchs.outputs.benchs, 'large') && steps.get_benchs.outputs.build_bun == 'true'
         run: |
           cd tests/demo/large-monorepo
@@ -303,7 +303,7 @@ jobs:
             --export-markdown ../../benchmarks/bun/large-monorepo-cold.md \
             "./monorepo-hash-bun --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
-      - name: "Benchmark : large monorepo, bun, warm"
+      - name: "Benchmark : large monorepo, Bun, warm"
         if: contains(steps.get_benchs.outputs.benchs, 'large') && steps.get_benchs.outputs.build_bun == 'true'
         run: |
           cd tests/demo/large-monorepo
@@ -313,7 +313,7 @@ jobs:
             --export-markdown ../../benchmarks/bun/large-monorepo-warm.md \
             "./monorepo-hash-bun --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
-      - name: "Benchmark : wide monorepo, bun, cold"
+      - name: "Benchmark : wide monorepo, Bun, cold"
         if: contains(steps.get_benchs.outputs.benchs, 'wide') && steps.get_benchs.outputs.build_bun == 'true'
         run: |
           cd tests/demo/wide-monorepo
@@ -324,7 +324,7 @@ jobs:
             --export-markdown ../../benchmarks/bun/wide-monorepo-cold.md \
             "./monorepo-hash-bun --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
-      - name: "Benchmark : wide monorepo, bun, warm"
+      - name: "Benchmark : wide monorepo, Bun, warm"
         if: contains(steps.get_benchs.outputs.benchs, 'wide') && steps.get_benchs.outputs.build_bun == 'true'
         run: |
           cd tests/demo/wide-monorepo
@@ -334,7 +334,7 @@ jobs:
             --export-markdown ../../benchmarks/bun/wide-monorepo-warm.md \
             "./monorepo-hash-bun --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
-      - name: "Benchmark : small monorepo, go, cold"
+      - name: "Benchmark : small monorepo, Go, cold"
         if: contains(steps.get_benchs.outputs.benchs, 'small') && steps.build_go.outputs.build_go == 'true'
         run: |
           cd tests/demo/small-monorepo
@@ -345,7 +345,7 @@ jobs:
             --export-markdown ../../benchmarks/go/small-monorepo-cold.md \
             "./monorepo-hash-go --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
-      - name: "Benchmark : small monorepo, go, warm"
+      - name: "Benchmark : small monorepo, Go, warm"
         if: contains(steps.get_benchs.outputs.benchs, 'small') && steps.build_go.outputs.build_go == 'true'
         run: |
           cd tests/demo/small-monorepo
@@ -355,7 +355,7 @@ jobs:
             --export-markdown ../../benchmarks/go/small-monorepo-warm.md \
             "./monorepo-hash-go --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
-      - name: "Benchmark : medium monorepo, go, cold"
+      - name: "Benchmark : medium monorepo, Go, cold"
         if: contains(steps.get_benchs.outputs.benchs, 'medium') && steps.build_go.outputs.build_go == 'true'
         run: |
           cd tests/demo/medium-monorepo
@@ -366,7 +366,7 @@ jobs:
             --export-markdown ../../benchmarks/go/medium-monorepo-cold.md \
             "./monorepo-hash-go --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
-      - name: "Benchmark : medium monorepo, go, warm"
+      - name: "Benchmark : medium monorepo, Go, warm"
         if: contains(steps.get_benchs.outputs.benchs, 'medium') && steps.build_go.outputs.build_go == 'true'
         run: |
           cd tests/demo/medium-monorepo
@@ -376,7 +376,7 @@ jobs:
             --export-markdown ../../benchmarks/go/medium-monorepo-warm.md \
             "./monorepo-hash-go --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
-      - name: "Benchmark : large monorepo, go, cold"
+      - name: "Benchmark : large monorepo, Go, cold"
         if: contains(steps.get_benchs.outputs.benchs, 'large') && steps.build_go.outputs.build_go == 'true'
         run: |
           cd tests/demo/large-monorepo
@@ -387,7 +387,7 @@ jobs:
             --export-markdown ../../benchmarks/go/large-monorepo-cold.md \
             "./monorepo-hash-go --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
-      - name: "Benchmark : large monorepo, go, warm"
+      - name: "Benchmark : large monorepo, Go, warm"
         if: contains(steps.get_benchs.outputs.benchs, 'large') && steps.build_go.outputs.build_go == 'true'
         run: |
           cd tests/demo/large-monorepo
@@ -397,7 +397,7 @@ jobs:
             --export-markdown ../../benchmarks/go/large-monorepo-warm.md \
             "./monorepo-hash-go --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
-      - name: "Benchmark : wide monorepo, go, cold"
+      - name: "Benchmark : wide monorepo, Go, cold"
         if: contains(steps.get_benchs.outputs.benchs, 'wide') && steps.build_go.outputs.build_go == 'true'
         run: |
           cd tests/demo/wide-monorepo
@@ -408,7 +408,7 @@ jobs:
             --export-markdown ../../benchmarks/go/wide-monorepo-cold.md \
             "./monorepo-hash-go --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
-      - name: "Benchmark : wide monorepo, go, warm"
+      - name: "Benchmark : wide monorepo, Go, warm"
         if: contains(steps.get_benchs.outputs.benchs, 'wide') && steps.build_go.outputs.build_go == 'true'
         run: |
           cd tests/demo/wide-monorepo
