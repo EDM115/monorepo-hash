@@ -488,6 +488,15 @@ Starting with `v2.0.0`, the benchmark methodology has changed : we re-runned the
 | `v1.1.0` :chart_with_downwards_trend:     | 263.1 ms (122.9 ms) | 3.894 s (3.586 s)  | 56.071 s (37.309 s) | 4.299 s (4.021 s)  |
 | `v1.0.0` :balance_scale:                  | 247.9 ms (119.1 ms) | 3.752 s (3.576 s)  | 56.198 s (37.479 s) | 4.370 s (4.048 s)  |
 
+## :telescope: Comparison
+It would be foolish to pretend that `monorepo-hash` is the only player in the space, so here are some comparisons with other tools that have similar goals.  
+Some of you might say "Why not just use [`Turborepo`](https://turborepo.dev/) since you mention it at the beginning ?" and you could but usage differs. You can run `turbo ls --affected` to check which workspaces are affected by changes, *and* it does take in consideration transitive dependencies, but it isn't aware of "is the root included in the workspaces list ?", it doesn't give reusable hashes for other tools and doesn't have a programmatic API. However since it's written in Rust, it's very fast.  
+Overall `Turborepo` is mainly a **task runner**, and its caching mechanism is centered around tasks and not packages themselves, although it is a byproduct of the way it works. It also compares against your SCM's branch and not a specified snapshot.  
+Other task runners like [`Nx`](https://nx.dev/), [`moonrepo`](https://moonrepo.dev/), [`Lerna`](https://lerna.js.org/) or [`Rush`](https://rushjs.io/) have similar limitations, and usually require their own configuration files (who doesn't *love* having one more file on the repo root ? :smiling_face_with_three_hearts:). On top of that, they might actually be quite slower than `monorepo-hash` since they have so much more features.
+A second category is **package managers** themselves. For example, [`PNPM`](https://pnpm.io/) offers `--filter "[<since>]"` to only run commands on packages that have changed since the specified branch/commit, and it does take in consideration transitive dependencies. However, it is mainly here for task running (again...) and is tied again to your VCS.  
+Lastly there are **specialized tools** (like us !), such as [`bazel-diff`](https://github.com/Tinder/bazel-diff) (specific to Bazel), [`Yanice`](https://github.com/abuob/yanice), [`traf`](https://github.com/lemonade-hq/traf) and [`@rushstack/package-deps-hash`](https://api.rushstack.io/pages/package-deps-hash/) (specific to Rush), to name a few. They all have their advantages and drawbacks, but overall they either work only with specific tooling, require some manual configuration, are language-specific or don't even expose a CLI.  
+If you wish to read more about the comparison between `monorepo-hash` and other tools, check this issue : [[INFO] 📣 Alternatives comparison : a ChatGPT yap session (#26)](https://github.com/EDM115/monorepo-hash/issues/26)
+
 ## :hammer_and_wrench: Contributing
 Here's a quick guide for contributing to `monorepo-hash` :
 0. Requirements :
