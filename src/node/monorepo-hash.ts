@@ -99,6 +99,7 @@ let unified = true
 let cliUsage = true
 let pmOption: PackageManager | null = null
 let usePathCache = true
+let didError = false
 
 let packageManager: PackageManager | null = null
 let repoRoot = ""
@@ -213,6 +214,8 @@ export function safeExit(code: number): void {
     exit(code)
   } else {
     if (![ 0, 1 ].includes(code)) {
+      didError = true
+
       throw new Error(`Exit with code ${code}`)
     }
   }
@@ -232,9 +235,11 @@ export async function mapLimit<T, R>(
 ): Promise<R[]> {
   const results: R[] = Array.from({ length: items.length })
   let idx = 0
+  let hasError = false
+  let firstError: unknown
 
   async function worker() {
-    while (idx < items.length) {
+    while (!hasError && idx < items.length) {
       const current = idx++
       const item = items[current]
 
@@ -242,12 +247,25 @@ export async function mapLimit<T, R>(
         continue
       }
 
-      // oxlint-disable-next-line no-await-in-loop
-      results[current] = await fn(item)
+      try {
+        // oxlint-disable-next-line no-await-in-loop
+        results[current] = await fn(item)
+      } catch (error) {
+        if (!hasError) {
+          hasError = true
+          firstError = error
+        }
+
+        return
+      }
     }
   }
 
   await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
+
+  if (hasError) {
+    throw firstError
+  }
 
   return results
 }
@@ -1617,10 +1635,18 @@ Arguments :
 
     return await hash()
   } catch (err) {
+    if (didError) {
+      throw err
+    }
+
     log("❌ Unexpected error :", false, "error")
-    log(err instanceof Error
-      ? err.message
-      : String(err), false, "error")
+    log(
+      err instanceof Error
+        ? err.message
+        : String(err),
+      false,
+      "error"
+    )
     safeExit(99)
   }
 }

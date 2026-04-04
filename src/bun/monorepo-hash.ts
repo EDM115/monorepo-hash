@@ -159,9 +159,11 @@ async function mapLimit<T, R>(
 ): Promise<R[]> {
   const results: R[] = Array.from({ length: items.length })
   let idx = 0
+  let hasError = false
+  let firstError: unknown
 
   async function worker() {
-    while (idx < items.length) {
+    while (!hasError && idx < items.length) {
       const current = idx++
       const item = items[current]
 
@@ -169,12 +171,25 @@ async function mapLimit<T, R>(
         continue
       }
 
-      // oxlint-disable-next-line no-await-in-loop
-      results[current] = await fn(item)
+      try {
+        // oxlint-disable-next-line no-await-in-loop
+        results[current] = await fn(item)
+      } catch (error) {
+        if (!hasError) {
+          hasError = true
+          firstError = error
+        }
+
+        return
+      }
     }
   }
 
   await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
+
+  if (hasError) {
+    throw firstError
+  }
 
   return results
 }
@@ -1421,17 +1436,16 @@ Arguments :
     return await hash()
   } catch (err) {
     log("❌ Unexpected error :", false, "error")
-    log(err instanceof Error
-      ? err.message
-      : String(err), false, "error")
+    log(
+      err instanceof Error
+        ? err.message
+        : String(err),
+      false,
+      "error"
+    )
     exit(99)
   }
 }
 
-(async () => {
-  await runCli()
-})()
-  .catch((error: unknown) => {
-    console.error(error)
-  })
+await runCli()
 // #endregion

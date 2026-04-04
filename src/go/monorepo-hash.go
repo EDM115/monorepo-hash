@@ -18,6 +18,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/bmatcuk/doublestar/v4"
 	gitignore "github.com/go-git/go-git/v6/plumbing/format/gitignore"
@@ -690,41 +691,62 @@ func computePerFileHashes(dir string, fileList []string) (map[string]string, err
 	if len(fileList) == 0 {
 		return map[string]string{}, nil
 	}
-	workers := max(runtime.NumCPU(), 2)
+	workers := min(max(runtime.NumCPU(), 2), len(fileList))
 	type result struct {
 		path string
 		hash string
-		err  error
 	}
-	jobs := make(chan string)
-	results := make(chan result, len(fileList))
+	results := make([]result, len(fileList))
+	var next atomic.Uint32
+	var cancelled atomic.Bool
 	var wg sync.WaitGroup
+	var firstErr error
+	var errOnce sync.Once
+
+	setError := func(err error) {
+		errOnce.Do(func() {
+			firstErr = err
+			cancelled.Store(true)
+		})
+	}
+
 	for range workers {
 		wg.Go(func() {
-			for rel := range jobs {
+			for !cancelled.Load() {
+				current := int(next.Add(1)) - 1
+				if current >= len(fileList) {
+					return
+				}
+
+				rel := fileList[current]
 				full := filepath.Join(dir, filepath.FromSlash(rel))
 				content, err := os.ReadFile(full)
 				if err != nil {
-					results <- result{err: err}
-					continue
+					setError(err)
+					return
 				}
 				h := sha256.New()
 				h.Write([]byte(rel))
 				h.Write(content)
-				results <- result{path: rel, hash: hex.EncodeToString(h.Sum(nil))}
+
+				if cancelled.Load() {
+					return
+				}
+
+				results[current] = result{path: rel, hash: hex.EncodeToString(h.Sum(nil))}
 			}
 		})
 	}
-	for _, rel := range fileList {
-		jobs <- rel
-	}
-	close(jobs)
 	wg.Wait()
-	close(results)
+
+	if firstErr != nil {
+		return nil, firstErr
+	}
+
 	output := make(map[string]string, len(fileList))
-	for r := range results {
-		if r.err != nil {
-			return nil, r.err
+	for _, r := range results {
+		if r.path == "" {
+			continue
 		}
 		output[r.path] = r.hash
 	}
