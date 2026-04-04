@@ -1,10 +1,11 @@
 {
   "recommendations": [
     "edwinhuish.better-comments-next",
+    "golang.go",
     "nhoizey.gremlins",
     "oxc.oxc-vscode",
     "pflannery.vscode-versionlens",
     "wix.vscode-import-cost",
-    "yoavbls.pretty-ts-errors"
+    "yoavbls.pretty-ts-errors",
   ]
 }

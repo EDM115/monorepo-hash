@@ -1,0 +1,14 @@
+{
+  "args": [
+    "--generate",
+    "--target=packages/a"
+  ],
+  "pre": [],
+  "exitCode": 0,
+  "stdout": "ℹ️  Generating hashes for specified targets... (packages/a)\n\nℹ️  Using pnpm workspaces from <REPO>\n\n\n\n\n\n\n✅ packages/a (11d2c9bfc9beab67209489aa66da7582d58abdf992aeb74a6f485fcf230fc134 written to .hash)\n",
+  "stderr": "",
+  "stdoutNorm": "ℹ️  Generating hashes for specified targets... (packages/a)\n\nℹ️  Using pnpm workspaces from <REPO>\n\n\n\n\n\n\n✅ packages/a (11d2c9bfc9beab67209489aa66da7582d58abdf992aeb74a6f485fcf230fc134 written to .hash)\n",
+  "files": {
+    ".hash": "{\n  \"packages/a\": \"11d2c9bfc9beab67209489aa66da7582d58abdf992aeb74a6f485fcf230fc134\"\n}"
+  }
+}

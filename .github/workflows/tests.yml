@@ -19,10 +19,10 @@ jobs:
       - name: "Checkout"
         uses: actions/checkout@v6
 
-      - name: "Install pnpm"
+      - name: "Install PNPM"
         uses: pnpm/action-setup@v5
 
-      - name: "Bump Node.js to v25"
+      - name: "Bump Node to v25"
         uses: actions/setup-node@v6
         with:
           check-latest: true
@@ -32,8 +32,17 @@ jobs:
       - name: "Install Bun"
         uses: oven-sh/setup-bun@v2
 
+      - name: "Install Go"
+        uses: actions/setup-go@v6
+        with:
+          cache-dependency-path: "./src/go/go.sum"
+          check-latest: true
+          go-version: "stable"
+
       - name: "Install dependencies"
-        run: pnpm i --frozen-lockfile
+        run: |
+          pnpm i --frozen-lockfile
+          cd src/go && go mod download
 
       - name: "Lint check"
         run: pnpm lint
@@ -42,10 +51,17 @@ jobs:
         run: pnpm typecheck
 
       - name: "Build the project"
-        run: pnpm build:node && pnpm cli:build-bin -r bun -p linux-x64 && pnpm build:bun:chmod
+        run: |
+          pnpm build:node
+          pnpm cli:build-bin -r bun -p linux-x64
+          pnpm cli:build-bin -r go -p linux-x64
+          pnpm cli:chmod
 
-      - name: "Run the node tests"
+      - name: "Run the Node tests"
         run: pnpm vitest --project node
 
-      - name: "Run the bun tests"
+      - name: "Run the Bun tests"
         run: pnpm vitest --project bun
+
+      - name: "Run the Go tests"
+        run: pnpm vitest --project go

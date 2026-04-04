@@ -1,5 +1,9 @@
 # monorepo-hash changelog
 
+## v2.2.0
+### Breaking changes
+💥✨⚡️ feat/perf : the bundled binary is made with Go. beta, more details to come later. check [#25](https://github.com/EDM115/monorepo-hash/pull/25)
+
 ## v2.1.1
 ### Breaking changes
 💥🩹 small fix : not providing any argument will display the help instead of exiting with code `2`  
@@ -12,7 +16,7 @@
 📝 docs : add the WinGet manifests to the repo  
 📝 docs : add WinGet installation instructions  
 ✅ tests : fix async leaks  
-♻️ refactor : move files around to better separate node & bun versions, in order to welcome future potential implementations (ex Go & Rust)  
+♻️ refactor : move files around to better separate Node & Bun versions, in order to welcome future potential implementations (ex Go & Rust)  
 🔨🧑‍💻 scripts, dev : add a unified build script  
 ⬆️ deps : bump all deps
 
@@ -25,7 +29,7 @@
 ⚡️🏗️ perf, internal : switch dependencies with leaner alternatives, courtesy of [e18e.dev](https://e18e.dev/). no difference should be visible user-side, hashes should stay the same, 219 => 173 deps. however if you see any change (apart from faster execution 😉), [open an issue](https://github.com/EDM115/monorepo-hash/issues/new?template=BUG_REPORT.yml)  
 ⚡️ perf : make the proto-less objects potentially even faster, props to https://github.com/h3js/rou3/blob/f0361df69be0aea4bea3ccb38ac7b5f7de78f342/src/_utils.ts and https://github.com/Kikobeats/null-prototype-object  
 📦️ build : binaries are built with Bun `1.3.10` instead of `1.3.4`  
-📦️ build : the produced JS code is downleveled to Node.js `22` instead of `20`  
+📦️ build : the produced JS code is downleveled to Node `22` instead of `20`  
 📦️ build : Windows binaries now have proper properties  
 🍱 assets : invert the order of resolutions in the ICO file to ensure that Bun picks the highest one, remove the 1024px variant  
 🔨🧑‍💻 scripts, dev : add a script to compute the fixed benchmark times of an unreleased version  
@@ -122,7 +126,7 @@
 
 ## v1.8.0
 ✨⚡️ feat/perf : expose a new CLI entrypoint `monorepo-hash-bun`
-  - this time you get a binary built with [Bun](https://bun.com/docs/bundler/executables), skipping the need for Node.js to be installed
+  - this time you get a binary built with [Bun](https://bun.com/docs/bundler/executables), skipping the need for Node to be installed
   - enjoy faster startup times, lower memory usage and faster I/O operations
   - in exchange, the built files are massive since they contain Bun's runtime as well. to not bloat the package, the build corresponding to your platform is downloaded as a postinstall step
   - this version is for now totally optional

@@ -185,5 +185,42 @@ console.log(JSON.stringify(results))`)
       expect(JSON.parse(stdout))
         .toEqual([ 3, 6 ])
     })
+
+    it("stops dequeuing new items after the first error", async () => {
+      const harness = join(cwd, "mapLimit4.mjs")
+
+      created.push(harness)
+      await writeFile(harness, `import { mapLimit } from "${cliImport}"
+const started = []
+
+try {
+  await mapLimit([0, 1, 2, 3, 4], 2, async (value) => {
+    started.push(value)
+
+    if (value === 0) {
+      throw new Error("boom")
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 25))
+
+    return value
+  })
+} catch (error) {
+  await new Promise((resolve) => setTimeout(resolve, 100))
+  console.log(JSON.stringify({
+    message: error instanceof Error
+      ? error.message
+      : String(error),
+    started,
+  }))
+}`)
+      const { stdout } = await x(cli, [harness], { nodeOptions: { cwd } })
+
+      expect(JSON.parse(stdout))
+        .toEqual({
+          message: "boom",
+          started: [ 0, 1 ],
+        })
+    })
   })
 })

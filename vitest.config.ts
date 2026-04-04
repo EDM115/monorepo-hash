@@ -30,6 +30,14 @@ export default defineConfig({ test: {
         setupFiles: ["tests/bun/setup.ts"],
       },
     },
+    {
+      test: {
+        ...shared,
+        name: "go",
+        include: ["tests/go/**/*.test.ts"],
+        setupFiles: ["tests/go/setup.ts"],
+      },
+    },
   ],
   open: false,
   reporters:

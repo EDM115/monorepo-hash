@@ -1,0 +1,11 @@
+{
+  "args": [
+    "--edm115"
+  ],
+  "pre": [],
+  "exitCode": 3,
+  "stdout": "",
+  "stderr": "❌ Unknown option : --edm115\n",
+  "stdoutNorm": "",
+  "files": {}
+}

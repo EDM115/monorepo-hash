@@ -1,0 +1,14 @@
+{
+  "args": [
+    "--generate",
+    "--target="
+  ],
+  "pre": [],
+  "exitCode": 0,
+  "stdout": "ℹ️  Generating hashes for specified targets... ()\n\nℹ️  Using pnpm workspaces from <REPO>\n\n\n\n\n\n",
+  "stderr": "",
+  "stdoutNorm": "ℹ️  Generating hashes for specified targets... ()\n\nℹ️  Using pnpm workspaces from <REPO>\n\n\n\n\n\n",
+  "files": {
+    ".hash": "{}"
+  }
+}

@@ -9,7 +9,10 @@ import {
   readFile,
   unlink,
 } from "node:fs/promises"
-import { get } from "node:https"
+import {
+  Agent,
+  get,
+} from "node:https"
 import {
   dirname,
   join,
@@ -32,6 +35,7 @@ import {
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
+const noKeepAliveAgent = new Agent({ keepAlive: false })
 
 /**
  * Convert an unknown error to a string message
@@ -105,11 +109,13 @@ export async function deferToJSImplementation(): Promise<void> {
   const destPs1 = `${destBase}.ps1`
 
   try {
-    await Promise.all([
+    const binMappings: Array<readonly [string, string]> = [
       [ jsImplBase, destBase ],
       [ jsImplCmd, destCmd ],
       [ jsImplPs1, destPs1 ],
-    ].map(async ([ src, dest ]) => {
+    ]
+
+    await Promise.all(binMappings.map(async ([ src, dest ]) => {
       await unlink(dest)
         .catch((err: unknown) => {
           if (
@@ -148,8 +154,10 @@ export async function deferToJSImplementation(): Promise<void> {
  * @returns A promise that resolves to the version string
  */
 export async function getVersion(): Promise<string> {
-  if (typeof env.npm_package_version === "string" && env.npm_package_version.length > 0) {
-    return env.npm_package_version
+  const npmPackageVersion = env["npm_package_version"]
+
+  if (typeof npmPackageVersion === "string" && npmPackageVersion.length > 0) {
+    return npmPackageVersion
   }
 
   const pkgPath = join(__dirname, "..", "package.json")
@@ -168,14 +176,13 @@ export async function getVersion(): Promise<string> {
  */
 export function download(url: string, dest: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    const file = createWriteStream(dest, { mode: 0o755 })
+    let file: ReturnType<typeof createWriteStream> | null = null
 
-    get(url, (res) => {
+    get(url, { agent: noKeepAliveAgent }, (res) => {
       if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         const redirected = new URL(res.headers.location, url)
           .toString()
 
-        file.close()
         void download(redirected, dest)
           .then(resolve, reject)
 
@@ -183,15 +190,16 @@ export function download(url: string, dest: string): Promise<void> {
       }
 
       if (res.statusCode !== 200) {
-        file.close()
+        res.resume()
         reject(new Error(`Download failed with status ${res.statusCode} for ${url}`))
 
         return
       }
 
+      file = createWriteStream(dest, { mode: 0o755 })
       res.pipe(file)
       file.on("finish", () => {
-        file.close()
+        file!.close()
 
         try {
           chmodSync(dest, 0o755)
@@ -203,7 +211,7 @@ export function download(url: string, dest: string): Promise<void> {
       })
     })
       .on("error", (err) => {
-        file.close()
+        file?.close()
         reject(err)
       })
   })
