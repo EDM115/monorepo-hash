@@ -151,7 +151,7 @@ fn run() -> Result<(), String> {
             Ok(Some(d)) => d,
             Ok(None) => {
                 if let Ok(Some(auto)) = auto_detect_checked() {
-                    eprintln!("❌ {} workspaces not found. Did you mean --packagemanager={} ?", pm, auto.pm);
+                    eprintln!("❌ {} workspaces not found. Did you mean --packagemanager={}?", pm, auto.pm);
                 } else {
                     eprintln!("❌ Specified package manager not found");
                 }
@@ -1133,6 +1133,7 @@ fn compute_package_hashes(
 
     if !silent {
         println!("\r✅ Computed all hashes ({})", total);
+        println!();
         println!();
     }
 
