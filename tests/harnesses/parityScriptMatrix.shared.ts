@@ -168,7 +168,7 @@ async function seedBaseRepo(repoDir: string): Promise<void> {
 }
 
 export function defineParityScriptMatrixSnapshotSuite(
-  runtimeName: "node" | "bun" | "go",
+  runtimeName: "node" | "bun" | "go" | "rust",
   runCli: RunCli,
 ): void {
   const __filename = fileURLToPath(import.meta.url)

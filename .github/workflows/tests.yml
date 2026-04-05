@@ -41,7 +41,6 @@ jobs:
 
       - name: "Install Rust"
         uses: dtolnay/rust-toolchain@stable
-
       - name: "Install dependencies"
         run: |
           pnpm i --frozen-lockfile

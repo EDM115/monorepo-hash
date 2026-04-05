@@ -56,7 +56,6 @@ jobs:
           else
             echo "build_rust=false" >> $GITHUB_OUTPUT
           fi
-
       - name: "Install PNPM"
         uses: pnpm/action-setup@v5
 
@@ -81,7 +80,6 @@ jobs:
       - name: "Install Rust"
         if: steps.build_rust.outputs.build_rust == 'true'
         uses: dtolnay/rust-toolchain@stable
-
       - name: "Install dependencies"
         run: |
           pnpm i --frozen-lockfile
@@ -271,7 +269,6 @@ jobs:
             --export-markdown ../../benchmarks/node/wide-monorepo-warm.md \
             "node ${{ steps.prepare_benchs.outputs.js_name }} --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
-
       - name: "Benchmark : small monorepo, Rust, cold"
         if: contains(steps.get_benchs.outputs.benchs, 'small') && steps.build_rust.outputs.build_rust == 'true'
         run: |
@@ -355,7 +352,6 @@ jobs:
             --runs 10 \
             --export-markdown ../../benchmarks/rust/wide-monorepo-warm.md \
             "./monorepo-hash-rust --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
-
       - name: "Benchmark : small monorepo, Bun, cold"
         if: contains(steps.get_benchs.outputs.benchs, 'small') && steps.get_benchs.outputs.build_bun == 'true'
         run: |

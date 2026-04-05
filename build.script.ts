@@ -34,7 +34,6 @@ type GoTarget = {
 type RustTarget = {
   triple: string;
 }
-
 function isValidRuntime(runtime: string): runtime is Runtime {
   return (RUNTIMES as readonly string[]).includes(runtime)
 }
@@ -84,7 +83,6 @@ async function chmodBinaries() {
       }
     }
   }
-
   await Promise.all(filesToChmod.map(async (file) => await chmod(file, 0o755)))
 }
 
@@ -147,7 +145,6 @@ function getRustTarget(platform: Platform): RustTarget {
     }
   }
 }
-
 function normalizeVersion(version: string): string {
   const match = (/^v?(\d+)\.(\d+)\.(\d+)/).exec(version.trim())
 
