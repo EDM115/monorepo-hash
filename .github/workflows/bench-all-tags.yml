@@ -35,15 +35,32 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: "Install pnpm"
+      - name: "Do we build Go"
+        id: build_go
+        run: |
+          if grep -q '"build:go"' package.json; then
+            echo "build_go=true" >> $GITHUB_OUTPUT
+          else
+            echo "build_go=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: "Install PNPM"
         uses: pnpm/action-setup@v5
 
-      - name: "Bump Node.js to v25"
+      - name: "Bump Node to v25"
         uses: actions/setup-node@v6
         with:
           check-latest: true
           cache: "pnpm"
           node-version: 25
+
+      - name: "Install Go"
+        if: steps.build_go.outputs.build_go == 'true'
+        uses: actions/setup-go@v6
+        with:
+          cache-dependency-path: "./src/go/go.sum"
+          check-latest: true
+          go-version: "stable"
 
       - name: "Install Bun"
         uses: oven-sh/setup-bun@v2

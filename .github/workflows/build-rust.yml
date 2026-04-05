@@ -7,7 +7,7 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  build-rust:
     name: "Build Rust for ${{ matrix.platform.id }}"
     runs-on: ${{ matrix.platform.runner }}
     timeout-minutes: 30
@@ -44,10 +44,10 @@ jobs:
       - name: "Checkout"
         uses: actions/checkout@v6
 
-      - name: "Install pnpm"
+      - name: "Install PNPM"
         uses: pnpm/action-setup@v5
 
-      - name: "Bump Node.js to v25"
+      - name: "Bump Node to v25"
         uses: actions/setup-node@v6
         with:
           check-latest: true
@@ -60,13 +60,13 @@ jobs:
       - name: "Install dependencies"
         run: pnpm i --frozen-lockfile
 
-      - name: "Build Rust binary"
-        run: pnpm build:rust:${{ matrix.platform.id }}
+      - name: "Build the binary"
+        run: pnpm cli:build-bin -r rust -p ${{ matrix.platform.id }} && pnpm cli:chmod
 
       - name: "Test the binary"
         run: ${{ matrix.platform.testCmd }}
 
-      - name: "Upload Rust binary"
+      - name: "Upload the binary"
         uses: actions/upload-artifact@v7
         with:
           archive: false
@@ -99,15 +99,14 @@ jobs:
             sh -lc '
               apk update && apk add --no-cache bash curl make musl-dev linux-headers g++ gcc git nodejs npm \
               && corepack enable \
-              && corepack prepare pnpm@10.32.1 --activate \
+              && corepack prepare pnpm@10.33.0 --activate \
               && pnpm i --frozen-lockfile \
-              && rustup target add x86_64-unknown-linux-musl \
-              && pnpm build:rust:linux-x64-musl \
-              && pnpm build:rust:chmod \
+              && pnpm cli:build-bin -r rust -p linux-x64-musl \
+              && pnpm cli:chmod \
               && ./rust-build/monorepo-hash-linux-x64-musl --help
             '
 
-      - name: "Upload linux-x64-musl binary"
+      - name: "Upload the binary"
         uses: actions/upload-artifact@v7
         with:
           archive: false
@@ -140,15 +139,14 @@ jobs:
             sh -lc '
               apk update && apk add --no-cache bash curl make musl-dev linux-headers g++ gcc git nodejs npm \
               && corepack enable \
-              && corepack prepare pnpm@10.32.1 --activate \
+              && corepack prepare pnpm@10.33.0 --activate \
               && pnpm i --frozen-lockfile \
-              && rustup target add aarch64-unknown-linux-musl \
-              && pnpm build:rust:linux-arm64-musl \
-              && pnpm build:rust:chmod \
+              && pnpm cli:build-bin -r rust -p linux-arm64-musl \
+              && pnpm cli:chmod \
               && ./rust-build/monorepo-hash-linux-arm64-musl --help
             '
 
-      - name: "Upload linux-arm64-musl binary"
+      - name: "Upload the binary"
         uses: actions/upload-artifact@v7
         with:
           archive: false

@@ -3,5 +3,7 @@ dist
 bun-build
 rust-build
 src/rust/target
+go-build
+go-build
 bench-history-new
 tsconfig.tsbuildinfo

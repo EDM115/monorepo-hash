@@ -33,6 +33,14 @@ export default defineConfig({ test: {
     {
       test: {
         ...shared,
+        name: "go",
+        include: ["tests/go/**/*.test.ts"],
+        setupFiles: ["tests/go/setup.ts"],
+      },
+    },
+    {
+      test: {
+        ...shared,
         name: "rust",
         include: ["tests/rust/**/*.test.ts"],
         setupFiles: ["tests/rust/setup.ts"],
@@ -42,7 +50,7 @@ export default defineConfig({ test: {
   open: false,
   reporters:
     process.env.GITHUB_ACTIONS === "true"
-      ? ["dot", "tree", "github-actions"]
-      : ["dot", "tree"],
+      ? [ "dot", "tree", "github-actions" ]
+      : [ "dot", "tree" ],
   watch: false,
 } })

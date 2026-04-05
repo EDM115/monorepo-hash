@@ -1,0 +1,20 @@
+{
+  "args": [
+    "--compare",
+    "--debug",
+    "--target=packages/lint-config"
+  ],
+  "pre": [
+    "--generate",
+    "--debug",
+    "--silent"
+  ],
+  "exitCode": 1,
+  "stdout": "ℹ️  Comparing hashes for specified targets... (packages/lint-config)\n\nℹ️  Debug mode enabled\n\nℹ️  Using pnpm workspaces from <REPO>\n\n\n\n\n\n\n⚠️  <debug> packages/lint-config diverging files :\n  • __parity-playground-change__.txt\n\n⚠️  Changed (1) :\n• packages/lint-config\n\told : ead25b8556149da7b354505213074f004c40165cee5c68e7528fa61113d2f224\n\tnew : ff51a9a41b18eb5aee1e5b7db6bc61112f8640045bf5f60047c48959958d5681\n\n",
+  "stderr": "",
+  "stdoutNorm": "ℹ️  Comparing hashes for specified targets... (packages/lint-config)\n\nℹ️  Debug mode enabled\n\nℹ️  Using pnpm workspaces from <REPO>\n\n\n\n\n\n\n⚠️  <debug> packages/lint-config diverging files :\n  • __parity-playground-change__.txt\n\n⚠️  Changed (1) :\n• packages/lint-config\n\told : ead25b8556149da7b354505213074f004c40165cee5c68e7528fa61113d2f224\n\tnew : ff51a9a41b18eb5aee1e5b7db6bc61112f8640045bf5f60047c48959958d5681\n\n",
+  "files": {
+    ".debug-hash": "{\n  \"packages/a\": {\n    \"index.js\": \"53ccfcd88639924d498e5bc45731c1b9d62b0769e05b8492e9e2d6e068d0f1c6\",\n    \"package.json\": \"58f8bc540a09a830114ee449fc0592722f78bfbb0108cf610cabdc62ade88548\"\n  },\n  \"packages/b\": {\n    \"index.js\": \"d886d43ea3e00b7898f3d68793c18451413fe564953e6e64bad8e5143bf8869b\",\n    \"package.json\": \"279a3e635abc29fba2e80bed9f4d6dcc0c026069a937a1cd7c95ecdb426c45b8\"\n  },\n  \"packages/c\": {\n    \"index.js\": \"95b73725ed9b4fdf1cb85943534f2cfa8d458648744a0a8cafe8e213ef6d0127\",\n    \"package.json\": \"89080f87e0423e60cdb800302d5ae193d5352bfd51dbb22e73875263399807a4\"\n  },\n  \"packages/lint-config\": {\n    \"index.js\": \"dd5d8319f4c52c4b2b32c5aea28539754fb5220f8dfdddedcd18d745179616d2\",\n    \"package.json\": \"5a6547829b02448efb2fd0f3ced9acb62a7ae9961e2314de7c190ce1dcba1e23\"\n  },\n  \"packages/types\": {\n    \"index.js\": \"73a4ead8957889ead60ac2179e52ddaca2063c46f0c268e0d4a077f34b29ab6b\",\n    \"package.json\": \"fc9eebaefeb79b109e2029f02167ecc3d239bb0fb8d6d9c9431eb4399096e015\"\n  }\n}",
+    ".hash": "{\n  \"packages/a\": \"11d2c9bfc9beab67209489aa66da7582d58abdf992aeb74a6f485fcf230fc134\",\n  \"packages/b\": \"df780d82cec68d99b68ba54367b735d6050f8e98093efc4ea07a4bcff683dc77\",\n  \"packages/c\": \"7a94d15b51cac1f471158818811edcb78e2f66dd23a6f9cf0aabbb5d7dc19ac3\",\n  \"packages/lint-config\": \"ead25b8556149da7b354505213074f004c40165cee5c68e7528fa61113d2f224\",\n  \"packages/types\": \"fd82f9027af3f41175d4e1f6c031011517cfcf81b7edc34bb8550fb2a5c2c3ab\"\n}"
+  }
+}

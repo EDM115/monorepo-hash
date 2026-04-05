@@ -90,7 +90,7 @@ export type Meta = {
 
 
 // #region CLI state
-const CLI_VERSION = "2.1.1"
+const CLI_VERSION = "2.2.0"
 let mode: "generate" | "compare" | null = null
 let targets: string[] | null = null
 let silent = false
@@ -99,6 +99,7 @@ let unified = true
 let cliUsage = true
 let pmOption: PackageManager | null = null
 let usePathCache = true
+let didError = false
 
 let packageManager: PackageManager | null = null
 let repoRoot = ""
@@ -213,6 +214,8 @@ export function safeExit(code: number): void {
     exit(code)
   } else {
     if (![ 0, 1 ].includes(code)) {
+      didError = true
+
       throw new Error(`Exit with code ${code}`)
     }
   }
@@ -232,17 +235,37 @@ export async function mapLimit<T, R>(
 ): Promise<R[]> {
   const results: R[] = Array.from({ length: items.length })
   let idx = 0
+  let hasError = false
+  let firstError: unknown
 
   async function worker() {
-    while (idx < items.length) {
+    while (!hasError && idx < items.length) {
       const current = idx++
+      const item = items[current]
 
-      // oxlint-disable-next-line no-await-in-loop
-      results[current] = await fn(items[current])
+      if (item === undefined) {
+        continue
+      }
+
+      try {
+        // oxlint-disable-next-line no-await-in-loop
+        results[current] = await fn(item)
+      } catch (error) {
+        if (!hasError) {
+          hasError = true
+          firstError = error
+        }
+
+        return
+      }
     }
   }
 
   await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
+
+  if (hasError) {
+    throw firstError
+  }
 
   return results
 }
@@ -393,8 +416,15 @@ export async function detectDeno(): Promise<{
   }
 
   const root = dirname(denoPath)
-  // oxlint-disable-next-line no-unsafe-type-assertion
-  const config = JSON.parse(await readFile(denoPath, "utf8")) as { workspace?: string[] }
+  let config: { workspace?: string[] }
+
+  try {
+    // oxlint-disable-next-line no-unsafe-type-assertion
+    config = JSON.parse(await readFile(denoPath, "utf8")) as { workspace?: string[] }
+  } catch {
+    return null
+  }
+
   const globs: string[] = Array.isArray(config.workspace)
     ? config.workspace
     : []
@@ -574,7 +604,11 @@ export async function writeDebugFile(
     normalizedMap[displayPath(key)] = value
   }
 
-  await writeFile(debugPath, JSON.stringify(normalizedMap, null, 2), "utf8")
+  const sortedEntries = Object.entries(normalizedMap)
+    // oxlint-disable-next-line no-array-sort
+    .sort((a, b) => a[0].localeCompare(b[0]))
+
+  await writeFile(debugPath, JSON.stringify(Object.fromEntries(sortedEntries), null, 2), "utf8")
 }
 
 /**
@@ -614,10 +648,18 @@ export async function writeRootDebugFile(
       normPerFile[displayPath(fileKey)] = fileHash
     }
 
-    normalizedMap[normWsKey] = normPerFile
+    const sortedPerFileEntries = Object.entries(normPerFile)
+      // oxlint-disable-next-line no-array-sort
+      .sort((a, b) => a[0].localeCompare(b[0]))
+
+    normalizedMap[normWsKey] = Object.fromEntries(sortedPerFileEntries)
   }
 
-  await writeFile(p, JSON.stringify(normalizedMap, null, 2), "utf8")
+  const sortedWorkspaceEntries = Object.entries(normalizedMap)
+    // oxlint-disable-next-line no-array-sort
+    .sort((a, b) => a[0].localeCompare(b[0]))
+
+  await writeFile(p, JSON.stringify(Object.fromEntries(sortedWorkspaceEntries), null, 2), "utf8")
 }
 
 /**
@@ -719,7 +761,13 @@ export function computeOwnHashFromPerFile(
   const rawBuffer = Buffer.allocUnsafe(32)
 
   for (const key of sortedKeys) {
-    rawBuffer.write(perFileMap[key], "hex")
+    const hex = perFileMap[key]
+
+    if (hex === undefined) {
+      continue
+    }
+
+    rawBuffer.write(hex, "hex")
     h.update(rawBuffer)
   }
 
@@ -758,14 +806,25 @@ export function computeFinalHash(
 
   const pkg = pkgs[pkgName]
 
+  if (!pkg) {
+    log(`❌ Package metadata missing for ${pkgName}`, false, "error")
+    safeExit(99)
+
+    throw new Error(`Package metadata missing for ${pkgName}`)
+  }
+
   if (!pkg.ownHash) {
     log(`❌ ownHash missing for package ${pkgName}`, false, "error")
     safeExit(99)
+
+    throw new Error(`ownHash missing for package ${pkgName}`)
   }
+
+  const ownHash = pkg.ownHash
 
   // Start the chain
   const chain = createHash("sha256")
-    .update(pkg.ownHash!)
+    .update(ownHash)
 
   // Then incorporate each dependency's final hash (as Buffer)
   for (const dep of pkg.deps) {
@@ -822,7 +881,11 @@ export async function writeRootHashFile(
     normalized[displayPath(key)] = value
   }
 
-  await writeFile(p, JSON.stringify(normalized, null, 2), "utf8")
+  const sortedEntries = Object.entries(normalized)
+    // oxlint-disable-next-line no-array-sort
+    .sort((a, b) => a[0].localeCompare(b[0]))
+
+  await writeFile(p, JSON.stringify(Object.fromEntries(sortedEntries), null, 2), "utf8")
 }
 
 /**
@@ -845,7 +908,16 @@ export async function generateHashes(
     const map: Record<string, string> = new NullObj<string>()
 
     for (const [ name, { relDir }] of entries) {
-      map[displayPath(relDir)] = finalCache[name]
+      const current = finalCache[name]
+
+      if (current === undefined) {
+        log(`❌ final hash missing for package ${name}`, false, "error")
+        safeExit(99)
+
+        throw new Error(`final hash missing for package ${name}`)
+      }
+
+      map[displayPath(relDir)] = current
     }
 
     await writeRootHashFile(repoRoot, map)
@@ -866,6 +938,14 @@ export async function generateHashes(
       },
     ]) => {
       const current = finalCache[name]
+
+      if (current === undefined) {
+        log(`❌ final hash missing for package ${name}`, false, "error")
+        safeExit(99)
+
+        throw new Error(`final hash missing for package ${name}`)
+      }
+
       const hashPath = join(dir, ".hash")
 
       await writeFile(hashPath, current)
@@ -976,7 +1056,7 @@ export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCach
     }
 
     const visited = new Set<string>()
-    const stack = [...adjacency[pkgName]]
+    const stack = [...(adjacency[pkgName] ?? [])]
 
     while (stack.length > 0) {
       const dep = stack.pop()!
@@ -1023,6 +1103,14 @@ export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCach
 
   const checkResults = await Promise.all(toCheck.map(async ([ pkgName, info ]) => {
     const newHash = finalCache[pkgName]
+
+    if (newHash === undefined) {
+      log(`❌ final hash missing for package ${pkgName}`, false, "error")
+      safeExit(99)
+
+      throw new Error(`final hash missing for package ${pkgName}`)
+    }
+
     const posixRel = displayPath(info.relDir)
     const oldHash = pkgName in oldHashMap
       ? oldHashMap[pkgName]
@@ -1053,7 +1141,9 @@ export async function compareHashes(pkgs: Record<string, PackageInfo>, finalCach
     const transitiveDeps = getTransitiveDeps(pkgName)
     const depsChanged = Array.from(transitiveDeps)
       .filter((d) => allChanged.has(d))
-    const changedDepsRelDir = depsChanged.map((d) => pkgs[d].relDir)
+    const changedDepsRelDir = depsChanged
+      .map((d) => pkgs[d]?.relDir)
+      .filter((relDir): relDir is string => typeof relDir === "string")
 
     if (oldHash !== newHash || depsChanged.length > 0) {
       return {
@@ -1162,6 +1252,11 @@ export async function hash(): Promise<Awaited<ReturnType<typeof generateHashes>>
       expandDirectories: false,
     },
   )
+
+  if (pkgJsonPaths.length === 0) {
+    log("❌ No package.json files found in workspaces", false, "error")
+    safeExit(4)
+  }
 
   // 2) read package.json files to gather basic info (without hashing yet)
   const meta: Map<string, Meta> = new Map()
@@ -1381,6 +1476,7 @@ export async function runCli(customArgv?: string[]): Promise<Awaited<ReturnType<
   cliUsage = customArgv === undefined
   usePathCache = true
   let helpRequested = false
+  let versionRequested = false
 
   // Clear caches for fresh runs
   existsCache.clear()
@@ -1405,7 +1501,8 @@ export async function runCli(customArgv?: string[]): Promise<Awaited<ReturnType<
 
       mode = "compare"
     } else if (arg.startsWith("--target=") || arg.startsWith("-t=")) {
-      const [ , val ] = arg.split("=")
+      const [ , rawVal ] = arg.split("=")
+      const val = rawVal ?? ""
 
       targets = val.split(",")
         .map((p) => p.replace(/\/+$/, ""))
@@ -1416,27 +1513,32 @@ export async function runCli(customArgv?: string[]): Promise<Awaited<ReturnType<
     } else if (arg === "--workspaces" || arg === "-w") {
       unified = false
     } else if (arg.startsWith("--packagemanager=") || arg.startsWith("-pm=")) {
-      const [ , val ] = arg.split("=")
+      const [ , rawVal ] = arg.split("=")
+      const val = rawVal ?? ""
 
       if (!isPackageManager(val)) {
         log(`❌ Invalid package manager ("${val}"), supported values are : ${PACKAGE_MANAGERS.join(", ")}`, false, "error")
         safeExit(2)
+
+        throw new Error(`Invalid package manager: ${val}`)
       }
 
-      pmOption = isPackageManager(val)
-        ? val
-        : null
+      pmOption = val
     } else if (arg === "--nopathcache" || arg === "-npc") {
       usePathCache = false
     } else if (arg === "--help" || arg === "-h") {
       helpRequested = true
     } else if (arg === "--version" || arg === "-v") {
-      log(`monorepo-hash v${CLI_VERSION}`)
-      safeExit(0)
+      versionRequested = true
     } else {
       log(`❌ Unknown option : ${arg}`, false, "error")
       safeExit(3)
     }
+  }
+
+  if (versionRequested) {
+    log(`monorepo-hash v${CLI_VERSION}`)
+    safeExit(0)
   }
 
   if (!mode || helpRequested) {
@@ -1489,54 +1591,62 @@ Arguments :
     }
   }
 
-  const detected = pmOption
-    ? await detectSpecified(pmOption)
-    : await autoDetect()
+  try {
+    const detected = pmOption
+      ? await detectSpecified(pmOption)
+      : await autoDetect()
 
-  if (!detected) {
-    if (pmOption) {
-      const auto = await autoDetect()
+    if (!detected) {
+      if (pmOption) {
+        const auto = await autoDetect()
 
-      if (auto) {
-        log(`❌ ${pmOption} workspaces not found. Did you mean --packagemanager=${auto.pm}?`, false, "error")
-      } else {
-        log("❌ Specified package manager not found and no supported package manager detected", false, "error")
+        if (auto) {
+          log(`❌ ${pmOption} workspaces not found. Did you mean --packagemanager=${auto.pm}?`, false, "error")
+        } else {
+          log("❌ Specified package manager not found and no supported package manager detected", false, "error")
+        }
+
+        safeExit(5)
       }
 
-      safeExit(5)
+      log("❌ No workspaces found or unsupported package manager", false, "error")
+      safeExit(4)
     }
 
-    log("❌ No workspaces found or unsupported package manager", false, "error")
-    safeExit(4)
-  }
+    packageManager = detected?.pm ?? null
+    repoRoot = detected?.root ?? ""
+    workspaceGlobs = detected?.globs ?? []
 
-  packageManager = detected?.pm ?? null
-  repoRoot = detected?.root ?? ""
-  workspaceGlobs = detected?.globs ?? []
+    log(`ℹ️  Using ${packageManager} workspaces from ${repoRoot}\n`)
 
-  log(`ℹ️  Using ${packageManager} workspaces from ${repoRoot}\n`)
-
-  // Compile root .gitignore
-  globalRootIgnore = ignore()
-  const rootGit: string = join(repoRoot, ".gitignore")
-
-  if (await exists(rootGit)) {
-    const rootGitContents = await readFile(rootGit, "utf8")
-
+    // Compile root .gitignore
     globalRootIgnore = ignore()
-      .add(rootGitContents)
-    // Ignore hashes
-    globalRootIgnore.add("**/.hash")
-    globalRootIgnore.add("**/.debug-hash")
-  }
+    const rootGit: string = join(repoRoot, ".gitignore")
 
-  try {
+    if (await exists(rootGit)) {
+      const rootGitContents = await readFile(rootGit, "utf8")
+
+      globalRootIgnore = ignore()
+        .add(rootGitContents)
+      // Ignore hashes
+      globalRootIgnore.add("**/.hash")
+      globalRootIgnore.add("**/.debug-hash")
+    }
+
     return await hash()
   } catch (err) {
+    if (didError) {
+      throw err
+    }
+
     log("❌ Unexpected error :", false, "error")
-    log(err instanceof Error
-      ? err.message
-      : String(err), false, "error")
+    log(
+      err instanceof Error
+        ? err.message
+        : String(err),
+      false,
+      "error"
+    )
     safeExit(99)
   }
 }

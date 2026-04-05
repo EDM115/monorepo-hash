@@ -85,24 +85,15 @@ await writeFile(
   "export const msg = \"pkg-c\"\n",
 )
 
-let src = resolve(__dirname, "../../src/bun/monorepo-hash.ts")
-
-if (!(await pathExists(src))) {
-  throw new Error(`bun/monorepo-hash.ts not found at ${src}`)
-}
-
-await mkdirp(join(tmp, "bun"))
-
-await copyFile(src, join(tmp, "bun", "monorepo-hash.ts"))
-
 const executableName = getBinaryBasename(await detectPlatformId() ?? "linux-x64")
 
-src = resolve(__dirname, `../../bun-build/${executableName}`)
+const src = resolve(__dirname, `../../bun-build/${executableName}`)
 
 if (!(await pathExists(src))) {
   throw new Error(`${executableName} not found at ${src}`)
 }
 
+await mkdirp(join(tmp, "bun"))
 await copyFile(src, join(tmp, "bun", "monorepo-hash.exe"))
 
 globalThis.tmpRoot = tmp

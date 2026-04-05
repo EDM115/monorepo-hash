@@ -10,11 +10,14 @@
   "explorer.fileNesting.patterns": {
     "oxlint.config.ts": "eslint.*",
     "package.json": ".node-version, pnpm*, *.script.ts",
-    "README.md": "LICENSE, .gitignore, CHANGELOG.md, logo.*",
+    "README.md": "LICENSE, .gitignore, AGENTS.md, CHANGELOG.md, logo.*",
     "tsdown.config.ts": "tsconfig.*"
   },
   "files.eol": "\n",
   "files.insertFinalNewline": true,
+  "go.toolsEnvVars": {
+    "GOEXPERIMENT": "jsonv2",
+  },
   "gremlins.showInProblemPane": true,
   "importCost.fontStyle": "italic",
   "importCost.largePackageDarkColor": "#FF5555",
@@ -31,6 +34,7 @@
   "oxc.enable.oxlint": true,
   "oxc.unusedDisableDirectives": "warn",
   "search.exclude": {
+    "src/go/go.sum": true,
     "pnpm-lock.yaml": true
   }
 }

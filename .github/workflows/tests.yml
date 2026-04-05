@@ -19,10 +19,10 @@ jobs:
       - name: "Checkout"
         uses: actions/checkout@v6
 
-      - name: "Install pnpm"
+      - name: "Install PNPM"
         uses: pnpm/action-setup@v5
 
-      - name: "Bump Node.js to v25"
+      - name: "Bump Node to v25"
         uses: actions/setup-node@v6
         with:
           check-latest: true
@@ -32,29 +32,43 @@ jobs:
       - name: "Install Bun"
         uses: oven-sh/setup-bun@v2
 
+      - name: "Install Go"
+        uses: actions/setup-go@v6
+        with:
+          cache-dependency-path: "./src/go/go.sum"
+          check-latest: true
+          go-version: "stable"
+
       - name: "Install Rust"
         uses: dtolnay/rust-toolchain@stable
 
       - name: "Install dependencies"
-        run: pnpm i --frozen-lockfile
+        run: |
+          pnpm i --frozen-lockfile
+          cd src/go && go mod download
 
       - name: "Lint check"
         run: pnpm lint
-      
+
       - name: "Types check"
         run: pnpm typecheck
 
       - name: "Build the project"
-        run: pnpm build:node && pnpm build:bun:linux-x64 && pnpm build:bun:linux-arm64 && pnpm build:bun:windows-x64:ci && pnpm build:bun:windows-arm64:ci && pnpm build:bun:darwin-x64 && pnpm build:bun:darwin-arm64 && pnpm build:bun:linux-x64-musl && pnpm build:bun:linux-arm64-musl && pnpm build:bun:chmod
+        run: |
+          pnpm build:node
+          pnpm cli:build-bin -r bun -p linux-x64
+          pnpm cli:build-bin -r go -p linux-x64
+          pnpm cli:build-bin -r rust -p linux-x64
+          pnpm cli:chmod
 
-      - name: "Build Rust CLI for tests"
-        run: pnpm build:rust:linux-x64
-
-      - name: "Run the node tests"
+      - name: "Run the Node tests"
         run: pnpm vitest --project node
 
-      - name: "Run the bun tests"
-        run: pnpm test:bun:prepare && pnpm vitest --project bun
+      - name: "Run the Bun tests"
+        run: pnpm vitest --project bun
 
-      - name: "Run the rust tests"
+      - name: "Run the Go tests"
+        run: pnpm vitest --project go
+
+      - name: "Run the Rust tests"
         run: pnpm vitest --project rust

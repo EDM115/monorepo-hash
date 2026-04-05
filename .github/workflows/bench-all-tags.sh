@@ -87,7 +87,7 @@ for spec in "${REFS[@]}"; do
 
   pushd "$WT" >/dev/null
 
-  # Reuse pnpm store (best effort, still respects each tag's lockfile)
+  # Reuse PNPM store (best effort, still respects each tag's lockfile)
   pnpm i --frozen-lockfile --reporter=silent
 
   if grep -q '"build:node"' package.json; then
@@ -104,7 +104,7 @@ for spec in "${REFS[@]}"; do
   fi
 
   # Determine pm_arg
-  if grep -q '(-pm)' src/monorepo-hash.ts; then
+  if grep -q '(-pm)' "dist/$JS_NAME"; then
     PM_ARG='-pm=pnpm'
   else
     PM_ARG=''
@@ -114,8 +114,21 @@ for spec in "${REFS[@]}"; do
   BUILD_BUN=false
   if grep -q '"build:bun"' package.json; then
     BUILD_BUN=true
-    pnpm build:bun:linux-x64
+    if grep -q '"build:bun:linux-x64"' package.json; then
+      pnpm build:bun:linux-x64
+    else
+      pnpm cli:build-bin -r bun -p linux-x64
+    fi
     chmod +x bun-build/monorepo-hash-linux-x64
+  fi
+
+  # Go build only if supported in that tag
+  BUILD_GO=false
+  if grep -q '"build:go"' package.json; then
+    BUILD_GO=true
+    cd src/go && go mod download && cd ../..
+    pnpm cli:build-bin -r go -p linux-x64
+    chmod +x go-build/monorepo-hash-linux-x64
   fi
 
   # Runs count
@@ -129,10 +142,10 @@ for spec in "${REFS[@]}"; do
     b="$(echo "$b" | xargs)"
     DEMO="$ROOT/tests/demo/${b}-monorepo"
 
-    # node
+    # Node
     mkdir -p "$RESULTS_DIR/node/$safe_label"
     cd "$DEMO"
-    echo "  🚦 node, $b, cold"
+    echo "  🚦 Node, $b, cold"
     sleep 2
     hyperfine \
       --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches >/dev/null' \
@@ -140,7 +153,7 @@ for spec in "${REFS[@]}"; do
       --runs "$RUNS" \
       --export-json "$RESULTS_DIR/node/$safe_label/${b}-cold.json" \
       "node $WT/dist/$JS_NAME --generate $PM_ARG -s"
-    echo "  🚦 node, $b, warm"
+    echo "  🚦 Node, $b, warm"
     sleep 2
     hyperfine \
       --warmup "$WARMUP" \
@@ -148,10 +161,10 @@ for spec in "${REFS[@]}"; do
       --export-json "$RESULTS_DIR/node/$safe_label/${b}-warm.json" \
       "node $WT/dist/$JS_NAME --generate $PM_ARG -s"
 
-    # bun (if that tag supports it)
+    # Bun (if that tag supports it)
     if [[ "$BUILD_BUN" == "true" ]]; then
       mkdir -p "$RESULTS_DIR/bun/$safe_label"
-      echo "  🚦 bun, $b, cold"
+      echo "  🚦 Bun, $b, cold"
       sleep 2
       hyperfine \
         --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches >/dev/null' \
@@ -159,13 +172,33 @@ for spec in "${REFS[@]}"; do
         --runs "$RUNS" \
         --export-json "$RESULTS_DIR/bun/$safe_label/${b}-cold.json" \
         "$WT/bun-build/monorepo-hash-linux-x64 --generate $PM_ARG -s"
-      echo "  🚦 bun, $b, warm"
+      echo "  🚦 Bun, $b, warm"
       sleep 2
       hyperfine \
         --warmup "$WARMUP" \
         --runs "$RUNS" \
         --export-json "$RESULTS_DIR/bun/$safe_label/${b}-warm.json" \
         "$WT/bun-build/monorepo-hash-linux-x64 --generate $PM_ARG -s"
+    fi
+
+    # Go (if that tag supports it)
+    if [[ "$BUILD_GO" == "true" ]]; then
+      mkdir -p "$RESULTS_DIR/go/$safe_label"
+      echo "  🚦 Go, $b, cold"
+      sleep 2
+      hyperfine \
+        --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches >/dev/null' \
+        --warmup "$WARMUP" \
+        --runs "$RUNS" \
+        --export-json "$RESULTS_DIR/go/$safe_label/${b}-cold.json" \
+        "$WT/go-build/monorepo-hash-linux-x64 --generate $PM_ARG -s"
+      echo "  🚦 Go, $b, warm"
+      sleep 2
+      hyperfine \
+        --warmup "$WARMUP" \
+        --runs "$RUNS" \
+        --export-json "$RESULTS_DIR/go/$safe_label/${b}-warm.json" \
+        "$WT/go-build/monorepo-hash-linux-x64 --generate $PM_ARG -s"
     fi
   done
 

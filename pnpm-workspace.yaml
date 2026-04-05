@@ -1,5 +1,7 @@
-onlyBuiltDependencies:
-  - esbuild
-  - unrs-resolver
+allowBuilds:
+  esbuild: true
+  unrs-resolver: true
+
+dedupePeers: true
 
 shellEmulator: true

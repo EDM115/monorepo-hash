@@ -85,16 +85,14 @@ await writeFile(
   "export const msg = \"pkg-c\"\n",
 )
 
-await mkdirp(join(tmp, "rust"))
-
-const platformId = await detectPlatformId() ?? "linux-x64"
-const executableName = getBinaryBasename(platformId)
+const executableName = getBinaryBasename(await detectPlatformId() ?? "linux-x64")
 const src = resolve(__dirname, `../../rust-build/${executableName}`)
 
 if (!(await pathExists(src))) {
   throw new Error(`${executableName} not found at ${src}`)
 }
 
+await mkdirp(join(tmp, "rust"))
 await copyFile(src, join(tmp, "rust", "monorepo-hash.exe"))
 
 globalThis.tmpRoot = tmp

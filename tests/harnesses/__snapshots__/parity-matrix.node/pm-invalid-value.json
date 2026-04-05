@@ -1,0 +1,12 @@
+{
+  "args": [
+    "--generate",
+    "--packagemanager=edm"
+  ],
+  "pre": [],
+  "exitCode": 2,
+  "stdout": "",
+  "stderr": "❌ Invalid package manager (\"edm\"), supported values are : pnpm, npm, deno, bun, yarn\n",
+  "stdoutNorm": "",
+  "files": {}
+}

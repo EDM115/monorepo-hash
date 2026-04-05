@@ -8,7 +8,7 @@
 ![NPM Version](https://img.shields.io/npm/v/monorepo-hash) ![NPM Downloads](https://img.shields.io/npm/dt/monorepo-hash) ![Total binaries downloads](https://img.shields.io/github/downloads/EDM115/monorepo-hash/total?label=Total%20binaries%20downloads) [![More info](https://img.shields.io/badge/npmx-More_info-orange?logo=npm)](https://npmx.dev/monorepo-hash)
 
 ## :memo: Features
-:runner: **Fast** : Runs in huge monorepos [in no time](#rocket-benchmarks), processes workspaces in parallel, powered by Bun  
+:runner: **Fast** : Runs in huge monorepos [in no time](#rocket-benchmarks), processes workspaces in parallel, powered by Go  
 :dart: **Accurate** : Generates hashes based on every tracked file  
 :left_right_arrow: **Complete** : Supports transitive workspace dependencies  
 :ok_hand: **No config** : Drop-in and instantly usable  
@@ -52,9 +52,10 @@ On Windows only, you can also install it globally using WinGet :
 winget install EDM115.monorepo-hash
 ```
 > [!IMPORTANT]  
-> Since `v2.2.0`, the `monorepo-hash` cli command is a native binary built in Rust to minimize startup overhead and memory usage. To enable this, the postinstall script needs to be run, which is disabled by default in PNPM/Bun/Deno for security reasons.  
+> Since `v2.0.0`, the `monorepo-hash` cli command is a direct binary that cut the Node overhead and allows for faster I/O. To enable this, the postinstall script needs to be run, which is disabled by default in PNPM/Bun/Deno for security reasons.  
 > You can totally refuse to use it (whether it is for security reasons or size constraints). In such case, either run the older Node + plain JS version (`monorepo-hash-js`) or use the [programmatic API](#usage-outside-of-the-cli).  
-> If you added `monorepo-hash` without allowing the postinstall script to run, you can do it later at anytime with `pnpm approve-scripts`, `bun pm trust monorepo-hash` or `deno approve-scripts`.
+> If you added `monorepo-hash` without allowing the postinstall script to run, you can do it later at anytime with `pnpm approve-scripts`, `bun pm trust monorepo-hash` or `deno approve-scripts`.  
+> From `v1.8.0` up to `v2.1.1` the binary have been made with Bun. Starting with `v2.2.0` onwards, it is made with Go.
 
 > [!TIP]  
 > Make sure that your workspace configuration is set up correctly (`pnpm-workspace.yaml`, `package.json` workspaces or `deno.json(c)` workspace) as `monorepo-hash` will use it to find your workspaces. Globs are supported.  
@@ -357,25 +358,25 @@ jobs:
         node-version: [25]
 
     steps:
-      - name: Checkout code
+      - name: "Checkout code"
         uses: actions/checkout@v6
 
-      - name: Set up Docker Buildx
+      - name: "Set up Docker Buildx"
         uses: docker/setup-buildx-action@v4
 
-      - name: Setup pnpm
+      - name: "Setup PNPM"
         uses: pnpm/action-setup@v5
 
-      - name: Use Node.js ${{ matrix.node-version }}
+      - name: "Use Node ${{ matrix.node-version }}"
         uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
           cache: "pnpm"
 
-      - name: Install dependencies
+      - name: "Install dependencies"
         run: pnpm i --frozen-lockfile
 
-      - name: Restore .hash cache
+      - name: "Restore .hash cache"
         id: restore-hash-cache
         uses: actions/cache/restore@v5
         with:
@@ -385,11 +386,11 @@ jobs:
           restore-keys: |
             hash-files-${{ runner.os }}-pnpm-
 
-      - name: Force rebuild if no cache has been found
+      - name: "Force rebuild if no cache has been found"
         if: steps.restore-hash-cache.outputs.cache-hit == ''
         run: rm -fr **/.hash
 
-      - name: Check if workspace-name is unchanged
+      - name: "Check if workspace-name is unchanged"
         id: check-workspace-name
         run: |
           # These 2 lines are useful only if you use act, as a way to ensure the images are built if not present
@@ -402,7 +403,7 @@ jobs:
 
       # Do this as much as needed for your workspaces
 
-      - name: Build the workspace-name Docker image
+      - name: "Build the workspace-name Docker image"
         if: steps.check-workspace-name.outputs.WORKSPACENAME_HASH_EXIT_CODE != '0'
         # act version :
         # if: (steps.check-workspace-name.outputs.WORKSPACENAME_HASH_EXIT_CODE != '0' || steps.check-workspace-name.outputs.WORKSPACENAME_DOCKER_EXISTS == '0')
@@ -416,11 +417,11 @@ jobs:
       # Build things and test them
 
       # Don't do that if you delete/add files during the action !
-      - name: Ensure hash files are up to date
+      - name: "Ensure hash files are up to date"
         run: |
           pnpm monorepo-hash --generate
 
-      - name: Save .hash cache
+      - name: "Save .hash cache"
         uses: actions/cache/save@v5
         with:
           path: |
@@ -437,17 +438,17 @@ This is especially useful because when you generate hashes, the action will pick
 For the very first run, you might need to create a workflow which will only checkout and save the .hash files in a cache for future runs.
 
 ## :construction: Limitations
-- If you use another Version Control System than `git`, we can't ignore your files correctly for the hashes generation
+- If you use another Version Control System than `git`, we can't ignore your files correctly for the hashes generation (note : any VCS that uses `.gitignore` files, such as [`Jujutsu`](https://www.jj-vcs.dev/latest/working-copy/#ignored-files) will work just fine)
 - Your EOL (End of Line) should be consistent across your monorepo's files and the different environments it's being used in. Since Docker containers and GitHub Actions runners are based on Linux, it's recommended to use `LF` as EOL.  
   I recommend to set this up in your IDE and formatter config.
 
 ## :rocket: Benchmarks
 These benchmarks have been realised on Standard GitHub-hosted runner (`ubuntu-24.04`) that you can get by running any Action.  
-The specs as I'm writing this are an AMD EPYC 7763 64-Core (4) @ 3.24 GHz CPU, 15.62 GiB of RAM and 71.61 GiB of SSD storage. Keep in mind that since the servers are shared between multiple users, the performance may vary slightly between runs.  
+The specs as I'm writing this are an AMD EPYC 7763 64-Core (4) @ 3.25 GHz CPU, 15.61 GiB of RAM and 144.26 GiB of SSD storage. Keep in mind that since the servers are shared between multiple users, the performance may vary slightly between runs.  
 They have been reproduced 10 times with a cold and warm disk cache thanks to [hyperfine](https://github.com/sharkdp/hyperfine).  
-Cold cache results are more representative of a first run in CI or on a fresh boot. The script run speed doesn't really change, the only performance overhead on a cold cache is the time it takes to run Node.js/Bun (and reading files from the disk). You can expect warm cache runs to be at least 1/3 faster than cold cache ones.  
-The versions denoted with `(bun)` are using the Bun binary build of `monorepo-hash`, which removes the Node.js overhead, uses Bun internal replacements and is generally faster.  
-The Rust CLI measurements below were run on `2026-03-16` from this branch on the same machine, only on `small` and `wide` demo monorepos as a focused comparison with the current Node implementation.  
+Cold cache results are more representative of a first run in CI or on a fresh boot. The script run speed doesn't really change, the only performance overhead on a cold cache is the time it takes to run Node/Bun/Go (and reading files from the disk). You can expect warm cache runs to be at least 1/3 faster than cold cache ones.  
+The versions denoted with `(bun)` are using the Bun binary build of `monorepo-hash`, which removes the Node overhead, uses Bun internal replacements and is generally faster. This build is the default one since `v2.0.0`.  
+The versions denoted with `(go)` are using the Go binary build of `monorepo-hash`, which is even faster than the Go version and 95% smaller. This build is the default one since `v2.2.0`.  
 Starting with `v2.0.0`, the benchmark methodology has changed : we re-runned them for all versions in *the same runner and script* to avoid noisy neighbor effects and massive drifts in perf for no reason, and we also started to measure warm cache runs, noted in parenthesis. As a consequence, previous results that you could find in the releases aren't comparable with these new ones. More info here : [[INFO] 📣 A change in the benchmarks methodology (#20)](https://github.com/EDM115/monorepo-hash/issues/20)
 > [!NOTE]  
 > Here are the details of each demo monorepo used for the benchmarks :
@@ -457,16 +458,17 @@ Starting with `v2.0.0`, the benchmark methodology has changed : we re-runned the
 > - **Wide monorepo** : 50 workspaces of 10 folders each, with each folder containing 100 files, files composed of 10 lines of text *(the most representative of a real-world monorepo with many packages)*
 >
 > In order to not clunk up Git, these [demo repos](./tests/demo/) are 7z ultra compressed.  
-> Symbols (comparing Node with Node, Bun with Bun, the first Bun version is compared with the same version's Node, wide > small > medium > large, warm > cold) :
+> Symbols (comparing Node with Node, Bun with Bun, Go with Go, the first Bun/Go version is compared with the same version's Node, wide > small > medium > large, warm > cold) :
 > - :chart_with_upwards_trend: : Faster than the previous version
 > - :chart_with_downwards_trend: : Slower than the previous version
 > - :balance_scale: : Negligible or no perceivable change in performance compared to the previous version
 
 | Version                                   | Small               | Medium             | Large               | Wide               |
 | :---------------------------------------- | :------------------ | :----------------- | :------------------ | :----------------- |
-| `v2.2.0 (rust)` :chart_with_upwards_trend: | 8.08 ms *(avg, 3 runs)* | — | — | 615.2 ms *(avg, 3 runs)* |
-| `v2.1.0 (bun)` :chart_with_upwards_trend: | 208 ms (53.9 ms)    | 3.468 s (775.8 ms) | 49.896 s (12.169 s) | 3.816 s (862 ms) |
-| `v2.1.0` :chart_with_upwards_trend:       | 253.9 ms (116.5 ms) | 3.677 s (3.438 s)  | 52.091 s (67.068 s) | 5.883 s (5.614 s)  |
+| `v2.1.1 (bun)` :chart_with_upwards_trend: | 163.6 ms (50.1 ms)  | 2.994 s (715 ms)   | 40.29 s (10.887 s)  | 2.815 s (718.5 ms) |
+| `v2.1.1` :chart_with_upwards_trend:       | 239.4 ms (128.6 ms) | 3.755 s (3.942 s)  | 50.266 s (39.827 s) | 4.359 s (4.037 s)  |
+| `v2.1.0 (bun)` :chart_with_upwards_trend: | 208 ms (53.9 ms)    | 3.468 s (775.8 ms) | 49.896 s (12.169 s) | 3.816 s (862 ms)   |
+| `v2.1.0` :chart_with_downwards_trend:     | 253.9 ms (116.5 ms) | 3.677 s (3.438 s)  | 52.091 s (67.068 s) | 5.883 s (5.614 s)  |
 | `v2.0.0 (bun)` :chart_with_upwards_trend: | 231 ms (69.33 ms)   | 3.295 s (802.3 ms) | 41.083 s (17.319 s) | 3.081 s (761.9 ms) |
 | `v2.0.0` :chart_with_upwards_trend:       | 282.6 ms (124.1 ms) | 3.853 s (3.532 s)  | 36.773 s (35.706 s) | 4.447 s (3.599 s)  |
 | `v1.9.0 (bun)` :balance_scale:            | 224.3 ms (67.45 ms) | 3.347 s (719.9 ms) | 35.774 s (10.268 s) | 3.546 s (1.405 s)  |
@@ -486,16 +488,32 @@ Starting with `v2.0.0`, the benchmark methodology has changed : we re-runned the
 | `v1.1.0` :chart_with_downwards_trend:     | 263.1 ms (122.9 ms) | 3.894 s (3.586 s)  | 56.071 s (37.309 s) | 4.299 s (4.021 s)  |
 | `v1.0.0` :balance_scale:                  | 247.9 ms (119.1 ms) | 3.752 s (3.576 s)  | 56.198 s (37.479 s) | 4.370 s (4.048 s)  |
 
+## :telescope: Comparison
+It would be foolish to pretend that `monorepo-hash` is the only player in the space, so here are some comparisons with other tools that have similar goals.  
+Some of you might say "Why not just use [`Turborepo`](https://turborepo.dev/) since you mention it at the beginning ?" and you could but usage differs. You can run `turbo ls --affected` to check which workspaces are affected by changes, *and* it does take in consideration transitive dependencies, but it isn't aware of "is the root included in the workspaces list ?", it doesn't give reusable hashes for other tools and doesn't have a programmatic API. However since it's written in Rust, it's very fast.  
+Overall `Turborepo` is mainly a **task runner**, and its caching mechanism is centered around tasks and not packages themselves, although it is a byproduct of the way it works. It also compares against your SCM's branch and not a specified snapshot.  
+Other task runners like [`Nx`](https://nx.dev/), [`moonrepo`](https://moonrepo.dev/), [`Lerna`](https://lerna.js.org/) or [`Rush`](https://rushjs.io/) have similar limitations, and usually require their own configuration files (who doesn't *love* having one more file on the repo root ? :smiling_face_with_three_hearts:). On top of that, they might actually be quite slower than `monorepo-hash` since they have so much more features.
+A second category is **package managers** themselves. For example, [`PNPM`](https://pnpm.io/) offers `--filter "[<since>]"` to only run commands on packages that have changed since the specified branch/commit, and it does take in consideration transitive dependencies. However, it is mainly here for task running (again...) and is tied again to your VCS.  
+Lastly there are **specialized tools** (like us !), such as [`bazel-diff`](https://github.com/Tinder/bazel-diff) (specific to Bazel), [`Yanice`](https://github.com/abuob/yanice), [`traf`](https://github.com/lemonade-hq/traf) and [`@rushstack/package-deps-hash`](https://api.rushstack.io/pages/package-deps-hash/) (specific to Rush), to name a few. They all have their advantages and drawbacks, but overall they either work only with specific tooling, require some manual configuration, are language-specific or don't even expose a CLI.  
+If you wish to read more about the comparison between `monorepo-hash` and other tools, check this issue : [[INFO] 📣 Alternatives comparison : a ChatGPT yap session (#26)](https://github.com/EDM115/monorepo-hash/issues/26)
+
 ## :hammer_and_wrench: Contributing
 Here's a quick guide for contributing to `monorepo-hash` :
+0. Requirements :
+  - Node v25+
+  - PNPM v10+
+  - Bun v1.3+
+  - Go 1.26+
+  - Rust stable
 1. Fork the repository (and star it :wink:)
 2. Clone your fork
   ```bash
   git clone https://github.com/USERNAME/monorepo-hash.git
   cd monorepo-hash
   corepack enable
-  corepack prepare pnpm@10.30.3 --activate
+  corepack prepare pnpm@10.33.0 --activate
   pnpm i --frozen-lockfile
+  cd src/go && go mod download && cd ../..
   rustup toolchain install stable
   ```
 3. Do your changes
@@ -505,34 +523,41 @@ Here's a quick guide for contributing to `monorepo-hash` :
   pnpm typecheck
   pnpm lint
   ```
-5. Test your changes (stage them before)  
-  Feel free to add tests to the `tests` directory.
+5. Test your changes (feel free to add tests to the `tests` directory)
   ```bash
   pnpm test
   ```
-7. Build the Rust CLI binary (optional but recommended before opening the PR)
+6. Build the runtime binary you changed (optional but recommended before opening the PR)
   ```bash
+  pnpm build:go
   pnpm build:rust
-  ./src/rust/target/release/monorepo-hash-rust --help
+  pnpm build:bun
   ```
-8. Commit your changes
-9. Open a pull request
+7. Commit your changes
+8. Open a pull request
 
 ### Release process
 ```bash
 # bump the version in package.json
-git commit && git push
+git add -A && git status
 pnpm typecheck
+pnpm test
+git commit -m "the message" && git push
 pnpm build
-pnpm build:rust
-pnpm build:bun
 # run the actions that build the binaries and download the artifacts
-# create a draft release on GitHub with the bun and rust artifacts
-# compare the benchmarks ran from master and the release and pick the best ones to include as a zip artifact & in the README
-git commit && git push
+# create a draft release on GitHub with the artifacts
+# run the benchmarks action and download the results, put in `bench-history-new`
+pnpm cli:get-bench-times
+# include them as a zip release artifact & in the README
+git commit -m "the message" && git push
 # un-draft and publish the release on GitHub as latest
 pnpm release
 ```
+
+### Update process
+- PNPM (Node/Bun) : `pnpm up -L`
+- Go : `cd src/go && go get -u && go get -u tool && go mod tidy && cd ../..`
+- Rust : `cd src/rust && cargo update && cd ../..`
 
 ## :eyes: Who uses `monorepo-hash` ?
 - [Nexelec](https://nexelec.eu), at least during my internship there
@@ -542,8 +567,7 @@ pnpm release
 If you use `monorepo-hash` in your project(s), whether you're an individual or a company, please let me know by opening an issue or a pull request, and I'll add you to this list !
 
 ## :money_with_wings: Donate
-I'm a young developer from France, and as I write this I'm actively seeking for a job.  
-If you want to support me, here's how you can do it :
+I'm a young developer from France. If you want to support me, here's how you can do it :
 - Star this repository
 - Follow me on [GitHub](https://github.com/EDM115)
 - Donate :

@@ -11,6 +11,7 @@ use std::path::{Path, PathBuf};
 use std::process;
 
 const PACKAGE_MANAGERS: &[&str] = &["pnpm", "npm", "deno", "bun", "yarn"];
+const CLI_VERSION: &str = "2.2.0";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Mode {
@@ -104,7 +105,11 @@ fn run() -> Result<(), String> {
         Ok(Some(o)) => o,
         Ok(None) => return Ok(()),
         Err(e) => {
-            eprintln!("❌ {}", e.message);
+            let quiet = args.iter().any(|arg| arg == "--silent" || arg == "-s");
+
+            if !quiet {
+                eprintln!("❌ {}", e.message);
+            }
             process::exit(e.code);
         }
     };
@@ -142,23 +147,31 @@ fn run() -> Result<(), String> {
     }
 
     let detection = if let Some(pm) = &opts.pm_option {
-        match detect_specified(pm) {
-            Some(Ok(d)) => d,
-            Some(Err(e)) => {
-                eprintln!("❌ {}", e.message);
-                process::exit(e.code);
-            }
-            None => {
-                eprintln!("❌ Specified package manager not found");
+        match detect_specified_checked(pm) {
+            Ok(Some(d)) => d,
+            Ok(None) => {
+                if let Ok(Some(auto)) = auto_detect_checked() {
+                    eprintln!("❌ {} workspaces not found. Did you mean --packagemanager={} ?", pm, auto.pm);
+                } else {
+                    eprintln!("❌ Specified package manager not found");
+                }
                 process::exit(5);
+            }
+            Err(error) => {
+                eprintln!("❌ {}", error);
+                process::exit(99);
             }
         }
     } else {
-        match auto_detect() {
-            Some(d) => d,
-            None => {
+        match auto_detect_checked() {
+            Ok(Some(d)) => d,
+            Ok(None) => {
                 eprintln!("❌ No workspaces found or unsupported package manager");
                 process::exit(4);
+            }
+            Err(error) => {
+                eprintln!("❌ {}", error);
+                process::exit(99);
             }
         }
     };
@@ -174,30 +187,33 @@ fn run() -> Result<(), String> {
     let root_ignore = compile_root_ignore(&detection.root).map_err(|e| e.to_string())?;
 
     let mut packages = load_packages(&detection).map_err(|e| e.to_string())?;
+    if packages.is_empty() {
+        eprintln!("❌ No package.json files found in workspaces");
+        process::exit(4);
+    }
     resolve_internal_deps(&mut packages);
 
     let selected_names = select_packages(&packages, opts.targets.as_ref());
+    let packages_to_hash = packages_to_hash(&packages, &selected_names);
     compute_package_hashes(
         &mut packages,
-        &selected_names,
+        &packages_to_hash,
         &detection.root,
         root_ignore.as_ref(),
         opts.debug,
         opts.unified,
+        opts.mode,
+        opts.silent,
     )
     .map_err(|e| e.to_string())?;
 
-    let final_hashes = compute_final_hashes(&packages, &selected_names).map_err(|e| {
+    let final_hashes = compute_final_hashes(&packages, &packages_to_hash).map_err(|e| {
         if e.code == 6 {
             eprintln!("❌ {}", e.message);
             process::exit(6);
         }
         e.to_string()
     })?;
-
-    if !opts.silent {
-        println!("✅ Computed all hashes ({})\n", selected_names.len());
-    }
 
     match opts.mode {
         Mode::Generate => generate_hashes(
@@ -215,6 +231,7 @@ fn run() -> Result<(), String> {
             &final_hashes,
             &detection.root,
             opts.unified,
+            opts.debug,
             opts.silent,
         )
         .map_err(|e| e.to_string())?,
@@ -230,6 +247,8 @@ fn parse_args(args: &[String]) -> Result<Option<CliOptions>, CliError> {
     let mut debug = false;
     let mut unified = true;
     let mut pm_option: Option<String> = None;
+    let mut wants_help = false;
+    let mut wants_version = false;
 
     for arg in args {
         if arg == "--generate" || arg == "-g" {
@@ -254,8 +273,7 @@ fn parse_args(args: &[String]) -> Result<Option<CliOptions>, CliError> {
         {
             let parsed = value
                 .split(',')
-                .map(|s| s.trim().trim_end_matches('/').replace('\\', "/"))
-                .filter(|s| !s.is_empty())
+                .map(|s| s.trim_end_matches('/').replace('\\', "/"))
                 .collect::<Vec<_>>();
             targets = Some(parsed);
         } else if arg == "--silent" || arg == "-s" {
@@ -282,11 +300,9 @@ fn parse_args(args: &[String]) -> Result<Option<CliOptions>, CliError> {
         } else if arg == "--nopathcache" || arg == "-npc" {
             // accepted for parity, no-op in rust
         } else if arg == "--help" || arg == "-h" {
-            println!(
-                "\nmonorepo-hash by EDM115\nA simple script to generate or compare .hash files for monorepo workspaces\nSupports PNPM, Yarn, NPM, Bun and Deno\n\nArguments :\n  --generate        (-g)   Generate or update .hash files for all workspaces\n  --compare         (-c)   Compare current state with existing .hash files. Capture the exit code to check for changes\n  --target=\"<path>\" (-t)   Specify one or more targets to generate/compare (comma-separated)\n  --silent          (-s)   Suppress output messages\n  --debug           (-d)   Enable debug mode (per-file hashes)\n  --workspaces      (-w)   Use per-workspace .hash files instead of a single root one\n  --packagemanager  (-pm)  Force the package manager ({})\n  --nopathcache     (-npc) Disable path normalization cache (can reduce memory footprint on very large repos)\n  --help            (-h)   Show this help message\n",
-                PACKAGE_MANAGERS.join(", ")
-            );
-            process::exit(0);
+            wants_help = true;
+        } else if arg == "--version" || arg == "-v" {
+            wants_version = true;
         } else {
             return Err(CliError {
                 code: 3,
@@ -295,10 +311,25 @@ fn parse_args(args: &[String]) -> Result<Option<CliOptions>, CliError> {
         }
     }
 
-    let mode = mode.ok_or_else(|| CliError {
-        code: 2,
-        message: "Must specify either --generate (-g) or --compare (-c)".to_string(),
-    })?;
+    if wants_version {
+        if !silent {
+            println!("monorepo-hash v{CLI_VERSION}");
+        }
+
+        return Ok(None);
+    }
+
+    if wants_help || mode.is_none() {
+        if !silent {
+            println!(
+                "\nmonorepo-hash by EDM115\nA simple script to generate or compare .hash files for monorepo workspaces\nSupports PNPM, Yarn, NPM, Bun and Deno\n\nArguments :\n  --generate        (-g)   Generate or update .hash files for all workspaces\n  --compare         (-c)   Compare current state with existing .hash files. Capture the exit code to check for changes\n  --target=\"<path>\" (-t)   Specify one or more targets to generate/compare (comma-separated)\n  --silent          (-s)   Suppress output messages\n  --debug           (-d)   Enable debug mode (per-file hashes)\n  --workspaces      (-w)   Use per-workspace .hash files instead of a single root one\n  --packagemanager  (-pm)  Force the package manager ({})\n  --nopathcache     (-npc) Disable path normalization cache (can reduce memory footprint on very large repos)\n  --version         (-v)   Show version information\n  --help            (-h)   Show this help message\n",
+                PACKAGE_MANAGERS.join(", ")
+            );
+        }
+        return Ok(None);
+    }
+
+    let mode = mode.expect("mode checked above");
 
     Ok(Some(CliOptions {
         mode,
@@ -491,6 +522,98 @@ fn detect_specified(pm: &str) -> Option<Result<Detection, CliError>> {
     }
 }
 
+fn detect_pnpm_checked() -> Result<Option<Detection>, String> {
+    let cwd = env::current_dir().map_err(|e| e.to_string())?;
+    let Some(file) = find_up(&cwd, &["pnpm-workspace.yaml"]) else {
+        return Ok(None);
+    };
+    let Some(root) = file.parent() else {
+        return Ok(None);
+    };
+    let raw = fs::read_to_string(&file).map_err(|e| e.to_string())?;
+    let parsed: PnpmWorkspace = serde_yaml::from_str(&raw).map_err(|e| e.to_string())?;
+
+    Ok(Some(Detection {
+        pm: "pnpm".to_string(),
+        root: root.to_path_buf(),
+        globs: parsed.packages.unwrap_or_default(),
+    }))
+}
+
+fn detect_deno_checked() -> Result<Option<Detection>, String> {
+    let cwd = env::current_dir().map_err(|e| e.to_string())?;
+    let Some(file) = find_up(&cwd, &["deno.json", "deno.jsonc"]) else {
+        return Ok(None);
+    };
+    let Some(root) = file.parent() else {
+        return Ok(None);
+    };
+    let raw = fs::read_to_string(&file).map_err(|e| e.to_string())?;
+    let cleaned = strip_json_comments(&raw);
+    let parsed: DenoWorkspace = serde_json::from_str(&cleaned).map_err(|e| e.to_string())?;
+
+    Ok(Some(Detection {
+        pm: "deno".to_string(),
+        root: root.to_path_buf(),
+        globs: parsed.workspace.unwrap_or_default(),
+    }))
+}
+
+fn detect_pkg_json_checked() -> Result<Option<Detection>, String> {
+    let cwd = env::current_dir().map_err(|e| e.to_string())?;
+    let Some(file) = find_up(&cwd, &["package.json"]) else {
+        return Ok(None);
+    };
+    let Some(root) = file.parent() else {
+        return Ok(None);
+    };
+    let raw = fs::read_to_string(&file).map_err(|e| e.to_string())?;
+    let parsed: PackageJson = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
+    let Some(globs) = parsed.workspaces.as_ref().and_then(workspaces_from_value) else {
+        return Ok(None);
+    };
+
+    let pm = if root.join("bun.lock").exists() || root.join("bun.lockb").exists() {
+        "bun"
+    } else if root.join("deno.lock").exists() {
+        "deno"
+    } else if root.join("yarn.lock").exists() {
+        "yarn"
+    } else {
+        "npm"
+    };
+
+    Ok(Some(Detection {
+        pm: pm.to_string(),
+        root: root.to_path_buf(),
+        globs,
+    }))
+}
+
+fn auto_detect_checked() -> Result<Option<Detection>, String> {
+    if let Some(detection) = detect_pnpm_checked()? {
+        return Ok(Some(detection));
+    }
+    if let Some(detection) = detect_deno_checked()? {
+        return Ok(Some(detection));
+    }
+
+    detect_pkg_json_checked()
+}
+
+fn detect_specified_checked(pm: &str) -> Result<Option<Detection>, String> {
+    match pm {
+        "pnpm" => detect_pnpm_checked(),
+        "deno" => detect_deno_checked(),
+        "npm" | "yarn" | "bun" => {
+            let detected = detect_pkg_json_checked()?;
+
+            Ok(detected.filter(|d| d.pm == pm))
+        }
+        _ => Ok(None),
+    }
+}
+
 fn compile_root_ignore(root: &Path) -> io::Result<Option<Gitignore>> {
     let gitignore = root.join(".gitignore");
     if !gitignore.exists() {
@@ -528,18 +651,137 @@ fn compile_local_ignore(pkg_dir: &Path) -> io::Result<Option<Gitignore>> {
     Ok(Some(compiled))
 }
 
+fn find_first_supported_extglob(pattern: &str) -> Option<(usize, char)> {
+    let bytes = pattern.as_bytes();
+
+    for idx in 0..bytes.len().saturating_sub(1) {
+        let op = bytes[idx] as char;
+
+        if (op == '@' || op == '?') && bytes[idx + 1] as char == '(' {
+            return Some((idx, op));
+        }
+    }
+
+    None
+}
+
+fn find_matching_paren(pattern: &str, open: usize) -> Option<usize> {
+    let bytes = pattern.as_bytes();
+    let mut depth = 0;
+
+    for (idx, byte) in bytes.iter().enumerate().skip(open) {
+        let ch = *byte as char;
+
+        if ch == '(' {
+            depth += 1;
+        } else if ch == ')' {
+            depth -= 1;
+
+            if depth == 0 {
+                return Some(idx);
+            }
+        }
+    }
+
+    None
+}
+
+fn split_extglob_alternatives(input: &str) -> Vec<String> {
+    let mut parts = Vec::new();
+    let mut current = String::new();
+    let mut depth = 0;
+
+    for ch in input.chars() {
+        match ch {
+            '(' => {
+                depth += 1;
+                current.push(ch);
+            }
+            ')' => {
+                depth -= 1;
+                current.push(ch);
+            }
+            '|' if depth == 0 => {
+                parts.push(current);
+                current = String::new();
+            }
+            _ => current.push(ch),
+        }
+    }
+
+    parts.push(current);
+    parts
+}
+
+fn expand_supported_extglob(pattern: &str) -> Vec<String> {
+    let Some((idx, op)) = find_first_supported_extglob(pattern) else {
+        return vec![pattern.to_string()];
+    };
+    let open = idx + 1;
+    let Some(close) = find_matching_paren(pattern, open) else {
+        return vec![pattern.to_string()];
+    };
+
+    let alts = split_extglob_alternatives(&pattern[open + 1..close]);
+    let mut replacements = Vec::new();
+
+    match op {
+        '@' => replacements.extend(alts),
+        '?' => {
+            replacements.push(String::new());
+            replacements.extend(alts);
+        }
+        _ => return vec![pattern.to_string()],
+    }
+
+    let prefix = &pattern[..idx];
+    let suffix = &pattern[close + 1..];
+    let mut expanded = Vec::new();
+
+    for replacement in replacements {
+        expanded.extend(expand_supported_extglob(&format!("{prefix}{replacement}{suffix}")));
+    }
+
+    expanded
+}
+
 fn load_packages(detection: &Detection) -> io::Result<HashMap<String, PackageInfo>> {
     let mut package_jsons = BTreeSet::new();
 
     for glob in &detection.globs {
-        let pattern = format!("{}/package.json", glob.trim_end_matches('/'));
-        let walker = GlobWalkerBuilder::from_patterns(&detection.root, &[&pattern])
-            .follow_links(false)
-            .build()
-            .map_err(|e| io::Error::other(e.to_string()))?;
+        let negated = glob.starts_with('!');
+        let pattern = glob
+            .trim_start_matches('!')
+            .trim_start_matches("./")
+            .trim_end_matches('/');
+        let pattern = if pattern == "." {
+            ""
+        } else {
+            pattern
+        };
 
-        for entry in walker.into_iter().flatten() {
-            package_jsons.insert(entry.path().to_path_buf());
+        if pattern.is_empty() && !glob.starts_with('.') && !glob.starts_with("!." ) {
+            continue;
+        }
+
+        for expanded in expand_supported_extglob(pattern) {
+            let full_pattern = if expanded.is_empty() {
+                "package.json".to_string()
+            } else {
+                format!("{expanded}/package.json")
+            };
+            let walker = GlobWalkerBuilder::from_patterns(&detection.root, &[full_pattern.as_str()])
+                .follow_links(false)
+                .build()
+                .map_err(|e| io::Error::other(e.to_string()))?;
+
+            for entry in walker.into_iter().flatten() {
+                if negated {
+                    package_jsons.remove(entry.path());
+                } else {
+                    package_jsons.insert(entry.path().to_path_buf());
+                }
+            }
         }
     }
 
@@ -631,20 +873,9 @@ fn select_packages(packages: &HashMap<String, PackageInfo>, targets: Option<&Vec
             .map(|(name, pkg)| (pkg.rel_dir_posix.clone(), name.clone()))
             .collect::<HashMap<_, _>>();
 
-        fn add_with_deps(name: &str, packages: &HashMap<String, PackageInfo>, selected: &mut BTreeSet<String>) {
-            if !selected.insert(name.to_string()) {
-                return;
-            }
-            if let Some(pkg) = packages.get(name) {
-                for dep in &pkg.deps {
-                    add_with_deps(dep, packages, selected);
-                }
-            }
-        }
-
         for target in targets {
             if let Some(name) = rel_to_name.get(target) {
-                add_with_deps(name, packages, &mut selected);
+                selected.insert(name.clone());
             }
         }
     } else {
@@ -654,6 +885,34 @@ fn select_packages(packages: &HashMap<String, PackageInfo>, targets: Option<&Vec
     }
 
     let mut names = selected.into_iter().collect::<Vec<_>>();
+    names.sort_by_key(|name| {
+        packages
+            .get(name)
+            .map(|p| p.rel_dir_posix.clone())
+            .unwrap_or_else(|| name.clone())
+    });
+    names
+}
+
+fn packages_to_hash(packages: &HashMap<String, PackageInfo>, selected: &[String]) -> Vec<String> {
+    fn add_with_deps(name: &str, packages: &HashMap<String, PackageInfo>, selected: &mut BTreeSet<String>) {
+        if !selected.insert(name.to_string()) {
+            return;
+        }
+        if let Some(pkg) = packages.get(name) {
+            for dep in &pkg.deps {
+                add_with_deps(dep, packages, selected);
+            }
+        }
+    }
+
+    let mut to_hash = BTreeSet::new();
+
+    for name in selected {
+        add_with_deps(name, packages, &mut to_hash);
+    }
+
+    let mut names = to_hash.into_iter().collect::<Vec<_>>();
     names.sort_by_key(|name| {
         packages
             .get(name)
@@ -768,6 +1027,10 @@ fn hex_encode(bytes: &[u8]) -> String {
     out
 }
 
+fn zero_pad(num: usize, places: usize) -> String {
+    format!("{num:0places$}")
+}
+
 fn hex_decode(hex: &str) -> Option<Vec<u8>> {
     if !hex.len().is_multiple_of(2) {
         return None;
@@ -791,10 +1054,24 @@ fn compute_package_hashes(
     root_ignore: Option<&Gitignore>,
     debug: bool,
     unified: bool,
+    mode: Mode,
+    silent: bool,
 ) -> io::Result<()> {
     let mut root_debug = BTreeMap::<String, BTreeMap<String, String>>::new();
+    let total = selected.len();
+    let pad = if total >= 100 {
+        3
+    } else if total >= 10 {
+        2
+    } else {
+        1
+    };
 
-    for name in selected {
+    if !silent {
+        println!("\r🔄 Computing hashes ({}/{})", zero_pad(0, pad), total);
+    }
+
+    for (idx, name) in selected.iter().enumerate() {
         let pkg = packages
             .get(name)
             .ok_or_else(|| io::Error::other("Package missing metadata"))?
@@ -830,25 +1107,33 @@ fn compute_package_hashes(
             entry.own_hash = own.finalize().to_vec();
         }
 
-        if debug {
+        if !silent {
+            println!(
+                "\r🔄 Computing hashes ({}/{}) • {}",
+                zero_pad(idx + 1, pad),
+                total,
+                pkg.rel_dir_posix
+            );
+        }
+
+        if debug && mode == Mode::Generate {
             if unified {
                 root_debug.insert(pkg.rel_dir_posix.clone(), per_file);
             } else {
-                let content = format!(
-                    "{}\n",
-                    serde_json::to_string_pretty(&per_file).unwrap_or("{}".to_string())
-                );
+                let content = serde_json::to_string_pretty(&per_file).unwrap_or("{}".to_string());
                 fs::write(pkg.dir.join(".debug-hash"), content)?;
             }
         }
     }
 
-    if debug && unified {
-        let content = format!(
-            "{}\n",
-            serde_json::to_string_pretty(&root_debug).unwrap_or("{}".to_string())
-        );
+    if debug && unified && mode == Mode::Generate {
+        let content = serde_json::to_string_pretty(&root_debug).unwrap_or("{}".to_string());
         fs::write(repo_root.join(".debug-hash"), content)?;
+    }
+
+    if !silent {
+        println!("\r✅ Computed all hashes ({})", total);
+        println!();
     }
 
     Ok(())
@@ -924,16 +1209,19 @@ fn generate_hashes(
     silent: bool,
 ) -> io::Result<()> {
     if unified {
-        let mut root = BTreeMap::new();
+        let mut root = if repo_root.join(".hash").exists() {
+            let raw = fs::read_to_string(repo_root.join(".hash"))?;
+
+            serde_json::from_str::<BTreeMap<String, String>>(&raw).unwrap_or_default()
+        } else {
+            BTreeMap::new()
+        };
         for name in selected {
             if let (Some(pkg), Some(hash)) = (packages.get(name), final_hashes.get(name)) {
                 root.insert(pkg.rel_dir_posix.clone(), hash.clone());
             }
         }
-        let content = format!(
-            "{}\n",
-            serde_json::to_string_pretty(&root).unwrap_or("{}".to_string())
-        );
+        let content = serde_json::to_string_pretty(&root).unwrap_or("{}".to_string());
         fs::write(repo_root.join(".hash"), content)?;
 
         if !silent {
@@ -948,7 +1236,7 @@ fn generate_hashes(
 
     for name in selected {
         if let (Some(pkg), Some(hash)) = (packages.get(name), final_hashes.get(name)) {
-            fs::write(pkg.dir.join(".hash"), format!("{}\n", hash))?;
+            fs::write(pkg.dir.join(".hash"), hash)?;
             if !silent {
                 println!("✅ {} ({} written to .hash)", pkg.rel_dir_posix, hash);
             }
@@ -964,9 +1252,11 @@ fn compare_hashes(
     final_hashes: &HashMap<String, String>,
     repo_root: &Path,
     unified: bool,
+    debug: bool,
     silent: bool,
 ) -> io::Result<()> {
     let mut old_by_name = HashMap::new();
+    let mut root_debug = None;
 
     if unified {
         let root_hash = repo_root.join(".hash");
@@ -975,8 +1265,22 @@ fn compare_hashes(
             if let Ok(parsed) = serde_json::from_str::<HashMap<String, String>>(&raw) {
                 for (name, pkg) in packages {
                     if let Some(old) = parsed.get(&pkg.rel_dir_posix) {
-                        old_by_name.insert(name.clone(), old.clone());
+                        if !old.is_empty() {
+                            old_by_name.insert(name.clone(), old.clone());
+                        }
                     }
+                }
+            }
+        }
+
+        if debug {
+            let root_debug_path = repo_root.join(".debug-hash");
+
+            if root_debug_path.exists() {
+                let raw = fs::read_to_string(root_debug_path)?;
+
+                if let Ok(parsed) = serde_json::from_str::<HashMap<String, HashMap<String, String>>>(&raw) {
+                    root_debug = Some(parsed);
                 }
             }
         }
@@ -1040,6 +1344,25 @@ fn compare_hashes(
             continue;
         };
 
+        if debug {
+            if unified {
+                if let Some(root_debug) = root_debug.as_ref() {
+                    generate_debug(pkg, root_debug.get(&pkg.rel_dir_posix), silent);
+                }
+            } else {
+                let debug_path = pkg.dir.join(".debug-hash");
+                let old_debug = if debug_path.exists() {
+                    let raw = fs::read_to_string(debug_path)?;
+
+                    serde_json::from_str::<HashMap<String, String>>(&raw).ok()
+                } else {
+                    None
+                };
+
+                generate_debug(pkg, old_debug.as_ref(), silent);
+            }
+        }
+
         let mut changed_deps = transitive_deps(name, packages)
             .into_iter()
             .filter(|d| all_changed.contains(d))
@@ -1102,4 +1425,46 @@ fn compare_hashes(
     }
 
     Ok(())
+}
+
+fn generate_debug(
+    pkg: &PackageInfo,
+    old_debug: Option<&HashMap<String, String>>,
+    silent: bool,
+) -> Vec<String> {
+    let Some(old_debug) = old_debug else {
+        if !silent {
+            println!("❓ <debug> {} has no .debug-hash to compare", pkg.rel_dir_posix);
+            println!();
+        }
+
+        return Vec::new();
+    };
+
+    let mut seen = BTreeSet::new();
+
+    for key in old_debug.keys() {
+        seen.insert(key.clone());
+    }
+    for key in pkg.per_file_hashes.keys() {
+        seen.insert(key.clone());
+    }
+
+    let mut diverged = Vec::new();
+
+    for key in seen {
+        if old_debug.get(&key) != pkg.per_file_hashes.get(&key) {
+            diverged.push(key);
+        }
+    }
+
+    if !diverged.is_empty() && !silent {
+        println!("⚠️  <debug> {} diverging files :", pkg.rel_dir_posix);
+        for key in &diverged {
+            println!("  • {}", key);
+        }
+        println!();
+    }
+
+    diverged
 }

@@ -1,0 +1,313 @@
+name: Builds the Bun binaries on all platforms
+
+on:
+  workflow_dispatch:
+
+jobs:
+  darwin-arm64:
+    name: "Build for Darwin arm64"
+    runs-on: macos-15
+    timeout-minutes: 20
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v6
+
+      - name: "Install PNPM"
+        uses: pnpm/action-setup@v5
+
+      - name: "Bump Node to v25"
+        uses: actions/setup-node@v6
+        with:
+          check-latest: true
+          cache: "pnpm"
+          node-version: 25
+
+      - name: "Install Bun"
+        uses: oven-sh/setup-bun@v2
+
+      - name: "Install dependencies"
+        run: pnpm i --frozen-lockfile
+
+      - name: "Build the Darwin arm64 binary"
+        run: pnpm cli:build-bin -r bun -p darwin-arm64 && pnpm cli:chmod
+
+      - name: "Test the binary"
+        run: ./bun-build/monorepo-hash-darwin-arm64 --help
+
+      - name: "Upload Darwin arm64 binary"
+        uses: actions/upload-artifact@v7
+        with:
+          archive: false
+          path: ./bun-build/monorepo-hash-darwin-arm64
+
+  darwin-x64:
+    name: "Build for Darwin x64"
+    runs-on: macos-15-intel
+    timeout-minutes: 20
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v6
+
+      - name: "Install PNPM"
+        uses: pnpm/action-setup@v5
+
+      - name: "Bump Node to v25"
+        uses: actions/setup-node@v6
+        with:
+          check-latest: true
+          cache: "pnpm"
+          node-version: 25
+
+      - name: "Install Bun"
+        uses: oven-sh/setup-bun@v2
+
+      - name: "Install dependencies"
+        run: pnpm i --frozen-lockfile
+
+      - name: "Build the Darwin x64 binary"
+        run: pnpm cli:build-bin -r bun -p darwin-x64 && pnpm cli:chmod
+
+      - name: "Test the binary"
+        run: ./bun-build/monorepo-hash-darwin-x64 --help
+
+      - name: "Upload Darwin x64 binary"
+        uses: actions/upload-artifact@v7
+        with:
+          archive: false
+          path: ./bun-build/monorepo-hash-darwin-x64
+
+  linux-arm64:
+    name: "Build for Linux arm64"
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v6
+
+      - name: "Install PNPM"
+        uses: pnpm/action-setup@v5
+
+      - name: "Bump Node to v25"
+        uses: actions/setup-node@v6
+        with:
+          check-latest: true
+          cache: "pnpm"
+          node-version: 25
+
+      - name: "Install Bun"
+        uses: oven-sh/setup-bun@v2
+
+      - name: "Install dependencies"
+        run: pnpm i --frozen-lockfile
+
+      - name: "Build the Linux arm64 binary"
+        run: pnpm cli:build-bin -r bun -p linux-arm64 && pnpm cli:chmod
+
+      - name: "Test the binary"
+        run: ./bun-build/monorepo-hash-linux-arm64 --help
+
+      - name: "Upload Linux arm64 binary"
+        uses: actions/upload-artifact@v7
+        with:
+          archive: false
+          path: ./bun-build/monorepo-hash-linux-arm64
+
+  linux-arm64-musl:
+    name: "Build for Linux arm64 musl"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v6
+
+      - name: "Set up QEMU"
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: arm64
+
+      - name: "Set up Docker Buildx"
+        uses: docker/setup-buildx-action@v4
+
+      - name: "Build and test in arm64v8/node:25-alpine container"
+        run: |
+          docker run --rm \
+            --platform linux/arm64 \
+            -v "$PWD":/workspace \
+            -w /workspace \
+            arm64v8/node:25-alpine \
+            sh -lc '
+              apk update && apk add --no-cache bash curl make musl-dev linux-headers g++ gcc libgcc libstdc++ libffi-dev git \
+              && curl -fsSL https://get.pnpm.io/install.sh | ENV="$HOME/.shrc" SHELL="$(which sh)" sh - \
+              && export PATH="$HOME/.local/share/pnpm:$PATH" \
+              && pnpm i --frozen-lockfile \
+              && curl -fsSL https://bun.sh/install | bash \
+              && export BUN_INSTALL="$HOME/.bun" \
+              && export PATH="$BUN_INSTALL/bin:$PATH" \
+              && pnpm cli:build-bin -r bun -p linux-arm64-musl \
+              && pnpm cli:chmod \
+              && ./bun-build/monorepo-hash-linux-arm64-musl --help
+            '
+
+      - name: "Upload Linux arm64 musl binary"
+        uses: actions/upload-artifact@v7
+        with:
+          archive: false
+          path: ./bun-build/monorepo-hash-linux-arm64-musl
+
+  linux-x64:
+    name: "Build for Linux x64"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v6
+
+      - name: "Install PNPM"
+        uses: pnpm/action-setup@v5
+
+      - name: "Bump Node to v25"
+        uses: actions/setup-node@v6
+        with:
+          check-latest: true
+          cache: "pnpm"
+          node-version: 25
+
+      - name: "Install Bun"
+        uses: oven-sh/setup-bun@v2
+
+      - name: "Install dependencies"
+        run: pnpm i --frozen-lockfile
+
+      - name: "Build the Linux x64 binary"
+        run: pnpm cli:build-bin -r bun -p linux-x64 && pnpm cli:chmod
+
+      - name: "Test the binary"
+        run: ./bun-build/monorepo-hash-linux-x64 --help
+
+      - name: "Upload Linux x64 binary"
+        uses: actions/upload-artifact@v7
+        with:
+          archive: false
+          path: ./bun-build/monorepo-hash-linux-x64
+
+  linux-x64-musl:
+    name: "Build for Linux x64 musl"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v6
+
+      - name: "Set up QEMU"
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: amd64
+
+      - name: "Set up Docker Buildx"
+        uses: docker/setup-buildx-action@v4
+
+      - name: "Build and test in amd64/node:25-alpine container"
+        run: |
+          docker run --rm \
+            --platform linux/amd64 \
+            -v "$PWD":/workspace \
+            -w /workspace \
+            amd64/node:25-alpine \
+            sh -lc '
+              apk update && apk add --no-cache bash curl make musl-dev linux-headers g++ gcc libgcc libstdc++ libffi-dev git \
+              && curl -fsSL https://get.pnpm.io/install.sh | ENV="$HOME/.shrc" SHELL="$(which sh)" sh - \
+              && export PATH="$HOME/.local/share/pnpm:$PATH" \
+              && pnpm i --frozen-lockfile \
+              && curl -fsSL https://bun.sh/install | bash \
+              && export BUN_INSTALL="$HOME/.bun" \
+              && export PATH="$BUN_INSTALL/bin:$PATH" \
+              && pnpm cli:build-bin -r bun -p linux-x64-musl \
+              && pnpm cli:chmod \
+              && ./bun-build/monorepo-hash-linux-x64-musl --help
+            '
+
+      - name: "Upload Linux x64 musl binary"
+        uses: actions/upload-artifact@v7
+        with:
+          archive: false
+          path: ./bun-build/monorepo-hash-linux-x64-musl
+
+  windows-arm64:
+    name: "Build for Windows arm64"
+    runs-on: windows-11-arm
+    timeout-minutes: 20
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v6
+
+      - name: "Install PNPM"
+        uses: pnpm/action-setup@v5
+
+      - name: "Bump Node to v25"
+        uses: actions/setup-node@v6
+        with:
+          check-latest: true
+          cache: "pnpm"
+          node-version: 25
+
+      - name: "Install Bun"
+        uses: oven-sh/setup-bun@v2
+
+      - name: "Install dependencies"
+        run: pnpm i --frozen-lockfile
+
+      - name: "Build the Windows arm64 binary"
+        run: pnpm cli:build-bin -r bun -p windows-arm64
+
+      - name: "Test the binary"
+        run: .\bun-build\monorepo-hash-windows-arm64.exe --help
+
+      - name: "Upload Windows arm64 binary"
+        uses: actions/upload-artifact@v7
+        with:
+          archive: false
+          path: .\bun-build\monorepo-hash-windows-arm64.exe
+
+  windows-x64:
+    name: "Build for Windows x64"
+    runs-on: windows-2025
+    timeout-minutes: 20
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v6
+
+      - name: "Install PNPM"
+        uses: pnpm/action-setup@v5
+
+      - name: "Bump Node to v25"
+        uses: actions/setup-node@v6
+        with:
+          check-latest: true
+          cache: "pnpm"
+          node-version: 25
+
+      - name: "Install Bun"
+        uses: oven-sh/setup-bun@v2
+
+      - name: "Install dependencies"
+        run: pnpm i --frozen-lockfile
+
+      - name: "Build the Windows x64 binary"
+        run: pnpm cli:build-bin -r bun -p windows-x64
+
+      - name: "Test the binary"
+        run: .\bun-build\monorepo-hash-windows-x64.exe --help
+
+      - name: "Upload Windows x64 binary"
+        uses: actions/upload-artifact@v7
+        with:
+          archive: false
+          path: .\bun-build\monorepo-hash-windows-x64.exe
