@@ -16,7 +16,7 @@ use std::sync::{
 
 const PACKAGE_MANAGERS: &[&str] = &["pnpm", "npm", "deno", "bun", "yarn"];
 const CLI_VERSION: &str = "2.2.0";
-static USE_PATH_CACHE: AtomicBool = AtomicBool::new(true);
+static USE_PATH_CACHE: AtomicBool = AtomicBool::new(false);
 static PATH_DISPLAY_CACHE: OnceLock<Mutex<HashMap<String, String>>> = OnceLock::new();
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -259,7 +259,7 @@ fn parse_args(args: &[String]) -> Result<Option<CliOptions>, CliError> {
   let mut debug = false;
   let mut unified = true;
   let mut pm_option: Option<String> = None;
-  let mut use_path_cache = true;
+  let mut use_path_cache = false;
   let mut wants_help = false;
   let mut wants_version = false;
 
@@ -310,8 +310,8 @@ fn parse_args(args: &[String]) -> Result<Option<CliOptions>, CliError> {
         });
       }
       pm_option = Some(value.to_string());
-    } else if arg == "--nopathcache" || arg == "-npc" {
-      use_path_cache = false;
+    } else if arg == "--pathcache" || arg == "-pc" {
+      use_path_cache = true;
     } else if arg == "--help" || arg == "-h" {
       wants_help = true;
     } else if arg == "--version" || arg == "-v" {
@@ -335,7 +335,7 @@ fn parse_args(args: &[String]) -> Result<Option<CliOptions>, CliError> {
   if wants_help || mode.is_none() {
     if !silent {
       println!(
-        "\nmonorepo-hash by EDM115\nA simple script to generate or compare .hash files for monorepo workspaces\nSupports PNPM, Yarn, NPM, Bun and Deno\n\nArguments :\n  --generate        (-g)   Generate or update .hash files for all workspaces\n  --compare         (-c)   Compare current state with existing .hash files. Capture the exit code to check for changes\n  --target=\"<path>\" (-t)   Specify one or more targets to generate/compare (comma-separated)\n  --silent          (-s)   Suppress output messages\n  --debug           (-d)   Enable debug mode (per-file hashes)\n  --workspaces      (-w)   Use per-workspace .hash files instead of a single root one\n  --packagemanager  (-pm)  Force the package manager ({})\n  --nopathcache     (-npc) Disable path normalization cache (can reduce memory footprint on very large repos)\n  --version         (-v)   Show version information\n  --help            (-h)   Show this help message\n",
+        "\nmonorepo-hash by EDM115\nA simple script to generate or compare .hash files for monorepo workspaces\nSupports PNPM, Yarn, NPM, Bun and Deno\n\nArguments :\n  --generate        (-g)  Generate or update .hash files for all workspaces\n  --compare         (-c)  Compare current state with existing .hash files. Capture the exit code to check for changes\n  --target=\"<path>\" (-t)  Specify one or more targets to generate/compare (comma-separated)\n  --silent          (-s)  Suppress output messages\n  --debug           (-d)  Enable debug mode (per-file hashes)\n  --workspaces      (-w)  Use per-workspace .hash files instead of a single root one\n  --packagemanager  (-pm) Force the package manager ({})\n  --pathcache       (-pc) Enable path normalization cache (can augment memory footprint on very large repos)\n  --version         (-v)  Show version information\n  --help            (-h)  Show this help message\n",
         PACKAGE_MANAGERS.join(", ")
       );
     }

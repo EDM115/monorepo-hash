@@ -98,7 +98,7 @@ let debug = false
 let unified = true
 let cliUsage = true
 let pmOption: PackageManager | null = null
-let usePathCache = true
+let usePathCache = false
 let didError = false
 
 let packageManager: PackageManager | null = null
@@ -1474,7 +1474,7 @@ export async function runCli(customArgv?: string[]): Promise<Awaited<ReturnType<
   unified = true
   pmOption = null
   cliUsage = customArgv === undefined
-  usePathCache = true
+  usePathCache = false
   let helpRequested = false
   let versionRequested = false
 
@@ -1524,8 +1524,8 @@ export async function runCli(customArgv?: string[]): Promise<Awaited<ReturnType<
       }
 
       pmOption = val
-    } else if (arg === "--nopathcache" || arg === "-npc") {
-      usePathCache = false
+    } else if (arg === "--pathcache" || arg === "-pc") {
+      usePathCache = true
     } else if (arg === "--help" || arg === "-h") {
       helpRequested = true
     } else if (arg === "--version" || arg === "-v") {
@@ -1548,16 +1548,16 @@ A simple script to generate or compare .hash files for monorepo workspaces
 Supports PNPM, Yarn, NPM, Bun and Deno
 
 Arguments :
-  --generate        (-g)   Generate or update .hash files for all workspaces
-  --compare         (-c)   Compare current state with existing .hash files. Capture the exit code to check for changes
-  --target="<path>" (-t)   Specify one or more targets to generate/compare (comma-separated)
-  --silent          (-s)   Suppress output messages
-  --debug           (-d)   Enable debug mode (per-file hashes)
-  --workspaces      (-w)   Use per-workspace .hash files instead of a single root one
-  --packagemanager  (-pm)  Force the package manager (${PACKAGE_MANAGERS.join(", ")})
-  --nopathcache     (-npc) Disable path normalization cache (can reduce memory footprint on very large repos)
-  --version         (-v)   Show version information
-  --help            (-h)   Show this help message
+  --generate        (-g)  Generate or update .hash files for all workspaces
+  --compare         (-c)  Compare current state with existing .hash files. Capture the exit code to check for changes
+  --target="<path>" (-t)  Specify one or more targets to generate/compare (comma-separated)
+  --silent          (-s)  Suppress output messages
+  --debug           (-d)  Enable debug mode (per-file hashes)
+  --workspaces      (-w)  Use per-workspace .hash files instead of a single root one
+  --packagemanager  (-pm) Force the package manager (${PACKAGE_MANAGERS.join(", ")})
+  --pathcache       (-pc) Enable path normalization cache (can augment memory footprint on very large repos)
+  --version         (-v)  Show version information
+  --help            (-h)  Show this help message
 `)
     safeExit(0)
   } else {
