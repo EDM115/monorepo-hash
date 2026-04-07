@@ -535,18 +535,14 @@ Arguments :
 
 func loadDebugFile(dir string) (map[string]string, error) {
 	p := filepath.Join(dir, ".debug-hash")
-	content, err := os.ReadFile(p)
+	parsed, err := readJSONFile[map[string]string](p, "workspace .debug-hash file")
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
 		return nil, err
 	}
-	var parsed map[string]string
-	if err := json.Unmarshal(content, &parsed); err != nil {
-		return nil, err
+	if parsed == nil {
+		return nil, nil
 	}
-	return parsed, nil
+	return *parsed, nil
 }
 
 func loadRootDebugFile(root string) (map[string]map[string]string, error) {

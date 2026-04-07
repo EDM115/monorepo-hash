@@ -215,12 +215,10 @@ const NullObj: {
 Object.freeze(NullObj)
 
 async function readJsonFile<T>(filePath: string, description: string): Promise<T> {
-  const text = await file(filePath)
-    .text()
-
   try {
     // oxlint-disable-next-line no-unsafe-type-assertion
-    return JSON.parse(text) as T
+    return await file(filePath)
+      .json() as T
   } catch (err) {
     throw new Error(`Invalid ${description} at ${filePath} : ${err instanceof Error
       ? err.message
@@ -483,9 +481,7 @@ async function loadDebugFile(dir: string): Promise<Record<string, string> | null
     return null
   }
 
-  // oxlint-disable-next-line no-unsafe-type-assertion
-  return await file(debugPath)
-    .json() as Record<string, string>
+  return readJsonFile<Record<string, string>>(debugPath, "workspace .debug-hash file")
 }
 
 async function writeDebugFile(

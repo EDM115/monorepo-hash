@@ -150,6 +150,26 @@ export function defineDebugSuite(runCli: RunCli): void {
         .toBe(1)
     })
 
+    it("fails on a malformed per-workspace .debug-hash during debug compare", async () => {
+      const bDebug = join(cwd, "packages", "pkg-b", ".debug-hash")
+
+      try {
+        await runCli(cwd, [ "--generate", "--debug", "--workspaces" ])
+        await writeFile(bDebug, "{ invalid json\n")
+
+        const result = await runCli(cwd, [ "--compare", "--debug", "--workspaces" ])
+
+        expect(result.exitCode)
+          .toBe(99)
+        expect(result.stderr)
+          .toContain("Invalid workspace .debug-hash file")
+      } finally {
+        if (await pathExists(bDebug)) {
+          await remove(bDebug)
+        }
+      }
+    })
+
     it("writes separate debug info", async () => {
       const rootDebug = join(cwd, ".debug-hash")
 

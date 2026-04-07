@@ -19,6 +19,22 @@ const CLI_VERSION: &str = "2.2.0";
 static USE_PATH_CACHE: AtomicBool = AtomicBool::new(false);
 static PATH_DISPLAY_CACHE: OnceLock<Mutex<HashMap<String, String>>> = OnceLock::new();
 
+macro_rules! outln {
+  ($silent:expr, $($arg:tt)*) => {
+    if !$silent {
+      println!($($arg)*);
+    }
+  };
+}
+
+macro_rules! errln {
+  ($silent:expr, $($arg:tt)*) => {
+    if !$silent {
+      eprintln!($($arg)*);
+    }
+  };
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Mode {
   Generate,
@@ -99,24 +115,25 @@ struct CompareMissing {
   new_hash: String,
 }
 
+fn args_request_silent(args: &[String]) -> bool {
+  args.iter().any(|arg| arg == "--silent" || arg == "-s")
+}
+
 fn main() {
-  if let Err(err) = run() {
-    eprintln!("❌ Unexpected error :\n{}", err);
+  let args: Vec<String> = env::args().skip(1).collect();
+
+  if let Err(err) = run(&args) {
+    errln!(args_request_silent(&args), "❌ Unexpected error :\n{}", err);
     process::exit(99);
   }
 }
 
-fn run() -> Result<(), String> {
-  let args: Vec<String> = env::args().skip(1).collect();
-  let opts = match parse_args(&args) {
+fn run(args: &[String]) -> Result<(), String> {
+  let opts = match parse_args(args) {
     Ok(Some(o)) => o,
     Ok(None) => return Ok(()),
     Err(e) => {
-      let quiet = args.iter().any(|arg| arg == "--silent" || arg == "-s");
-
-      if !quiet {
-        eprintln!("❌ {}", e.message);
-      }
+      errln!(args_request_silent(args), "❌ {}", e.message);
       process::exit(e.code);
     },
   };
@@ -127,31 +144,33 @@ fn run() -> Result<(), String> {
     match opts.mode {
       Mode::Generate => {
         if let Some(targets) = &opts.targets {
-          println!(
+          outln!(
+            opts.silent,
             "ℹ️  Generating hashes for specified targets... ({})\n",
             targets.join(", ")
           );
         } else {
-          println!("ℹ️  Generating hashes for all workspaces...\n");
+          outln!(opts.silent, "ℹ️  Generating hashes for all workspaces...\n");
         }
       },
       Mode::Compare => {
         if let Some(targets) = &opts.targets {
-          println!(
+          outln!(
+            opts.silent,
             "ℹ️  Comparing hashes for specified targets... ({})\n",
             targets.join(", ")
           );
         } else {
-          println!("ℹ️  Comparing hashes for all workspaces...\n");
+          outln!(opts.silent, "ℹ️  Comparing hashes for all workspaces...\n");
         }
       },
     }
 
     if opts.debug {
-      println!("ℹ️  Debug mode enabled\n");
+      outln!(opts.silent, "ℹ️  Debug mode enabled\n");
     }
     if !opts.unified {
-      println!("ℹ️  Per-workspace mode enabled\n");
+      outln!(opts.silent, "ℹ️  Per-workspace mode enabled\n");
     }
   }
 
@@ -160,19 +179,22 @@ fn run() -> Result<(), String> {
       Ok(Some(d)) => d,
       Ok(None) => {
         if let Ok(Some(auto)) = auto_detect() {
-          eprintln!(
+          errln!(
+            opts.silent,
             "❌ {} workspaces not found. Did you mean --packagemanager={} ?",
-            pm, auto.pm
+            pm,
+            auto.pm
           );
         } else {
-          eprintln!(
+          errln!(
+            opts.silent,
             "❌ Specified package manager not found and no supported package manager detected"
           );
         }
         process::exit(5);
       },
       Err(error) => {
-        eprintln!("❌ {}", error);
+        errln!(opts.silent, "❌ {}", error);
         process::exit(99);
       },
     }
@@ -180,29 +202,31 @@ fn run() -> Result<(), String> {
     match auto_detect() {
       Ok(Some(d)) => d,
       Ok(None) => {
-        eprintln!("❌ No workspaces found or unsupported package manager");
+        errln!(
+          opts.silent,
+          "❌ No workspaces found or unsupported package manager"
+        );
         process::exit(4);
       },
       Err(error) => {
-        eprintln!("❌ {}", error);
+        errln!(opts.silent, "❌ {}", error);
         process::exit(99);
       },
     }
   };
 
-  if !opts.silent {
-    println!(
-      "ℹ️  Using {} workspaces from {}\n",
-      detection.pm,
-      detection.root.display()
-    );
-  }
+  outln!(
+    opts.silent,
+    "ℹ️  Using {} workspaces from {}\n",
+    detection.pm,
+    detection.root.display()
+  );
 
   let root_ignore = compile_root_ignore(&detection.root).map_err(|e| e.to_string())?;
 
   let mut packages = load_packages(&detection).map_err(|e| e.to_string())?;
   if packages.is_empty() {
-    eprintln!("❌ No package.json files found in workspaces");
+    errln!(opts.silent, "❌ No package.json files found in workspaces");
     process::exit(4);
   }
   resolve_internal_deps(&mut packages);
@@ -223,7 +247,7 @@ fn run() -> Result<(), String> {
 
   let final_hashes = compute_final_hashes(&packages, &packages_to_hash).map_err(|e| {
     if e.code == 6 {
-      eprintln!("❌ {}", e.message);
+      errln!(opts.silent, "❌ {}", e.message);
       process::exit(6);
     }
     e.to_string()
@@ -327,16 +351,15 @@ fn parse_args(args: &[String]) -> Result<Option<CliOptions>, CliError> {
   }
 
   if wants_version {
-    if !silent {
-      println!("monorepo-hash v{CLI_VERSION}");
-    }
+    outln!(silent, "monorepo-hash v{CLI_VERSION}");
 
     return Ok(None);
   }
 
   if wants_help || mode.is_none() {
     if !silent {
-      println!(
+      outln!(
+        silent,
         "\nmonorepo-hash by EDM115\nA simple script to generate or compare .hash files for monorepo workspaces\nSupports PNPM, Yarn, NPM, Bun and Deno\n\nArguments :\n  --generate        (-g)  Generate or update .hash files for all workspaces\n  --compare         (-c)  Compare current state with existing .hash files. Capture the exit code to check for changes\n  --target=\"<path>\" (-t)  Specify one or more targets to generate/compare (comma-separated)\n  --silent          (-s)  Suppress output messages\n  --debug           (-d)  Enable debug mode (per-file hashes)\n  --workspaces      (-w)  Use per-workspace .hash files instead of a single root one\n  --packagemanager  (-pm) Force the package manager ({})\n  --pathcache       (-pc) Enable path normalization cache (can augment memory footprint on very large repos)\n  --version         (-v)  Show version information\n  --help            (-h)  Show this help message\n",
         PACKAGE_MANAGERS.join(", ")
       );
@@ -355,6 +378,22 @@ fn parse_args(args: &[String]) -> Result<Option<CliOptions>, CliError> {
     pm_option,
     use_path_cache,
   }))
+}
+
+fn read_json_file<T>(path: &Path, description: &str) -> io::Result<Option<T>>
+where
+  T: DeserializeOwned,
+{
+  let raw = match fs::read_to_string(path) {
+    Ok(raw) => raw,
+    Err(err) if err.kind() == io::ErrorKind::NotFound => return Ok(None),
+    Err(err) => return Err(err),
+  };
+
+  let parsed = serde_json::from_str::<T>(&raw)
+    .map_err(|e| io::Error::other(format!("Invalid {description} at {} : {e}", path.display())))?;
+
+  Ok(Some(parsed))
 }
 
 fn find_up(start: &Path, names: &[&str]) -> Option<PathBuf> {
@@ -647,21 +686,6 @@ fn compile_local_ignore(pkg_dir: &Path) -> io::Result<Option<Gitignore>> {
     .map_err(|e| io::Error::other(e.to_string()))?;
 
   Ok(Some(compiled))
-}
-
-fn read_json_file<T>(path: &Path, description: &str) -> io::Result<Option<T>>
-where
-  T: DeserializeOwned,
-{
-  if !path.exists() {
-    return Ok(None);
-  }
-
-  let raw = fs::read_to_string(path)?;
-  let parsed = serde_json::from_str::<T>(&raw)
-    .map_err(|e| io::Error::other(format!("Invalid {description} at {} : {e}", path.display())))?;
-
-  Ok(Some(parsed))
 }
 
 fn find_first_supported_extglob(pattern: &str) -> Option<(usize, char)> {
@@ -1255,7 +1279,12 @@ fn compute_package_hashes(
   };
 
   if !silent {
-    println!("\r🔄 Computing hashes ({}/{})", zero_pad(0, pad), total);
+    outln!(
+      silent,
+      "\r🔄 Computing hashes ({}/{})",
+      zero_pad(0, pad),
+      total
+    );
   }
 
   for (idx, name) in selected.iter().enumerate() {
@@ -1293,12 +1322,13 @@ fn compute_package_hashes(
     }
 
     if let Some(entry) = packages.get_mut(name) {
-      entry.per_file_hashes = per_file.clone();
+      entry.per_file_hashes = per_file;
       entry.own_hash = own.finalize().to_vec();
     }
 
     if !silent {
-      println!(
+      outln!(
+        silent,
         "\r🔄 Computing hashes ({}/{}) • {}",
         zero_pad(idx + 1, pad),
         total,
@@ -1307,10 +1337,15 @@ fn compute_package_hashes(
     }
 
     if debug && mode == Mode::Generate {
+      let per_file_hashes = &packages
+        .get(name)
+        .ok_or_else(|| io::Error::other("Package missing metadata"))?
+        .per_file_hashes;
+
       if unified {
-        root_debug.insert(pkg_rel_dir, per_file);
+        root_debug.insert(pkg_rel_dir, per_file_hashes.clone());
       } else {
-        let content = serde_json::to_string_pretty(&per_file).unwrap_or("{}".to_string());
+        let content = serde_json::to_string_pretty(per_file_hashes).unwrap_or("{}".to_string());
         fs::write(pkg_dir.join(".debug-hash"), content)?;
       }
     }
@@ -1322,9 +1357,9 @@ fn compute_package_hashes(
   }
 
   if !silent {
-    println!("\r✅ Computed all hashes ({})", total);
-    println!();
-    println!();
+    outln!(silent, "\r✅ Computed all hashes ({})", total);
+    outln!(silent, "");
+    outln!(silent, "");
   }
 
   Ok(())
@@ -1415,7 +1450,12 @@ fn generate_hashes(
     if !silent {
       for name in selected {
         if let (Some(pkg), Some(hash)) = (packages.get(name), final_hashes.get(name)) {
-          println!("✅ {} ({} written to .hash)", pkg.rel_dir_posix, hash);
+          outln!(
+            silent,
+            "✅ {} ({} written to .hash)",
+            pkg.rel_dir_posix,
+            hash
+          );
         }
       }
     }
@@ -1426,7 +1466,12 @@ fn generate_hashes(
     if let (Some(pkg), Some(hash)) = (packages.get(name), final_hashes.get(name)) {
       fs::write(pkg.dir.join(".hash"), hash)?;
       if !silent {
-        println!("✅ {} ({} written to .hash)", pkg.rel_dir_posix, hash);
+        outln!(
+          silent,
+          "✅ {} ({} written to .hash)",
+          pkg.rel_dir_posix,
+          hash
+        );
       }
     }
   }
@@ -1534,13 +1579,8 @@ fn compare_hashes(
         }
       } else {
         let debug_path = pkg.dir.join(".debug-hash");
-        let old_debug = if debug_path.exists() {
-          let raw = fs::read_to_string(debug_path)?;
-
-          serde_json::from_str::<HashMap<String, String>>(&raw).ok()
-        } else {
-          None
-        };
+        let old_debug =
+          read_json_file::<HashMap<String, String>>(&debug_path, "workspace .debug-hash file")?;
 
         generate_debug(pkg, old_debug.as_ref(), silent);
       }
@@ -1571,35 +1611,35 @@ fn compare_hashes(
 
   if !silent {
     if !unchanged.is_empty() {
-      println!("✅ Unchanged ({}) :", unchanged.len());
+      outln!(silent, "✅ Unchanged ({}) :", unchanged.len());
       for item in &unchanged {
-        println!("• {}", item);
+        outln!(silent, "• {}", item);
       }
-      println!();
+      outln!(silent, "");
     }
 
     if !changed.is_empty() {
-      println!("⚠️  Changed ({}) :", changed.len());
+      outln!(silent, "⚠️  Changed ({}) :", changed.len());
       for item in &changed {
-        println!("• {}", item.name);
-        println!("\told : {}", item.old_hash);
-        println!("\tnew : {}", item.new_hash);
+        outln!(silent, "• {}", item.name);
+        outln!(silent, "\told : {}", item.old_hash);
+        outln!(silent, "\tnew : {}", item.new_hash);
         if !item.changed_deps.is_empty() {
-          println!("\t🚧 changed dependency(s) :");
+          outln!(silent, "\t🚧 changed dependency(s) :");
           for dep in &item.changed_deps {
-            println!("\t\t• {}", dep);
+            outln!(silent, "\t\t• {}", dep);
           }
         }
       }
-      println!();
+      outln!(silent, "");
     }
 
     if !missing.is_empty() {
-      println!("❓ Missing .hash files ({}) :", missing.len());
+      outln!(silent, "❓ Missing .hash files ({}) :", missing.len());
       for item in &missing {
-        println!("• {} (would be {})", item.name, item.new_hash);
+        outln!(silent, "• {} (would be {})", item.name, item.new_hash);
       }
-      println!();
+      outln!(silent, "");
     }
   }
 
@@ -1616,13 +1656,12 @@ fn generate_debug(
   silent: bool,
 ) -> Vec<String> {
   let Some(old_debug) = old_debug else {
-    if !silent {
-      println!(
-        "❓ <debug> {} has no .debug-hash to compare",
-        pkg.rel_dir_posix
-      );
-      println!();
-    }
+    outln!(
+      silent,
+      "❓ <debug> {} has no .debug-hash to compare",
+      pkg.rel_dir_posix
+    );
+    outln!(silent, "");
 
     return Vec::new();
   };
@@ -1645,11 +1684,15 @@ fn generate_debug(
   }
 
   if !diverged.is_empty() && !silent {
-    println!("⚠️  <debug> {} diverging files :", pkg.rel_dir_posix);
+    outln!(
+      silent,
+      "⚠️  <debug> {} diverging files :",
+      pkg.rel_dir_posix
+    );
     for key in &diverged {
-      println!("  • {}", key);
+      outln!(silent, "  • {}", key);
     }
-    println!();
+    outln!(silent, "");
   }
 
   diverged

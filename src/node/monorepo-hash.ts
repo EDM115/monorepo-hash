@@ -600,10 +600,7 @@ export async function loadDebugFile(dir: string): Promise<Record<string, string>
     return null
   }
 
-  const text = await readFile(debugPath, "utf8")
-
-  // oxlint-disable-next-line no-unsafe-type-assertion
-  return JSON.parse(text) as Record<string, string>
+  return readJsonFile<Record<string, string>>(debugPath, "workspace .debug-hash file")
 }
 
 /**

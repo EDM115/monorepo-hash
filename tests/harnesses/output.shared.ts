@@ -277,6 +277,22 @@ export function defineOutputSuite(runCli: RunCli): void {
         .toContain("• packages/pkg-a")
     })
 
+    it("treats malformed per-workspace .hash content as drift during compare", async () => {
+      const hashAPath = join(cwd, "packages", "pkg-a", ".hash")
+
+      await runCli(cwd, [ "--generate", "--workspaces" ])
+      await writeFile(hashAPath, "not-a-valid-hash\n")
+
+      const result = await runCli(cwd, [ "--compare", "--workspaces" ])
+
+      expect(result.exitCode)
+        .toBe(1)
+      expect(result.stdout)
+        .toContain("• packages/pkg-a")
+      expect(result.stdout)
+        .toContain("old : not-a-valid-hash")
+    })
+
     it("produces deterministic hashes across consecutive --generate runs", async () => {
       await runCli(cwd, [ "--generate", "--workspaces" ])
       const aPath = join(cwd, "packages", "pkg-a", ".hash")
