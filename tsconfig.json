@@ -33,6 +33,10 @@
     "skipLibCheck": true,
     "strict": true,
     "target": "ESNext",
+    "types": [
+      "bun",
+      "node"
+    ],
     "verbatimModuleSyntax": true
   },
   "exclude": [
@@ -45,6 +49,7 @@
     "manifests"
   ],
   "include": [
+    "*.script.ts",
     "src",
     "tests"
   ]

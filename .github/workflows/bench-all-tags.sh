@@ -131,6 +131,15 @@ for spec in "${REFS[@]}"; do
     chmod +x go-build/monorepo-hash-linux-x64
   fi
 
+  # Rust build only if supported in that tag
+  BUILD_RUST=false
+  if grep -q '"build:rust"' package.json; then
+    BUILD_RUST=true
+    cd src/rust && cargo fetch --locked && cd ../..
+    pnpm cli:build-bin -r rust -p linux-x64
+    chmod +x rust-build/monorepo-hash-linux-x64
+  fi
+
   # Runs count
   RUNS="$RUNS_FAST"
   if (( i >= SLOW_FROM )); then RUNS="$RUNS_SLOW"; fi
@@ -199,6 +208,26 @@ for spec in "${REFS[@]}"; do
         --runs "$RUNS" \
         --export-json "$RESULTS_DIR/go/$safe_label/${b}-warm.json" \
         "$WT/go-build/monorepo-hash-linux-x64 --generate $PM_ARG -s"
+    fi
+
+    # Rust (if that tag supports it)
+    if [[ "$BUILD_RUST" == "true" ]]; then
+      mkdir -p "$RESULTS_DIR/rust/$safe_label"
+      echo "  🚦 Rust, $b, cold"
+      sleep 2
+      hyperfine \
+        --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches >/dev/null' \
+        --warmup "$WARMUP" \
+        --runs "$RUNS" \
+        --export-json "$RESULTS_DIR/rust/$safe_label/${b}-cold.json" \
+        "$WT/rust-build/monorepo-hash-linux-x64 --generate $PM_ARG -s"
+      echo "  🚦 Rust, $b, warm"
+      sleep 2
+      hyperfine \
+        --warmup "$WARMUP" \
+        --runs "$RUNS" \
+        --export-json "$RESULTS_DIR/rust/$safe_label/${b}-warm.json" \
+        "$WT/rust-build/monorepo-hash-linux-x64 --generate $PM_ARG -s"
     fi
   done
 

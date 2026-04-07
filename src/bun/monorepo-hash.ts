@@ -1400,7 +1400,7 @@ Arguments :
         const auto = await autoDetect()
 
         if (auto) {
-          log(`❌ ${pmOption} workspaces not found. Did you mean --packagemanager=${auto.pm}?`, false, "error")
+          log(`❌ ${pmOption} workspaces not found. Did you mean --packagemanager=${auto.pm} ?`, false, "error")
         } else {
           log("❌ Specified package manager not found and no supported package manager detected", false, "error")
         }
@@ -1441,7 +1441,7 @@ Arguments :
         ? err.message
         : String(err),
       false,
-      "error"
+      "error",
     )
     exit(99)
   }

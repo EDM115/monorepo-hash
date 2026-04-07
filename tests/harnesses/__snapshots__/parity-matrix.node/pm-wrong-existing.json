@@ -6,7 +6,7 @@
   "pre": [],
   "exitCode": 5,
   "stdout": "ℹ️  Generating hashes for all workspaces...\n\n",
-  "stderr": "❌ yarn workspaces not found. Did you mean --packagemanager=pnpm?\n",
+  "stderr": "❌ yarn workspaces not found. Did you mean --packagemanager=pnpm ?\n",
   "stdoutNorm": "ℹ️  Generating hashes for all workspaces...\n\n",
   "files": {}
 }

@@ -2,6 +2,7 @@ import packageJson from "./package.json" with { type: "json" }
 
 import {
   chmod,
+  copyFile,
   mkdir,
   readdir,
   rm,
@@ -18,7 +19,7 @@ import {
 
 const RUNTIMES = [ "bun", "rust", "go" ] as const
 const PLATFORMS = [ "darwin-arm64", "darwin-x64", "linux-arm64", "linux-arm64-musl", "linux-x64", "linux-x64-musl", "windows-arm64", "windows-x64" ] as const
-const packageVersion = process.env.npm_package_version || packageJson.version
+const packageVersion = process.env["npm_package_version"] || packageJson.version
 const normalizedPackageVersion = normalizeVersion(packageVersion)
 
 type Runtime = (typeof RUNTIMES)[number]
@@ -28,6 +29,10 @@ type Platform = (typeof PLATFORMS)[number]
 type GoTarget = {
   goos: "darwin" | "linux" | "windows";
   goarch: "amd64" | "arm64";
+}
+
+type RustTarget = {
+  triple: string;
 }
 
 function isValidRuntime(runtime: string): runtime is Runtime {
@@ -67,6 +72,19 @@ async function chmodBinaries() {
     }
   }
 
+  const rustBuildPath = "./rust-build"
+  const rustPathExists = await exists(rustBuildPath)
+
+  if (rustPathExists) {
+    const rustBuildFiles = await readdir(rustBuildPath, { withFileTypes: true })
+
+    for (const file of rustBuildFiles) {
+      if (file.isFile() && !file.name.includes(".")) {
+        filesToChmod.push(join(rustBuildPath, file.name))
+      }
+    }
+  }
+
   await Promise.all(filesToChmod.map(async (file) => await chmod(file, 0o755)))
 }
 
@@ -100,6 +118,31 @@ function getGoTarget(platform: Platform): GoTarget {
       }
     default: {
       console.error("❌ Unsupported Go platform, this should never happen")
+      process.exit(1)
+    }
+  }
+}
+
+function getRustTarget(platform: Platform): RustTarget {
+  switch (platform) {
+    case "darwin-arm64":
+      return { triple: "aarch64-apple-darwin" }
+    case "darwin-x64":
+      return { triple: "x86_64-apple-darwin" }
+    case "linux-arm64":
+      return { triple: "aarch64-unknown-linux-gnu" }
+    case "linux-arm64-musl":
+      return { triple: "aarch64-unknown-linux-musl" }
+    case "linux-x64":
+      return { triple: "x86_64-unknown-linux-gnu" }
+    case "linux-x64-musl":
+      return { triple: "x86_64-unknown-linux-musl" }
+    case "windows-arm64":
+      return { triple: "aarch64-pc-windows-msvc" }
+    case "windows-x64":
+      return { triple: "x86_64-pc-windows-msvc" }
+    default: {
+      console.error("❌ Unsupported Rust platform, this should never happen")
       process.exit(1)
     }
   }
@@ -368,7 +411,7 @@ async function main(options?: {
 
       const bin = "bun"
       const isWindows = platform.startsWith("windows")
-      const baseCommand = "build --compile --minify --sourcemap --bytecode --format=esm"
+      const baseCommand = "build --compile --minify --bytecode --format=esm"
       const windowsSpecific = `--windows-icon=logo.ico --windows-title=monorepo-hash --windows-description=monorepo-hash --windows-publisher=EDM115 --windows-version=${normalizedPackageVersion} --windows-copyright=https://github.com/EDM115/monorepo-hash/blob/master/LICENSE`
       const buildCommand = `--target=bun-${platform} ./src/bun/monorepo-hash.ts --outfile ./bun-build/monorepo-hash-${platform}${isWindows
         ? ".exe"
@@ -457,7 +500,61 @@ async function main(options?: {
 
       break
     } case "rust": {
-      console.log("👀 Not yet...")
+      await mkdir("./rust-build", { recursive: true })
+
+      const target = getRustTarget(platform)
+      const isWindows = platform.startsWith("windows")
+      const rustupArgs = [ "target", "add", target.triple ]
+
+      console.log(`🏁 rustup ${rustupArgs.join(" ")}\n`)
+
+      const rustupResult = await x("rustup", rustupArgs, {
+        nodeOptions: { stdio: "inherit" },
+      })
+
+      if (rustupResult.exitCode !== 0) {
+        console.error(`❌ Rust target installation failed with exit code ${rustupResult.exitCode}`)
+        process.exit(rustupResult.exitCode)
+      }
+
+      const buildArgs = [
+        "build",
+        "--manifest-path",
+        "./src/rust/Cargo.toml",
+        "--locked",
+        "--release",
+        "--target",
+        target.triple,
+      ]
+
+      console.log(`🏁 cargo ${buildArgs.join(" ")}\n`)
+
+      const {
+        stdout, stderr, exitCode,
+      } = await x("cargo", buildArgs, {
+        nodeOptions: { stdio: "inherit" },
+      })
+
+      if (stdout) {
+        console.log(stdout)
+      }
+
+      if (stderr) {
+        console.error(stderr)
+      }
+
+      if (exitCode !== 0) {
+        console.error(`❌ Build failed with exit code ${exitCode}`)
+        process.exit(exitCode)
+      }
+
+      const extension = isWindows
+        ? ".exe"
+        : ""
+      const source = `./src/rust/target/${target.triple}/release/monorepo-hash${extension}`
+      const output = `./rust-build/monorepo-hash-${platform}${extension}`
+
+      await copyFile(source, output)
 
       break
     } default: {

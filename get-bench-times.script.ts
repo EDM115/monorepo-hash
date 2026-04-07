@@ -7,19 +7,26 @@ import {
 } from "node:fs/promises"
 import { join } from "node:path"
 
-type Runtime = "node" | "bun"
+type Runtime = "node" | "bun" | "go" | "rust"
 
 type MonorepoSize = "small" | "medium" | "large" | "wide"
 
 type CacheKind = "cold" | "warm"
 
-const RUNTIMES: Runtime[] = [ "node", "bun" ]
+const RUNTIMES: Runtime[] = [ "node", "bun", "go", "rust" ]
 const SIZES: MonorepoSize[] = [ "small", "medium", "large", "wide" ]
 const CACHES: CacheKind[] = [ "cold", "warm" ]
 
 const BENCH_HISTORY_DIR = "bench-history"
 const BENCH_HISTORY_NEW_DIR = "bench-history-new"
 const MASTER_TAG = "master"
+
+const emojiMap: Record<Runtime, string> = {
+  node: "🌿",
+  bun: "🥟",
+  go: "🐹",
+  rust: "🦀",
+}
 
 function ceilTo(value: number, decimals: number): number {
   const factor = 10 ** decimals
@@ -310,12 +317,9 @@ async function exportCorrectedMaster(runtime: Runtime, delta: number, version: s
 }
 
 function printRuntimeSection(runtime: Runtime, results: MasterResults): void {
-  const emoji = runtime === "node"
-    ? "🌿"
-    : "🥟"
-  const title = runtime === "node"
-    ? "Node"
-    : "Bun"
+  const emoji = emojiMap[runtime]
+  const title = runtime.charAt(0)
+    .toUpperCase() + runtime.slice(1)
 
   // new runner -> old runner equivalent
   console.log(`\n${emoji} ${title} master means (new → adjusted)`)
@@ -337,28 +341,45 @@ async function main(): Promise<void> {
   const runtimeDeltaList = await Promise.all(RUNTIMES.map((runtime) => computeRuntimeDelta(runtime)))
   const nodeDelta = runtimeDeltaList.find((runtimeDelta) => runtimeDelta.runtime === "node")
   const bunDelta = runtimeDeltaList.find((runtimeDelta) => runtimeDelta.runtime === "bun")
+  const goDelta = runtimeDeltaList.find((runtimeDelta) => runtimeDelta.runtime === "go")
+  const rustDelta = runtimeDeltaList.find((runtimeDelta) => runtimeDelta.runtime === "rust")
 
-  if (!nodeDelta || !bunDelta) {
+  if (!nodeDelta || !bunDelta || !goDelta || !rustDelta) {
     throw new Error("Could not compute runtime deltas")
   }
 
   const nodeMaster = await buildMasterResults("node", nodeDelta.delta)
   const bunMaster = await buildMasterResults("bun", bunDelta.delta)
-  const [ nodeExportCount, bunExportCount ] = await Promise.all([
+  const goMaster = await buildMasterResults("go", goDelta.delta)
+  const rustMaster = await buildMasterResults("rust", rustDelta.delta)
+  const [
+    nodeExportCount,
+    bunExportCount,
+    goExportCount,
+    rustExportCount,
+  ] = await Promise.all([
     exportCorrectedMaster("node", nodeDelta.delta, version),
     exportCorrectedMaster("bun", bunDelta.delta, version),
+    exportCorrectedMaster("go", goDelta.delta, version),
+    exportCorrectedMaster("rust", rustDelta.delta, version),
   ])
 
   console.log("📊 Benchmark runner deltas (apply on bench-history-new/master means)")
-  console.log(`🌿 Node delta : x ${formatDelta(nodeDelta.delta)} (${formatDeltaPercent(nodeDelta.delta)}) from ${nodeDelta.comparedTags.length} tags, ${nodeDelta.comparedFilesCount} file pairs`)
-  console.log(`🥟 Bun  delta : x ${formatDelta(bunDelta.delta)} (${formatDeltaPercent(bunDelta.delta)}) from ${bunDelta.comparedTags.length} tags, ${bunDelta.comparedFilesCount} file pairs`)
+  console.log(`${emojiMap.node} Node delta : x ${formatDelta(nodeDelta.delta)} (${formatDeltaPercent(nodeDelta.delta)}) from ${nodeDelta.comparedTags.length} tags, ${nodeDelta.comparedFilesCount} file pairs`)
+  console.log(`${emojiMap.bun} Bun  delta : x ${formatDelta(bunDelta.delta)} (${formatDeltaPercent(bunDelta.delta)}) from ${bunDelta.comparedTags.length} tags, ${bunDelta.comparedFilesCount} file pairs`)
+  console.log(`${emojiMap.go} Go   delta : x ${formatDelta(goDelta.delta)} (${formatDeltaPercent(goDelta.delta)}) from ${goDelta.comparedTags.length} tags, ${goDelta.comparedFilesCount} file pairs`)
+  console.log(`${emojiMap.rust} Rust delta : x ${formatDelta(rustDelta.delta)} (${formatDeltaPercent(rustDelta.delta)}) from ${rustDelta.comparedTags.length} tags, ${rustDelta.comparedFilesCount} file pairs`)
 
   printRuntimeSection("node", nodeMaster)
   printRuntimeSection("bun", bunMaster)
+  printRuntimeSection("go", goMaster)
+  printRuntimeSection("rust", rustMaster)
 
   console.log(`\n💾 Exported corrected master benchmarks for v${version}`)
-  console.log(`🌿 ${nodeExportCount} Node files written in ${join(BENCH_HISTORY_DIR, "node", version)}`)
-  console.log(`🥟 ${bunExportCount} Bun files written in ${join(BENCH_HISTORY_DIR, "bun", version)}`)
+  console.log(`${emojiMap.node} ${nodeExportCount} Node files written in ${join(BENCH_HISTORY_DIR, "node", version)}`)
+  console.log(`${emojiMap.bun} ${bunExportCount} Bun files written in ${join(BENCH_HISTORY_DIR, "bun", version)}`)
+  console.log(`${emojiMap.go} ${goExportCount} Go files written in ${join(BENCH_HISTORY_DIR, "go", version)}`)
+  console.log(`${emojiMap.rust} ${rustExportCount} Rust files written in ${join(BENCH_HISTORY_DIR, "rust", version)}`)
 }
 
 await main()

@@ -504,6 +504,7 @@ Here's a quick guide for contributing to `monorepo-hash` :
   - PNPM v10+
   - Bun v1.3+
   - Go 1.26+
+  - Rust 1.94+
 1. Fork the repository (and star it :wink:)
 2. Clone your fork
   ```bash
@@ -511,6 +512,8 @@ Here's a quick guide for contributing to `monorepo-hash` :
   cd monorepo-hash
   pnpm i --frozen-lockfile
   cd src/go && go mod download && cd ../..
+  rustup toolchain install 1.94
+  cd src/rust && cargo fetch --locked && cd ../..
   ```
 3. Do your changes
 4. Format, typecheck and lint your code
@@ -534,7 +537,7 @@ pnpm typecheck
 pnpm test
 git commit -m "the message" && git push
 pnpm build
-# run the action that builds the binaries and download the artifacts
+# run the actions that build the binaries and download the artifacts
 # create a draft release on GitHub with the artifacts
 # run the benchmarks action and download the results, put in `bench-history-new`
 pnpm cli:get-bench-times
@@ -547,6 +550,7 @@ pnpm release
 ### Update process
 - PNPM (Node/Bun) : `pnpm up -L`
 - Go : `cd src/go && go get -u && go get -u tool && go mod tidy && cd ../..`
+- Rust : `cd src/rust && cargo update && cd ../..`
 
 ## :eyes: Who uses `monorepo-hash` ?
 - [Nexelec](https://nexelec.eu), at least during my internship there

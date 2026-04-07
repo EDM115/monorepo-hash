@@ -2,7 +2,8 @@
 
 ## v2.2.0
 ### Breaking changes
-💥✨⚡️ feat/perf : the bundled binary is made with Go. beta, more details to come later. check [#25](https://github.com/EDM115/monorepo-hash/pull/25)
+💥✨⚡️ feat/perf : the bundled binary is made with Go. beta, more details to come later. check [#25](https://github.com/EDM115/monorepo-hash/pull/25)  
+💥✨⚡️ feat/perf : the bundled binary is made with Rust. beta, more details to come later. check [#27](https://github.com/EDM115/monorepo-hash/pull/27)
 
 ## v2.1.1
 ### Breaking changes

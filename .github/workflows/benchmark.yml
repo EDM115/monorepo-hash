@@ -48,6 +48,15 @@ jobs:
             echo "build_go=false" >> $GITHUB_OUTPUT
           fi
 
+      - name: "Do we build Rust"
+        id: build_rust
+        run: |
+          if grep -q '"build:rust"' package.json; then
+            echo "build_rust=true" >> $GITHUB_OUTPUT
+          else
+            echo "build_rust=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: "Install PNPM"
         uses: pnpm/action-setup@v5
 
@@ -68,6 +77,14 @@ jobs:
           cache-dependency-path: "./src/go/go.sum"
           check-latest: true
           go-version: "stable"
+      
+      - name: "Install Rust"
+        if: steps.build_rust.outputs.build_rust == 'true'
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          components: clippy, rustfmt
+          rust-src-dir: ./src/rust
+          toolchain: stable
 
       - name: "Install dependencies"
         run: |
@@ -80,6 +97,9 @@ jobs:
           sudo apt-get install fastfetch lshw -y
           if [[ "${{ steps.build_go.outputs.build_go }}" == "true" ]]; then
             cd src/go && go mod download && cd ../..
+          fi
+          if [[ "${{ steps.build_rust.outputs.build_rust }}" == "true" ]]; then
+            cd src/rust && cargo fetch --locked && cd ../..
           fi
 
       - name: "Get the system specs"
@@ -136,6 +156,11 @@ jobs:
             chmod +x go-build/monorepo-hash-linux-x64
             mkdir -p tests/benchmarks/go
           fi
+          if [[ "${{ steps.build_rust.outputs.build_rust }}" == "true" ]]; then
+            pnpm cli:build-bin -r rust -p linux-x64
+            chmod +x rust-build/monorepo-hash-linux-x64
+            mkdir -p tests/benchmarks/rust
+          fi
           if [[ ! -f tests/demo/wide-monorepo.7z ]]; then
             wget https://raw.githubusercontent.com/EDM115/monorepo-hash/refs/heads/master/tests/demo/wide-monorepo.7z -O tests/demo/wide-monorepo.7z
           fi
@@ -163,6 +188,9 @@ jobs:
             fi
             if [[ "${{ steps.build_go.outputs.build_go }}" == "true" ]]; then
               cp go-build/monorepo-hash-linux-x64 "tests/demo/${b}-monorepo/monorepo-hash-go"
+            fi
+            if [[ "${{ steps.build_rust.outputs.build_rust }}" == "true" ]]; then
+              cp rust-build/monorepo-hash-linux-x64 "tests/demo/${b}-monorepo/monorepo-hash-rust"
             fi
           done
 
@@ -417,6 +445,90 @@ jobs:
             --runs 10 \
             --export-markdown ../../benchmarks/go/wide-monorepo-warm.md \
             "./monorepo-hash-go --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
+
+      - name: "Benchmark : small monorepo, Rust, cold"
+        if: contains(steps.get_benchs.outputs.benchs, 'small') && steps.build_rust.outputs.build_rust == 'true'
+        run: |
+          cd tests/demo/small-monorepo
+          hyperfine \
+            --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches' \
+            --warmup 2 \
+            --runs 10 \
+            --export-markdown ../../benchmarks/rust/small-monorepo-cold.md \
+            "./monorepo-hash-rust --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
+
+      - name: "Benchmark : small monorepo, Rust, warm"
+        if: contains(steps.get_benchs.outputs.benchs, 'small') && steps.build_rust.outputs.build_rust == 'true'
+        run: |
+          cd tests/demo/small-monorepo
+          hyperfine \
+            --warmup 2 \
+            --runs 10 \
+            --export-markdown ../../benchmarks/rust/small-monorepo-warm.md \
+            "./monorepo-hash-rust --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
+
+      - name: "Benchmark : medium monorepo, Rust, cold"
+        if: contains(steps.get_benchs.outputs.benchs, 'medium') && steps.build_rust.outputs.build_rust == 'true'
+        run: |
+          cd tests/demo/medium-monorepo
+          hyperfine \
+            --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches' \
+            --warmup 2 \
+            --runs 10 \
+            --export-markdown ../../benchmarks/rust/medium-monorepo-cold.md \
+            "./monorepo-hash-rust --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
+
+      - name: "Benchmark : medium monorepo, Rust, warm"
+        if: contains(steps.get_benchs.outputs.benchs, 'medium') && steps.build_rust.outputs.build_rust == 'true'
+        run: |
+          cd tests/demo/medium-monorepo
+          hyperfine \
+            --warmup 2 \
+            --runs 10 \
+            --export-markdown ../../benchmarks/rust/medium-monorepo-warm.md \
+            "./monorepo-hash-rust --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
+
+      - name: "Benchmark : large monorepo, Rust, cold"
+        if: contains(steps.get_benchs.outputs.benchs, 'large') && steps.build_rust.outputs.build_rust == 'true'
+        run: |
+          cd tests/demo/large-monorepo
+          hyperfine \
+            --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches' \
+            --warmup 2 \
+            --runs 10 \
+            --export-markdown ../../benchmarks/rust/large-monorepo-cold.md \
+            "./monorepo-hash-rust --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
+
+      - name: "Benchmark : large monorepo, Rust, warm"
+        if: contains(steps.get_benchs.outputs.benchs, 'large') && steps.build_rust.outputs.build_rust == 'true'
+        run: |
+          cd tests/demo/large-monorepo
+          hyperfine \
+            --warmup 2 \
+            --runs 10 \
+            --export-markdown ../../benchmarks/rust/large-monorepo-warm.md \
+            "./monorepo-hash-rust --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
+
+      - name: "Benchmark : wide monorepo, Rust, cold"
+        if: contains(steps.get_benchs.outputs.benchs, 'wide') && steps.build_rust.outputs.build_rust == 'true'
+        run: |
+          cd tests/demo/wide-monorepo
+          hyperfine \
+            --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches' \
+            --warmup 2 \
+            --runs 10 \
+            --export-markdown ../../benchmarks/rust/wide-monorepo-cold.md \
+            "./monorepo-hash-rust --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
+
+      - name: "Benchmark : wide monorepo, Rust, warm"
+        if: contains(steps.get_benchs.outputs.benchs, 'wide') && steps.build_rust.outputs.build_rust == 'true'
+        run: |
+          cd tests/demo/wide-monorepo
+          hyperfine \
+            --warmup 2 \
+            --runs 10 \
+            --export-markdown ../../benchmarks/rust/wide-monorepo-warm.md \
+            "./monorepo-hash-rust --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
 
       - name: "Upload benchmarks results"
         uses: actions/upload-artifact@v7
