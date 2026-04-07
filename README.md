@@ -55,7 +55,8 @@ winget install EDM115.monorepo-hash
 > Since `v2.0.0`, the `monorepo-hash` cli command is a direct binary that cut the Node overhead and allows for faster I/O. To enable this, the postinstall script needs to be run, which is disabled by default in PNPM/Bun/Deno for security reasons.  
 > You can totally refuse to use it (whether it is for security reasons or size constraints). In such case, either run the older Node + plain JS version (`monorepo-hash-js`) or use the [programmatic API](#usage-outside-of-the-cli).  
 > If you added `monorepo-hash` without allowing the postinstall script to run, you can do it later at anytime with `pnpm approve-scripts`, `bun pm trust monorepo-hash` or `deno approve-scripts`.  
-> From `v1.8.0` up to `v2.1.1` the binary have been made with Bun. Starting with `v2.2.0` onwards, it is made with Go.
+> From `v1.8.0` up to `v2.2.0` the binary have been made with Bun. Starting with `v2.3.0` onwards, it is made with `^(?:Go|Rust) \?$`.  
+> Version `2.2.0` exposes the `monorepo-hash-go` & `monorepo-hash-rust` binaries to gather feedback on speed execution and consistency across environments before taking a decision on the default binary for `v2.3.0`.
 
 > [!TIP]  
 > Make sure that your workspace configuration is set up correctly (`pnpm-workspace.yaml`, `package.json` workspaces or `deno.json(c)` workspace) as `monorepo-hash` will use it to find your workspaces. Globs are supported.  
@@ -448,7 +449,8 @@ The specs as I'm writing this are an AMD EPYC 7763 64-Core (4) @ 3.25 GHz CPU, 1
 They have been reproduced 10 times with a cold and warm disk cache thanks to [hyperfine](https://github.com/sharkdp/hyperfine).  
 Cold cache results are more representative of a first run in CI or on a fresh boot. The script run speed doesn't really change, the only performance overhead on a cold cache is the time it takes to run Node/Bun/Go (and reading files from the disk). You can expect warm cache runs to be at least 1/3 faster than cold cache ones.  
 The versions denoted with `(bun)` are using the Bun binary build of `monorepo-hash`, which removes the Node overhead, uses Bun internal replacements and is generally faster. This build is the default one since `v2.0.0`.  
-The versions denoted with `(go)` are using the Go binary build of `monorepo-hash`, which is even faster than the Go version and 95% smaller. This build is the default one since `v2.2.0`.  
+The versions denoted with `(go)` are using the Go binary build of `monorepo-hash`, which is even faster than the Go version and 95% smaller. This build might be the default one since `v2.3.0`.  
+The versions denoted with `(rust)` are using the Rust binary build of `monorepo-hash`, which is on-par with the Go version in terms of performance and is twice as small. This build might be the default one since `v2.3.0`.  
 Starting with `v2.0.0`, the benchmark methodology has changed : we re-runned them for all versions in *the same runner and script* to avoid noisy neighbor effects and massive drifts in perf for no reason, and we also started to measure warm cache runs, noted in parenthesis. As a consequence, previous results that you could find in the releases aren't comparable with these new ones. More info here : [[INFO] 📣 A change in the benchmarks methodology (#20)](https://github.com/EDM115/monorepo-hash/issues/20)
 > [!NOTE]  
 > Here are the details of each demo monorepo used for the benchmarks :
@@ -458,7 +460,7 @@ Starting with `v2.0.0`, the benchmark methodology has changed : we re-runned the
 > - **Wide monorepo** : 50 workspaces of 10 folders each, with each folder containing 100 files, files composed of 10 lines of text *(the most representative of a real-world monorepo with many packages)*
 >
 > In order to not clunk up Git, these [demo repos](./tests/demo/) are 7z ultra compressed.  
-> Symbols (comparing Node with Node, Bun with Bun, Go with Go, the first Bun/Go version is compared with the same version's Node, wide > small > medium > large, warm > cold) :
+> Symbols (comparing Node with Node, Bun with Bun, Go with Go, Rust with Rust, the first Bun/Go/Rust version is compared with the same version's Node, wide > small > medium > large, warm > cold) :
 > - :chart_with_upwards_trend: : Faster than the previous version
 > - :chart_with_downwards_trend: : Slower than the previous version
 > - :balance_scale: : Negligible or no perceivable change in performance compared to the previous version

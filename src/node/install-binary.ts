@@ -66,20 +66,7 @@ export async function deferToJSImplementation(): Promise<void> {
     const jsImplPath = join(__dirname, "monorepo-hash.mjs")
 
     try {
-      await unlink(destPath)
-        .catch((err: unknown) => {
-          if (
-            typeof err === "object"
-            && err !== null
-            && "code" in err
-            // oxlint-disable-next-line no-unsafe-type-assertion
-            && (err as { code?: string }).code === "ENOENT"
-          ) {
-            return
-          }
-
-          throw err
-        })
+      await unlinkIfExists(destPath)
 
       await copyFile(jsImplPath, destPath)
 
@@ -116,20 +103,7 @@ export async function deferToJSImplementation(): Promise<void> {
     ]
 
     await Promise.all(binMappings.map(async ([ src, dest ]) => {
-      await unlink(dest)
-        .catch((err: unknown) => {
-          if (
-            typeof err === "object"
-            && err !== null
-            && "code" in err
-            // oxlint-disable-next-line no-unsafe-type-assertion
-            && (err as { code?: string }).code === "ENOENT"
-          ) {
-            return
-          }
-
-          throw err
-        })
+      await unlinkIfExists(dest)
 
       await copyFile(src, dest)
 
@@ -166,6 +140,38 @@ export async function getVersion(): Promise<string> {
   const pkg = JSON.parse(raw) as { version?: string }
 
   return pkg.version ?? ""
+}
+
+/**
+ * Remove a file if it exists
+ * @param filePath The file path to delete
+ * @returns A promise that resolves once the file is deleted or confirmed missing
+ */
+export async function unlinkIfExists(filePath: string): Promise<void> {
+  await unlink(filePath)
+    .catch((err: unknown) => {
+      if (
+        typeof err === "object"
+        && err !== null
+        && "code" in err
+        // oxlint-disable-next-line no-unsafe-type-assertion
+        && (err as { code?: string }).code === "ENOENT"
+      ) {
+        return
+      }
+
+      throw err
+    })
+}
+
+/**
+ * Derive a variant asset name from the default binary asset name
+ * @param assetName The default asset name
+ * @param variant The binary variant to derive
+ * @returns The variant asset name
+ */
+export function getVariantAssetName(assetName: string, variant: "go" | "rust"): string {
+  return assetName.replace("monorepo-hash-", `monorepo-hash-${variant}-`)
 }
 
 /**
@@ -255,26 +261,29 @@ export async function main(): Promise<void> {
   }
 
   const assetName = getBinaryBasename(platformId)
-  const url = `https://github.com/EDM115/monorepo-hash/releases/download/${version}/${assetName}`
+  const releaseBaseUrl = `https://github.com/EDM115/monorepo-hash/releases/download/${version}`
+  const url = `${releaseBaseUrl}/${assetName}`
   const destPath = join(__dirname, "monorepo-hash.exe")
+  /* const optionalBinaryTargets = await Promise.all(
+    ([
+      [ "go", join(__dirname, "monorepo-hash-go.exe") ],
+      [ "rust", join(__dirname, "monorepo-hash-rust.exe") ],
+    ] as const).map(async ([ variant, variantDestPath ]) => {
+      if (!await exists(variantDestPath)) {
+        return null
+      }
+
+      return {
+        assetName: getVariantAssetName(assetName, variant),
+        destPath: variantDestPath,
+      }
+    }),
+  ) */
 
   await mkdir(__dirname, { recursive: true })
 
   try {
-    await unlink(destPath)
-      .catch((err: unknown) => {
-        if (
-          typeof err === "object"
-          && err !== null
-          && "code" in err
-          // oxlint-disable-next-line no-unsafe-type-assertion
-          && (err as { code?: string }).code === "ENOENT"
-        ) {
-          return
-        }
-
-        throw err
-      })
+    await unlinkIfExists(destPath)
 
     await download(url, destPath)
     console.log(`monorepo-hash : downloaded ${assetName} for v${version}`)
@@ -284,7 +293,27 @@ export async function main(): Promise<void> {
     console.warn(`monorepo-hash : failed to download native binary (${msg}), JS implementation will be used instead`)
 
     await deferToJSImplementation()
+
+    return
   }
+
+  /* await Promise.all(optionalBinaryTargets.map(async (optionalBinaryTarget) => {
+    if (!optionalBinaryTarget) {
+      return
+    }
+
+    const variantUrl = `${releaseBaseUrl}/${optionalBinaryTarget.assetName}`
+
+    try {
+      await unlinkIfExists(optionalBinaryTarget.destPath)
+      await download(variantUrl, optionalBinaryTarget.destPath)
+      console.log(`monorepo-hash : downloaded ${optionalBinaryTarget.assetName} for v${version}`)
+    } catch (err) {
+      const msg = errorToMsg(err)
+
+      console.warn(`monorepo-hash : failed to download ${optionalBinaryTarget.assetName} (${msg}), skipping optional binary`)
+    }
+  })) */
 }
 
 // Only run when invoked directly (postinstall), not when imported
