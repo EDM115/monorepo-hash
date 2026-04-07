@@ -1,0 +1,12 @@
+{
+  "args": [
+    "--generate",
+    "--silent"
+  ],
+  "pre": [],
+  "exitCode": 0,
+  "stdout": "",
+  "stderr": "",
+  "stdoutNorm": "",
+  "files": {}
+}

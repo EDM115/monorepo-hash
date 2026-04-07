@@ -9,9 +9,15 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::process;
+use std::sync::{
+  Mutex, OnceLock,
+  atomic::{AtomicBool, Ordering},
+};
 
 const PACKAGE_MANAGERS: &[&str] = &["pnpm", "npm", "deno", "bun", "yarn"];
 const CLI_VERSION: &str = "2.2.0";
+static USE_PATH_CACHE: AtomicBool = AtomicBool::new(true);
+static PATH_DISPLAY_CACHE: OnceLock<Mutex<HashMap<String, String>>> = OnceLock::new();
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Mode {
@@ -27,6 +33,7 @@ struct CliOptions {
   debug: bool,
   unified: bool,
   pm_option: Option<String>,
+  use_path_cache: bool,
 }
 
 #[derive(Debug)]
@@ -114,6 +121,8 @@ fn run() -> Result<(), String> {
     },
   };
 
+  USE_PATH_CACHE.store(opts.use_path_cache, Ordering::Relaxed);
+
   if !opts.silent {
     match opts.mode {
       Mode::Generate => {
@@ -156,7 +165,7 @@ fn run() -> Result<(), String> {
             pm, auto.pm
           );
         } else {
-          eprintln!("❌ Specified package manager not found");
+          eprintln!("❌ Specified package manager not found and no supported package manager detected");
         }
         process::exit(5);
       },
@@ -250,6 +259,7 @@ fn parse_args(args: &[String]) -> Result<Option<CliOptions>, CliError> {
   let mut debug = false;
   let mut unified = true;
   let mut pm_option: Option<String> = None;
+  let mut use_path_cache = true;
   let mut wants_help = false;
   let mut wants_version = false;
 
@@ -276,7 +286,7 @@ fn parse_args(args: &[String]) -> Result<Option<CliOptions>, CliError> {
     {
       let parsed = value
         .split(',')
-        .map(|s| s.trim_end_matches('/').replace('\\', "/"))
+        .map(|s| to_posix_path(s.trim_end_matches('/')))
         .collect::<Vec<_>>();
       targets = Some(parsed);
     } else if arg == "--silent" || arg == "-s" {
@@ -301,7 +311,7 @@ fn parse_args(args: &[String]) -> Result<Option<CliOptions>, CliError> {
       }
       pm_option = Some(value.to_string());
     } else if arg == "--nopathcache" || arg == "-npc" {
-      // accepted for parity, no-op in rust
+      use_path_cache = false;
     } else if arg == "--help" || arg == "-h" {
       wants_help = true;
     } else if arg == "--version" || arg == "-v" {
@@ -341,6 +351,7 @@ fn parse_args(args: &[String]) -> Result<Option<CliOptions>, CliError> {
     debug,
     unified,
     pm_option,
+    use_path_cache,
   }))
 }
 
@@ -361,6 +372,32 @@ fn find_up(start: &Path, names: &[&str]) -> Option<PathBuf> {
   }
 
   None
+}
+
+fn to_posix_path(value: &str) -> String {
+  if !value.contains('\\') {
+    return value.to_string();
+  }
+
+  if !USE_PATH_CACHE.load(Ordering::Relaxed) {
+    return value.replace('\\', "/");
+  }
+
+  let cache = PATH_DISPLAY_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+
+  {
+    let guard = cache.lock().expect("path cache poisoned");
+
+    if let Some(cached) = guard.get(value) {
+      return cached.clone();
+    }
+  }
+
+  let transformed = value.replace('\\', "/");
+  let mut guard = cache.lock().expect("path cache poisoned");
+  guard.insert(value.to_string(), transformed.clone());
+
+  transformed
 }
 
 fn strip_json_comments(input: &str) -> String {
@@ -447,6 +484,30 @@ fn workspaces_from_value(value: &Value) -> Option<Vec<String>> {
   None
 }
 
+fn find_workspace_package_json(start: &Path) -> Result<Option<PathBuf>, String> {
+  let mut current = start.to_path_buf();
+
+  loop {
+    let candidate = current.join("package.json");
+
+    if candidate.exists()
+      && let Ok(raw) = fs::read_to_string(&candidate)
+      && let Ok(parsed) = serde_json::from_str::<PackageJson>(&raw)
+      && parsed
+        .workspaces
+        .as_ref()
+        .and_then(workspaces_from_value)
+        .is_some()
+    {
+      return Ok(Some(candidate));
+    }
+
+    if !current.pop() {
+      return Ok(None);
+    }
+  }
+}
+
 fn detect_pnpm() -> Result<Option<Detection>, String> {
   let cwd = env::current_dir().map_err(|e| e.to_string())?;
   let Some(file) = find_up(&cwd, &["pnpm-workspace.yaml"]) else {
@@ -457,11 +518,16 @@ fn detect_pnpm() -> Result<Option<Detection>, String> {
   };
   let raw = fs::read_to_string(&file).map_err(|e| e.to_string())?;
   let parsed: PnpmWorkspace = serde_saphyr::from_str(&raw).map_err(|e| e.to_string())?;
+  let globs = parsed.packages.unwrap_or_default();
+
+  if globs.is_empty() {
+    return Ok(None);
+  }
 
   Ok(Some(Detection {
     pm: "pnpm".to_string(),
     root: root.to_path_buf(),
-    globs: parsed.packages.unwrap_or_default(),
+    globs,
   }))
 }
 
@@ -476,17 +542,22 @@ fn detect_deno() -> Result<Option<Detection>, String> {
   let raw = fs::read_to_string(&file).map_err(|e| e.to_string())?;
   let cleaned = strip_json_comments(&raw);
   let parsed: DenoWorkspace = serde_json::from_str(&cleaned).map_err(|e| e.to_string())?;
+  let globs = parsed.workspace.unwrap_or_default();
+
+  if globs.is_empty() {
+    return Ok(None);
+  }
 
   Ok(Some(Detection {
     pm: "deno".to_string(),
     root: root.to_path_buf(),
-    globs: parsed.workspace.unwrap_or_default(),
+    globs,
   }))
 }
 
 fn detect_pkg_json() -> Result<Option<Detection>, String> {
   let cwd = env::current_dir().map_err(|e| e.to_string())?;
-  let Some(file) = find_up(&cwd, &["package.json"]) else {
+  let Some(file) = find_workspace_package_json(&cwd)? else {
     return Ok(None);
   };
   let Some(root) = file.parent() else {
@@ -638,6 +709,80 @@ fn split_extglob_alternatives(input: &str) -> Vec<String> {
   parts
 }
 
+fn find_first_brace_group(pattern: &str) -> Option<(usize, usize)> {
+  let mut depth = 0;
+  let mut start = None;
+
+  for (idx, ch) in pattern.char_indices() {
+    match ch {
+      '{' => {
+        if depth == 0 {
+          start = Some(idx);
+        }
+        depth += 1;
+      },
+      '}' => {
+        if depth == 0 {
+          continue;
+        }
+
+        depth -= 1;
+
+        if depth == 0 {
+          return start.map(|open| (open, idx));
+        }
+      },
+      _ => {},
+    }
+  }
+
+  None
+}
+
+fn split_brace_alternatives(input: &str) -> Vec<String> {
+  let mut parts = Vec::new();
+  let mut current = String::new();
+  let mut depth = 0;
+
+  for ch in input.chars() {
+    match ch {
+      '{' => {
+        depth += 1;
+        current.push(ch);
+      },
+      '}' => {
+        depth -= 1;
+        current.push(ch);
+      },
+      ',' if depth == 0 => {
+        parts.push(current);
+        current = String::new();
+      },
+      _ => current.push(ch),
+    }
+  }
+
+  parts.push(current);
+  parts
+}
+
+fn expand_brace_glob(pattern: &str) -> Vec<String> {
+  let Some((open, close)) = find_first_brace_group(pattern) else {
+    return vec![pattern.to_string()];
+  };
+
+  let prefix = &pattern[..open];
+  let suffix = &pattern[close + 1..];
+  let alts = split_brace_alternatives(&pattern[open + 1..close]);
+  let mut expanded = Vec::new();
+
+  for alt in alts {
+    expanded.extend(expand_workspace_pattern(&format!("{prefix}{alt}{suffix}")));
+  }
+
+  expanded
+}
+
 fn expand_supported_extglob(pattern: &str) -> Vec<String> {
   let Some((idx, op)) = find_first_supported_extglob(pattern) else {
     return vec![pattern.to_string()];
@@ -664,18 +809,34 @@ fn expand_supported_extglob(pattern: &str) -> Vec<String> {
   let mut expanded = Vec::new();
 
   for replacement in replacements {
-    expanded.extend(expand_supported_extglob(&format!(
-      "{prefix}{replacement}{suffix}"
-    )));
+    expanded.extend(expand_workspace_pattern(&format!("{prefix}{replacement}{suffix}")));
   }
 
   expanded
 }
 
-fn load_packages(detection: &Detection) -> io::Result<HashMap<String, PackageInfo>> {
-  let mut package_jsons = BTreeSet::new();
+fn expand_workspace_pattern(pattern: &str) -> Vec<String> {
+  if find_first_brace_group(pattern).is_some() {
+    return expand_brace_glob(pattern);
+  }
 
-  for glob in &detection.globs {
+  if find_first_supported_extglob(pattern).is_some() {
+    return expand_supported_extglob(pattern);
+  }
+
+  vec![pattern.to_string()]
+}
+
+#[derive(Debug)]
+struct WorkspacePatternSpec {
+  negated: bool,
+  patterns: Vec<String>,
+}
+
+fn prepare_workspace_patterns(globs: &[String]) -> Vec<WorkspacePatternSpec> {
+  let mut specs = Vec::new();
+
+  for glob in globs {
     let negated = glob.starts_with('!');
     let raw_pattern = glob
       .trim_start_matches('!')
@@ -687,52 +848,73 @@ fn load_packages(detection: &Detection) -> io::Result<HashMap<String, PackageInf
       continue;
     }
 
-    for expanded in expand_supported_extglob(raw_pattern) {
-      let normalized = expanded.trim_matches('/');
+    let mut patterns = expand_workspace_pattern(raw_pattern)
+      .into_iter()
+      .map(|pattern| pattern.trim_matches('/').to_string())
+      .collect::<Vec<_>>();
 
-      for entry in WalkDir::new(&detection.root).sort(true) {
-        let entry = match entry {
-          Ok(entry) => entry,
-          Err(err) => return Err(io::Error::other(err.to_string())),
-        };
+    patterns.sort();
+    patterns.dedup();
 
-        if !entry.file_type().is_file() {
-          continue;
-        }
+    if !patterns.is_empty() {
+      specs.push(WorkspacePatternSpec { negated, patterns });
+    }
+  }
 
-        if entry.file_name() != "package.json" {
-          continue;
-        }
+  specs
+}
 
-        let path = entry.path();
-        let rel = path
-          .strip_prefix(&detection.root)
-          .unwrap_or(&path)
-          .to_string_lossy()
-          .replace('\\', "/");
+fn workspace_pattern_matches(pattern: &str, rel: &str, rel_dir: &str) -> bool {
+  if pattern.is_empty() {
+    return rel == "package.json";
+  }
 
-        let rel_dir = rel.strip_suffix("/package.json").unwrap_or("");
+  if pattern.contains('*') || pattern.contains('?') || pattern.contains('[') {
+    let candidate = format!("{rel_dir}/package.json");
+    let glob_pattern = format!("{pattern}/package.json");
 
-        let matches = if normalized.is_empty() {
-          rel == "package.json"
-        } else if normalized.contains('*') || normalized.contains('?') || normalized.contains('[') {
-          let candidate = format!("{rel_dir}/package.json");
-          let pattern = format!("{normalized}/package.json");
-          glob_match::glob_match(&pattern, &candidate)
-        } else {
-          rel_dir == normalized
-        };
+    return glob_match::glob_match(&glob_pattern, &candidate);
+  }
 
-        if !matches {
-          continue;
-        }
+  rel_dir == pattern
+}
 
-        if negated {
-          package_jsons.remove(&path);
-        } else {
-          package_jsons.insert(path.to_path_buf());
-        }
+fn load_packages(detection: &Detection) -> io::Result<HashMap<String, PackageInfo>> {
+  let mut package_jsons = BTreeSet::new();
+
+  let pattern_specs = prepare_workspace_patterns(&detection.globs);
+
+  for entry in WalkDir::new(&detection.root).sort(true) {
+    let entry = match entry {
+      Ok(entry) => entry,
+      Err(err) => return Err(io::Error::other(err.to_string())),
+    };
+
+    if !entry.file_type().is_file() {
+      continue;
+    }
+
+    if entry.file_name() != "package.json" {
+      continue;
+    }
+
+    let path = entry.path();
+    let rel = to_posix_path(&path.strip_prefix(&detection.root).unwrap_or(&path).to_string_lossy());
+    let rel_dir = rel.strip_suffix("/package.json").unwrap_or("");
+    let mut included = false;
+
+    for spec in &pattern_specs {
+      if spec
+        .patterns
+        .iter()
+        .any(|pattern| workspace_pattern_matches(pattern, &rel, rel_dir))
+      {
+        included = !spec.negated;
       }
+    }
+
+    if included {
+      package_jsons.insert(path.to_path_buf());
     }
   }
 
@@ -755,7 +937,8 @@ fn load_packages(detection: &Detection) -> io::Result<HashMap<String, PackageInf
       .strip_prefix(&detection.root)
       .unwrap_or(&dir)
       .to_string_lossy()
-      .replace('\\', "/");
+      .to_string();
+    let rel = to_posix_path(&rel);
 
     packages.insert(
       name,
@@ -895,7 +1078,8 @@ fn should_ignore_path(
     .strip_prefix(repo_root)
     .unwrap_or(path)
     .to_string_lossy()
-    .replace('\\', "/");
+    .to_string();
+  let rel_repo = to_posix_path(&rel_repo);
   if let Some(ignore) = root_ignore
     && ignore
       .matched_path_or_any_parents(Path::new(&rel_repo), is_dir)
@@ -908,7 +1092,8 @@ fn should_ignore_path(
     .strip_prefix(pkg_root)
     .unwrap_or(path)
     .to_string_lossy()
-    .replace('\\', "/");
+    .to_string();
+  let rel_pkg = to_posix_path(&rel_pkg);
   if let Some(ignore) = local_ignore
     && ignore
       .matched_path_or_any_parents(Path::new(&rel_pkg), is_dir)
@@ -962,7 +1147,8 @@ fn collect_workspace_files(
       .strip_prefix(pkg_root)
       .unwrap_or(&path)
       .to_string_lossy()
-      .replace('\\', "/");
+      .to_string();
+    let rel_pkg = to_posix_path(&rel_pkg);
 
     out.push((path, rel_pkg));
   }
@@ -979,10 +1165,15 @@ fn sha256_hex_for_file(path: &Path, rel_posix: &str) -> io::Result<String> {
 }
 
 fn hex_encode(bytes: &[u8]) -> String {
+  const HEX: &[u8; 16] = b"0123456789abcdef";
+
   let mut out = String::with_capacity(bytes.len() * 2);
+
   for b in bytes {
-    out.push_str(&format!("{:02x}", b));
+    out.push(HEX[(b >> 4) as usize] as char);
+    out.push(HEX[(b & 0x0f) as usize] as char);
   }
+
   out
 }
 
@@ -1032,17 +1223,20 @@ fn compute_package_hashes(
   }
 
   for (idx, name) in selected.iter().enumerate() {
-    let pkg = packages
-      .get(name)
-      .ok_or_else(|| io::Error::other("Package missing metadata"))?
-      .clone();
+    let (pkg_dir, pkg_rel_dir) = {
+      let pkg = packages
+        .get(name)
+        .ok_or_else(|| io::Error::other("Package missing metadata"))?;
 
-    let local_ignore = compile_local_ignore(&pkg.dir)?;
+      (pkg.dir.clone(), pkg.rel_dir_posix.clone())
+    };
+
+    let local_ignore = compile_local_ignore(&pkg_dir)?;
     let mut files = Vec::new();
     collect_workspace_files(
-      &pkg.dir,
+      &pkg_dir,
       repo_root,
-      &pkg.dir,
+      &pkg_dir,
       root_ignore,
       local_ignore.as_ref(),
       &mut files,
@@ -1072,16 +1266,16 @@ fn compute_package_hashes(
         "\r🔄 Computing hashes ({}/{}) • {}",
         zero_pad(idx + 1, pad),
         total,
-        pkg.rel_dir_posix
+        pkg_rel_dir
       );
     }
 
     if debug && mode == Mode::Generate {
       if unified {
-        root_debug.insert(pkg.rel_dir_posix.clone(), per_file);
+        root_debug.insert(pkg_rel_dir, per_file);
       } else {
         let content = serde_json::to_string_pretty(&per_file).unwrap_or("{}".to_string());
-        fs::write(pkg.dir.join(".debug-hash"), content)?;
+        fs::write(pkg_dir.join(".debug-hash"), content)?;
       }
     }
   }

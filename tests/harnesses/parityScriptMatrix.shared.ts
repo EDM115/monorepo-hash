@@ -1,6 +1,7 @@
 import {
   access,
   mkdir,
+  rm,
   readFile,
   readdir,
   writeFile,
@@ -33,7 +34,10 @@ function matrixCaseTitle(name: string): string {
     "pm-invalid-empty": "rejects empty --packagemanager value",
     "pm-invalid-value": "rejects unsupported --packagemanager value",
     "pm-wrong-existing": "suggests detected package manager when forced one is missing",
+    "pm-pnpm-empty-workspaces": "rejects empty pnpm workspace globs as non-matching when package manager is forced",
     "generate": "generates unified root hash file for all workspaces",
+    "generate-npm-workspace-cwd": "auto-detects npm workspaces when invoked from inside a workspace package",
+    "generate-force-npm-workspace-cwd": "detects forced npm workspaces when invoked from inside a workspace package",
     "generate-workspaces": "generates per-workspace hash files with --workspaces",
     "generate-debug": "generates unified debug hashes with --debug",
     "generate-debug-workspaces": "generates per-workspace debug hashes with --debug --workspaces",
@@ -209,6 +213,9 @@ export function defineParityScriptMatrixSnapshotSuite(
     const repoDir = await freshRepo(caseDef.name)
     const pre = replaceTargetPlaceholders(caseDef.pre ?? [])
     const run = replaceTargetPlaceholders(caseDef.run)
+    const caseCwd = caseDef.runCwd
+      ? join(repoDir, ...caseDef.runCwd.split("/"))
+      : repoDir
 
     if (pre.length > 0) {
       const preResult = await runCli(repoDir, pre)
@@ -222,7 +229,7 @@ export function defineParityScriptMatrixSnapshotSuite(
       await caseDef.mutate(repoDir, caseDef.name)
     }
 
-    const result = await runCli(repoDir, run)
+    const result = await runCli(caseCwd, run)
     const stdout = maskRepoPath(normalizeNewlines(result.stdout), repoDir)
     const stderr = maskRepoPath(normalizeNewlines(result.stderr), repoDir)
     const exitCode = result.exitCode ?? 0
@@ -268,8 +275,43 @@ export function defineParityScriptMatrixSnapshotSuite(
       run: [ "--generate", "--packagemanager=yarn" ],
     },
     {
+      name: "pm-pnpm-empty-workspaces",
+      run: [ "--generate", "--packagemanager=pnpm" ],
+      mutate: async (repoDir) => {
+        await writeFile(join(repoDir, "pnpm-workspace.yaml"), "packages: []\n")
+      },
+    },
+    {
       name: "generate",
       run: ["--generate"],
+    },
+    {
+      name: "generate-npm-workspace-cwd",
+      run: [ "--generate", "--silent" ],
+      runCwd: "packages/a",
+      mutate: async (repoDir) => {
+        await rm(join(repoDir, "pnpm-workspace.yaml"), { force: true })
+        await writeFile(join(repoDir, "package-lock.json"), "")
+        await writeFile(join(repoDir, "package.json"), `${JSON.stringify({
+          name: "matrix-root",
+          private: true,
+          workspaces: [ "packages/*" ],
+        }, null, 2)}\n`)
+      },
+    },
+    {
+      name: "generate-force-npm-workspace-cwd",
+      run: [ "--generate", "--packagemanager=npm", "--silent" ],
+      runCwd: "packages/a",
+      mutate: async (repoDir) => {
+        await rm(join(repoDir, "pnpm-workspace.yaml"), { force: true })
+        await writeFile(join(repoDir, "package-lock.json"), "")
+        await writeFile(join(repoDir, "package.json"), `${JSON.stringify({
+          name: "matrix-root",
+          private: true,
+          workspaces: [ "packages/*" ],
+        }, null, 2)}\n`)
+      },
     },
     {
       name: "generate-workspaces",

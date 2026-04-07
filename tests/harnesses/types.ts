@@ -22,6 +22,7 @@ type MatrixCase = {
   name: string;
   pre?: string[];
   run: string[];
+  runCwd?: string;
   mutate?: (repoDir: string, caseName: string) => Promise<void>;
 }
 
