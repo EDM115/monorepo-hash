@@ -1,3 +1,5 @@
+extern crate winresource;
+
 fn main() {
   println!("cargo::rerun-if-changed=../../logo.ico");
 
@@ -6,7 +8,7 @@ fn main() {
     return;
   }
 
-  let mut res = winres::WindowsResource::new();
+  let mut res = winresource::WindowsResource::new();
 
   res.set_icon("../../logo.ico");
 

@@ -10,9 +10,9 @@ name = "monorepo-hash"
 path = "monorepo-hash.rs"
 
 [build-dependencies]
-winres = "~0.1.12"
+winresource = "~0.1.31"
 
-[package.metadata.winres]
+[package.metadata.winresource]
 Comments = "monorepo-hash"
 CompanyName = "EDM115"
 FileDescription = "monorepo-hash"
@@ -31,9 +31,10 @@ panic = "abort"
 strip = true
 
 [dependencies]
-globwalk = "~0.9.1"
+glob-match = "~0.2.1"
 ignore = "~0.4.25"
+jwalk = "~0.8.1"
 serde = { version = "~1.0.228", features = ["derive"] }
+serde-saphyr = "~0.0.23"
 serde_json = "~1.0.149"
-serde_yaml = "~0.9.34"
 sha2 = "~0.11.0"

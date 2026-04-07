@@ -1,5 +1,5 @@
-use globwalk::GlobWalkerBuilder;
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
+use jwalk::WalkDir;
 use serde::Deserialize;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
@@ -456,7 +456,7 @@ fn detect_pnpm() -> Result<Option<Detection>, String> {
     return Ok(None);
   };
   let raw = fs::read_to_string(&file).map_err(|e| e.to_string())?;
-  let parsed: PnpmWorkspace = serde_yaml::from_str(&raw).map_err(|e| e.to_string())?;
+  let parsed: PnpmWorkspace = serde_saphyr::from_str(&raw).map_err(|e| e.to_string())?;
 
   Ok(Some(Detection {
     pm: "pnpm".to_string(),
@@ -677,32 +677,60 @@ fn load_packages(detection: &Detection) -> io::Result<HashMap<String, PackageInf
 
   for glob in &detection.globs {
     let negated = glob.starts_with('!');
-    let pattern = glob
+    let raw_pattern = glob
       .trim_start_matches('!')
       .trim_start_matches("./")
       .trim_end_matches('/');
-    let pattern = if pattern == "." { "" } else { pattern };
+    let raw_pattern = if raw_pattern == "." { "" } else { raw_pattern };
 
-    if pattern.is_empty() && !glob.starts_with('.') && !glob.starts_with("!.") {
+    if raw_pattern.is_empty() && !glob.starts_with('.') && !glob.starts_with("!.") {
       continue;
     }
 
-    for expanded in expand_supported_extglob(pattern) {
-      let full_pattern = if expanded.is_empty() {
-        "package.json".to_string()
-      } else {
-        format!("{expanded}/package.json")
-      };
-      let walker = GlobWalkerBuilder::from_patterns(&detection.root, &[full_pattern.as_str()])
-        .follow_links(false)
-        .build()
-        .map_err(|e| io::Error::other(e.to_string()))?;
+    for expanded in expand_supported_extglob(raw_pattern) {
+      let normalized = expanded.trim_matches('/');
 
-      for entry in walker.into_iter().flatten() {
-        if negated {
-          package_jsons.remove(entry.path());
+      for entry in WalkDir::new(&detection.root).sort(true) {
+        let entry = match entry {
+          Ok(entry) => entry,
+          Err(err) => return Err(io::Error::other(err.to_string())),
+        };
+
+        if !entry.file_type().is_file() {
+          continue;
+        }
+
+        if entry.file_name() != "package.json" {
+          continue;
+        }
+
+        let path = entry.path();
+        let rel = path
+          .strip_prefix(&detection.root)
+          .unwrap_or(&path)
+          .to_string_lossy()
+          .replace('\\', "/");
+
+        let rel_dir = rel.strip_suffix("/package.json").unwrap_or("");
+
+        let matches = if normalized.is_empty() {
+          rel == "package.json"
+        } else if normalized.contains('*') || normalized.contains('?') || normalized.contains('[') {
+          let candidate = format!("{rel_dir}/package.json");
+          let pattern = format!("{normalized}/package.json");
+          glob_match::glob_match(&pattern, &candidate)
         } else {
-          package_jsons.insert(entry.path().to_path_buf());
+          rel_dir == normalized
+        };
+
+        if !matches {
+          continue;
+        }
+
+        if negated {
+          package_jsons.remove(&path);
+        } else {
+          package_jsons.insert(path.to_path_buf());
         }
       }
     }
