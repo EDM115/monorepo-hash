@@ -293,9 +293,9 @@ export function defineParityScriptMatrixSnapshotSuite(
         await rm(join(repoDir, "pnpm-workspace.yaml"), { force: true })
         await writeFile(join(repoDir, "package-lock.json"), "")
         await writeFile(join(repoDir, "package.json"), `${JSON.stringify({
-          name: "matrix-root",
-          private: true,
-          workspaces: [ "packages/*" ],
+          "name": "matrix-root",
+          "private": true,
+          "workspaces": ["packages/*"],
         }, null, 2)}\n`)
       },
     },
@@ -307,9 +307,9 @@ export function defineParityScriptMatrixSnapshotSuite(
         await rm(join(repoDir, "pnpm-workspace.yaml"), { force: true })
         await writeFile(join(repoDir, "package-lock.json"), "")
         await writeFile(join(repoDir, "package.json"), `${JSON.stringify({
-          name: "matrix-root",
-          private: true,
-          workspaces: [ "packages/*" ],
+          "name": "matrix-root",
+          "private": true,
+          "workspaces": ["packages/*"],
         }, null, 2)}\n`)
       },
     },

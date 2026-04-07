@@ -306,7 +306,9 @@ async function readJsonFile<T>(filePath: string, description: string): Promise<T
     // oxlint-disable-next-line no-unsafe-type-assertion
     return JSON.parse(text) as T
   } catch (err) {
-    throw new Error(`Invalid ${description} at ${filePath} : ${err instanceof Error ? err.message : String(err)}`)
+    throw new Error(`Invalid ${description} at ${filePath} : ${err instanceof Error
+      ? err.message
+      : String(err)}`, { cause: err })
   }
 }
 

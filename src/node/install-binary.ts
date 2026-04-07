@@ -264,6 +264,7 @@ export async function main(): Promise<void> {
   const releaseBaseUrl = `https://github.com/EDM115/monorepo-hash/releases/download/${version}`
   const url = `${releaseBaseUrl}/${assetName}`
   const destPath = join(__dirname, "monorepo-hash.exe")
+
   /* const optionalBinaryTargets = await Promise.all(
     ([
       [ "go", join(__dirname, "monorepo-hash-go.exe") ],
