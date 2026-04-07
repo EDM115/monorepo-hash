@@ -294,6 +294,23 @@ export const NullObj: {
 Object.freeze(NullObj)
 
 /**
+ * Read and parse a JSON file with contextual parse errors
+ * @param filePath The JSON file path
+ * @param description A human-readable description of the file
+ * @returns The parsed JSON value
+ */
+async function readJsonFile<T>(filePath: string, description: string): Promise<T> {
+  const text = await readFile(filePath, "utf8")
+
+  try {
+    // oxlint-disable-next-line no-unsafe-type-assertion
+    return JSON.parse(text) as T
+  } catch (err) {
+    throw new Error(`Invalid ${description} at ${filePath} : ${err instanceof Error ? err.message : String(err)}`)
+  }
+}
+
+/**
  * Given a workspace directory (`dir`) and its repo-relative path (`relDir`), return a sorted array of all file-relative paths (using OS-specific separators), after applying root and package‐level .gitignore filters
  * @param dir The absolute path to the workspace directory
  * @param relDir The repo-relative path to the workspace directory
@@ -623,8 +640,7 @@ export async function loadRootDebugFile(rootDir: string): Promise<Record<string,
     return null
   }
 
-  // oxlint-disable-next-line no-unsafe-type-assertion
-  return JSON.parse(await readFile(p, "utf8")) as Record<string, Record<string, string>>
+  return readJsonFile<Record<string, Record<string, string>>>(p, "root .debug-hash file")
 }
 
 /**
@@ -852,8 +868,7 @@ export async function loadRootHashFile(rootDir: string): Promise<Record<string, 
     return null
   }
 
-  // oxlint-disable-next-line no-unsafe-type-assertion
-  return JSON.parse(await readFile(p, "utf8")) as Record<string, string>
+  return readJsonFile<Record<string, string>>(p, "root .hash file")
 }
 
 /**

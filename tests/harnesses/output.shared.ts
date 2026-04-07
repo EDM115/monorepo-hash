@@ -164,6 +164,25 @@ export function defineOutputSuite(runCli: RunCli): void {
         .toContain("• packages/pkg-a")
     })
 
+    it("fails on a malformed root .hash during compare", async () => {
+      const rootHashPath = join(cwd, ".hash")
+
+      try {
+        await writeFile(rootHashPath, "{ invalid json\n")
+
+        const result = await runCli(cwd, ["--compare"])
+
+        expect(result.exitCode)
+          .toBe(99)
+        expect(result.stderr)
+          .toContain("Invalid root .hash file")
+      } finally {
+        if (await pathExists(rootHashPath)) {
+          await remove(rootHashPath)
+        }
+      }
+    })
+
     it("produces deterministic hashes across consecutive --generate runs", async () => {
       await runCli(cwd, ["--generate"])
       const rootHashPath = join(cwd, ".hash")

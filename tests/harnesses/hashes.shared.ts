@@ -218,6 +218,28 @@ packages:
       expect(indexLegacy)
         .toBeGreaterThan(indexLinter)
     })
+
+    it("fails and preserves a malformed root .hash during targeted generate", async () => {
+      const rootPath = join(demoDir, ".hash")
+      const malformed = "{ invalid json\n"
+
+      try {
+        await writeFile(rootPath, malformed)
+
+        const result = await runCli(demoDir, [ "--generate", "--target=packages/cli-tools" ])
+
+        expect(result.exitCode)
+          .toBe(99)
+        expect(result.stderr)
+          .toContain("Invalid root .hash file")
+        expect(await readFile(rootPath, "utf8"))
+          .toBe(malformed)
+      } finally {
+        if (await pathExists(rootPath)) {
+          await remove(rootPath)
+        }
+      }
+    })
   })
 
   describe("workspaces", () => {

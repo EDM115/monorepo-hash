@@ -1,6 +1,6 @@
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use jwalk::WalkDir;
-use serde::Deserialize;
+use serde::{Deserialize, de::DeserializeOwned};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
@@ -165,7 +165,9 @@ fn run() -> Result<(), String> {
             pm, auto.pm
           );
         } else {
-          eprintln!("❌ Specified package manager not found and no supported package manager detected");
+          eprintln!(
+            "❌ Specified package manager not found and no supported package manager detected"
+          );
         }
         process::exit(5);
       },
@@ -647,6 +649,21 @@ fn compile_local_ignore(pkg_dir: &Path) -> io::Result<Option<Gitignore>> {
   Ok(Some(compiled))
 }
 
+fn read_json_file<T>(path: &Path, description: &str) -> io::Result<Option<T>>
+where
+  T: DeserializeOwned,
+{
+  if !path.exists() {
+    return Ok(None);
+  }
+
+  let raw = fs::read_to_string(path)?;
+  let parsed = serde_json::from_str::<T>(&raw)
+    .map_err(|e| io::Error::other(format!("Invalid {description} at {} : {e}", path.display())))?;
+
+  Ok(Some(parsed))
+}
+
 fn find_first_supported_extglob(pattern: &str) -> Option<(usize, char)> {
   let bytes = pattern.as_bytes();
 
@@ -809,7 +826,9 @@ fn expand_supported_extglob(pattern: &str) -> Vec<String> {
   let mut expanded = Vec::new();
 
   for replacement in replacements {
-    expanded.extend(expand_workspace_pattern(&format!("{prefix}{replacement}{suffix}")));
+    expanded.extend(expand_workspace_pattern(&format!(
+      "{prefix}{replacement}{suffix}"
+    )));
   }
 
   expanded
@@ -884,7 +903,19 @@ fn load_packages(detection: &Detection) -> io::Result<HashMap<String, PackageInf
 
   let pattern_specs = prepare_workspace_patterns(&detection.globs);
 
-  for entry in WalkDir::new(&detection.root).sort(true) {
+  for entry in
+    WalkDir::new(&detection.root)
+      .sort(true)
+      .process_read_dir(|_, _, _, dir_entry_results| {
+        dir_entry_results.retain(|dir_entry_result| match dir_entry_result {
+          Ok(dir_entry) => {
+            !dir_entry.file_type.is_dir()
+              || !matches!(dir_entry.file_name.to_str(), Some("node_modules" | ".git"))
+          },
+          Err(_) => true,
+        });
+      })
+  {
     let entry = match entry {
       Ok(entry) => entry,
       Err(err) => return Err(io::Error::other(err.to_string())),
@@ -899,7 +930,12 @@ fn load_packages(detection: &Detection) -> io::Result<HashMap<String, PackageInf
     }
 
     let path = entry.path();
-    let rel = to_posix_path(&path.strip_prefix(&detection.root).unwrap_or(&path).to_string_lossy());
+    let rel = to_posix_path(
+      &path
+        .strip_prefix(&detection.root)
+        .unwrap_or(&path)
+        .to_string_lossy(),
+    );
     let rel_dir = rel.strip_suffix("/package.json").unwrap_or("");
     let mut included = false;
 
@@ -1364,20 +1400,17 @@ fn generate_hashes(
   silent: bool,
 ) -> io::Result<()> {
   if unified {
-    let mut root = if repo_root.join(".hash").exists() {
-      let raw = fs::read_to_string(repo_root.join(".hash"))?;
+    let root_hash_path = repo_root.join(".hash");
+    let mut root = read_json_file::<BTreeMap<String, String>>(&root_hash_path, "root .hash file")?
+      .unwrap_or_default();
 
-      serde_json::from_str::<BTreeMap<String, String>>(&raw).unwrap_or_default()
-    } else {
-      BTreeMap::new()
-    };
     for name in selected {
       if let (Some(pkg), Some(hash)) = (packages.get(name), final_hashes.get(name)) {
         root.insert(pkg.rel_dir_posix.clone(), hash.clone());
       }
     }
     let content = serde_json::to_string_pretty(&root).unwrap_or("{}".to_string());
-    fs::write(repo_root.join(".hash"), content)?;
+    fs::write(root_hash_path, content)?;
 
     if !silent {
       for name in selected {
@@ -1414,30 +1447,25 @@ fn compare_hashes(
   let mut root_debug = None;
 
   if unified {
-    let root_hash = repo_root.join(".hash");
-    if root_hash.exists() {
-      let raw = fs::read_to_string(root_hash)?;
-      if let Ok(parsed) = serde_json::from_str::<HashMap<String, String>>(&raw) {
-        for (name, pkg) in packages {
-          if let Some(old) = parsed.get(&pkg.rel_dir_posix)
-            && !old.is_empty()
-          {
-            old_by_name.insert(name.clone(), old.clone());
-          }
+    let root_hash_path = repo_root.join(".hash");
+    if let Some(parsed) =
+      read_json_file::<HashMap<String, String>>(&root_hash_path, "root .hash file")?
+    {
+      for (name, pkg) in packages {
+        if let Some(old) = parsed.get(&pkg.rel_dir_posix)
+          && !old.is_empty()
+        {
+          old_by_name.insert(name.clone(), old.clone());
         }
       }
     }
 
     if debug {
       let root_debug_path = repo_root.join(".debug-hash");
-
-      if root_debug_path.exists() {
-        let raw = fs::read_to_string(root_debug_path)?;
-
-        if let Ok(parsed) = serde_json::from_str::<HashMap<String, HashMap<String, String>>>(&raw) {
-          root_debug = Some(parsed);
-        }
-      }
+      root_debug = read_json_file::<HashMap<String, HashMap<String, String>>>(
+        &root_debug_path,
+        "root .debug-hash file",
+      )?;
     }
   } else {
     for (name, pkg) in packages {

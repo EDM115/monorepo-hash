@@ -461,7 +461,7 @@ func fileExists(p string) bool {
 }
 
 func parseArgs(args []string) (options, int, error) {
-	opts := options{unified: true, pathCache: true}
+	opts := options{unified: true}
 	for _, arg := range args {
 		switch {
 		case arg == "--generate" || arg == "-g":
@@ -551,18 +551,14 @@ func loadDebugFile(dir string) (map[string]string, error) {
 
 func loadRootDebugFile(root string) (map[string]map[string]string, error) {
 	p := filepath.Join(root, ".debug-hash")
-	content, err := os.ReadFile(p)
+	parsed, err := readJSONFile[map[string]map[string]string](p, "root .debug-hash file")
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
 		return nil, err
 	}
-	var parsed map[string]map[string]string
-	if err := json.Unmarshal(content, &parsed); err != nil {
-		return nil, err
+	if parsed == nil {
+		return nil, nil
 	}
-	return parsed, nil
+	return *parsed, nil
 }
 
 func generateDebug(opts options, out io.Writer, info pkgInfo, oldDebug map[string]string) ([]string, error) {
@@ -808,18 +804,31 @@ func computeFinalHash(pkgName string, pkgs map[string]pkgInfo, cache map[string]
 
 func loadRootHashFile(root string) (map[string]string, error) {
 	p := filepath.Join(root, ".hash")
-	content, err := os.ReadFile(p)
+	parsed, err := readJSONFile[map[string]string](p, "root .hash file")
+	if err != nil {
+		return nil, err
+	}
+	if parsed == nil {
+		return nil, nil
+	}
+	return *parsed, nil
+}
+
+func readJSONFile[T any](path string, description string) (*T, error) {
+	content, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil
 		}
 		return nil, err
 	}
-	var parsed map[string]string
+
+	var parsed T
 	if err := json.Unmarshal(content, &parsed); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Invalid %s at %s : %w", description, path, err)
 	}
-	return parsed, nil
+
+	return &parsed, nil
 }
 
 func marshalSortedStringMap(m map[string]string) ([]byte, error) {

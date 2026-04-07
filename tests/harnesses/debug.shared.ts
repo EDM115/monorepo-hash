@@ -102,6 +102,26 @@ export function defineDebugSuite(runCli: RunCli): void {
           .toEqual([...fileKeys].toSorted())
       }
     })
+
+    it("fails on a malformed root .debug-hash during debug compare", async () => {
+      const rootDebug = join(cwd, ".debug-hash")
+
+      try {
+        await runCli(cwd, [ "--generate", "--debug" ])
+        await writeFile(rootDebug, "{ invalid json\n")
+
+        const result = await runCli(cwd, [ "--compare", "--debug" ])
+
+        expect(result.exitCode)
+          .toBe(99)
+        expect(result.stderr)
+          .toContain("Invalid root .debug-hash file")
+      } finally {
+        if (await pathExists(rootDebug)) {
+          await remove(rootDebug)
+        }
+      }
+    })
   })
 
   describe("workspaces", () => {
@@ -120,7 +140,7 @@ export function defineDebugSuite(runCli: RunCli): void {
 
       await writeFile(pkgBIndex, "export const msg = \"pkg-b (edited again)\"\n")
 
-      const result = await runCli(cwd, [ "--compare", "--debug" ])
+      const result = await runCli(cwd, [ "--compare", "--debug", "--workspaces" ])
 
       expect(result.stdout)
         .toMatch(new RegExp("⚠️\\s+<debug>\\s+packages\\/pkg-b\\s+diverging files\\s*:"))

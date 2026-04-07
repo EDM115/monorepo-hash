@@ -214,6 +214,18 @@ const NullObj: {
 
 Object.freeze(NullObj)
 
+async function readJsonFile<T>(filePath: string, description: string): Promise<T> {
+  const text = await file(filePath)
+    .text()
+
+  try {
+    // oxlint-disable-next-line no-unsafe-type-assertion
+    return JSON.parse(text) as T
+  } catch (err) {
+    throw new Error(`Invalid ${description} at ${filePath} : ${err instanceof Error ? err.message : String(err)}`)
+  }
+}
+
 async function getWorkspaceFileList(
   dir: string,
   relDir: string,
@@ -499,9 +511,7 @@ async function loadRootDebugFile(rootDir: string): Promise<Record<string, Record
     return null
   }
 
-  // oxlint-disable-next-line no-unsafe-type-assertion
-  return await file(p)
-    .json() as Record<string, Record<string, string>>
+  return readJsonFile<Record<string, Record<string, string>>>(p, "root .debug-hash file")
 }
 
 async function writeRootDebugFile(
@@ -688,9 +698,7 @@ async function loadRootHashFile(rootDir: string): Promise<Record<string, string>
     return null
   }
 
-  // oxlint-disable-next-line no-unsafe-type-assertion
-  return await file(p)
-    .json() as Record<string, string>
+  return readJsonFile<Record<string, string>>(p, "root .hash file")
 }
 
 async function writeRootHashFile(
