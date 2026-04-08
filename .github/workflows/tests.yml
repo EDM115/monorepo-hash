@@ -39,10 +39,18 @@ jobs:
           check-latest: true
           go-version: "stable"
 
+      - name: "Install Rust"
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          components: clippy, rustfmt
+          rust-src-dir: ./src/rust
+          toolchain: stable
+
       - name: "Install dependencies"
         run: |
           pnpm i --frozen-lockfile
           cd src/go && go mod download
+          cd ../rust && cargo fetch --locked
 
       - name: "Lint check"
         run: pnpm lint
@@ -55,6 +63,7 @@ jobs:
           pnpm build:node
           pnpm cli:build-bin -r bun -p linux-x64
           pnpm cli:build-bin -r go -p linux-x64
+          pnpm cli:build-bin -r rust -p linux-x64
           pnpm cli:chmod
 
       - name: "Run the Node tests"
@@ -65,3 +74,6 @@ jobs:
 
       - name: "Run the Go tests"
         run: pnpm vitest --project go
+
+      - name: "Run the Rust tests"
+        run: pnpm vitest --project rust

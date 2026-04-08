@@ -131,6 +131,34 @@ export function defineExitCodesSuite(runCli: RunCli): void {
       .toBe(5)
   })
 
+  it("surfaces auto-detect config errors even when a wrong package manager is forced", async () => {
+    const invalidDir = join(cwd, "forced-pm-autodetect-error")
+
+    await mkdirp(invalidDir)
+    await writeFile(join(invalidDir, "pnpm-workspace.yaml"), "packages:\n  - \"packages/*\n")
+    await writeFile(join(invalidDir, "yarn.lock"), "")
+    await writeJson(join(invalidDir, "package.json"), {
+      "name": "forced-pm-autodetect-error",
+      "private": true,
+      "workspaces": ["packages/*"],
+    }, { spaces: 2 })
+
+    try {
+      const result = await runCli(invalidDir, [ "--generate", "--packagemanager=npm" ])
+
+      expect(result.exitCode)
+        .toBe(99)
+      expect(result.stderr)
+        .not.toContain("workspaces not found. Did you mean --packagemanager=")
+      expect(result.stderr)
+        .not.toContain("Specified package manager not found and no supported package manager detected")
+      expect(result.stderr.length)
+        .toBeGreaterThan(0)
+    } finally {
+      await remove(invalidDir)
+    }
+  })
+
   it("returns 4 when workspace globs resolve to no package.json files", async () => {
     const noPkgDir = join(cwd, "workspace-without-packages")
 

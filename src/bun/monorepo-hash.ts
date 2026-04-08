@@ -75,7 +75,7 @@ let silent = false
 let debug = false
 let unified = true
 let pmOption: PackageManager | null = null
-let usePathCache = true
+let usePathCache = false
 
 let packageManager: PackageManager | null = null
 let repoRoot = ""
@@ -213,6 +213,18 @@ const NullObj: {
 })()
 
 Object.freeze(NullObj)
+
+async function readJsonFile<T>(filePath: string, description: string): Promise<T> {
+  try {
+    // oxlint-disable-next-line no-unsafe-type-assertion
+    return await file(filePath)
+      .json() as T
+  } catch (err) {
+    throw new Error(`Invalid ${description} at ${filePath} : ${err instanceof Error
+      ? err.message
+      : String(err)}`, { cause: err })
+  }
+}
 
 async function getWorkspaceFileList(
   dir: string,
@@ -469,9 +481,7 @@ async function loadDebugFile(dir: string): Promise<Record<string, string> | null
     return null
   }
 
-  // oxlint-disable-next-line no-unsafe-type-assertion
-  return await file(debugPath)
-    .json() as Record<string, string>
+  return readJsonFile<Record<string, string>>(debugPath, "workspace .debug-hash file")
 }
 
 async function writeDebugFile(
@@ -499,9 +509,7 @@ async function loadRootDebugFile(rootDir: string): Promise<Record<string, Record
     return null
   }
 
-  // oxlint-disable-next-line no-unsafe-type-assertion
-  return await file(p)
-    .json() as Record<string, Record<string, string>>
+  return readJsonFile<Record<string, Record<string, string>>>(p, "root .debug-hash file")
 }
 
 async function writeRootDebugFile(
@@ -688,9 +696,7 @@ async function loadRootHashFile(rootDir: string): Promise<Record<string, string>
     return null
   }
 
-  // oxlint-disable-next-line no-unsafe-type-assertion
-  return await file(p)
-    .json() as Record<string, string>
+  return readJsonFile<Record<string, string>>(p, "root .hash file")
 }
 
 async function writeRootHashFile(
@@ -1277,7 +1283,7 @@ async function runCli(customArgv?: string[]): Promise<Awaited<ReturnType<typeof 
   debug = false
   unified = true
   pmOption = null
-  usePathCache = true
+  usePathCache = false
   let helpRequested = false
   let versionRequested = false
 
@@ -1323,8 +1329,8 @@ async function runCli(customArgv?: string[]): Promise<Awaited<ReturnType<typeof 
       }
 
       pmOption = val
-    } else if (arg === "--nopathcache" || arg === "-npc") {
-      usePathCache = false
+    } else if (arg === "--pathcache" || arg === "-pc") {
+      usePathCache = true
     } else if (arg === "--help" || arg === "-h") {
       helpRequested = true
     } else if (arg === "--version" || arg === "-v") {
@@ -1347,16 +1353,16 @@ A simple script to generate or compare .hash files for monorepo workspaces
 Supports PNPM, Yarn, NPM, Bun and Deno
 
 Arguments :
-  --generate        (-g)   Generate or update .hash files for all workspaces
-  --compare         (-c)   Compare current state with existing .hash files. Capture the exit code to check for changes
-  --target="<path>" (-t)   Specify one or more targets to generate/compare (comma-separated)
-  --silent          (-s)   Suppress output messages
-  --debug           (-d)   Enable debug mode (per-file hashes)
-  --workspaces      (-w)   Use per-workspace .hash files instead of a single root one
-  --packagemanager  (-pm)  Force the package manager (${PACKAGE_MANAGERS.join(", ")})
-  --nopathcache     (-npc) Disable path normalization cache (can reduce memory footprint on very large repos)
-  --version         (-v)   Show version information
-  --help            (-h)   Show this help message
+  --generate        (-g)  Generate or update .hash files for all workspaces
+  --compare         (-c)  Compare current state with existing .hash files. Capture the exit code to check for changes
+  --target="<path>" (-t)  Specify one or more targets to generate/compare (comma-separated)
+  --silent          (-s)  Suppress output messages
+  --debug           (-d)  Enable debug mode (per-file hashes)
+  --workspaces      (-w)  Use per-workspace .hash files instead of a single root one
+  --packagemanager  (-pm) Force the package manager (${PACKAGE_MANAGERS.join(", ")})
+  --pathcache       (-pc) Enable path normalization cache (can augment memory footprint on very large repos)
+  --version         (-v)  Show version information
+  --help            (-h)  Show this help message
 `)
     exit(0)
   } else {
@@ -1400,7 +1406,7 @@ Arguments :
         const auto = await autoDetect()
 
         if (auto) {
-          log(`❌ ${pmOption} workspaces not found. Did you mean --packagemanager=${auto.pm}?`, false, "error")
+          log(`❌ ${pmOption} workspaces not found. Did you mean --packagemanager=${auto.pm} ?`, false, "error")
         } else {
           log("❌ Specified package manager not found and no supported package manager detected", false, "error")
         }
@@ -1441,7 +1447,7 @@ Arguments :
         ? err.message
         : String(err),
       false,
-      "error"
+      "error",
     )
     exit(99)
   }

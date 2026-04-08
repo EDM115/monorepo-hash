@@ -44,6 +44,15 @@ jobs:
             echo "build_go=false" >> $GITHUB_OUTPUT
           fi
 
+      - name: "Do we build Rust"
+        id: build_rust
+        run: |
+          if grep -q '"build:rust"' package.json; then
+            echo "build_rust=true" >> $GITHUB_OUTPUT
+          else
+            echo "build_rust=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: "Install PNPM"
         uses: pnpm/action-setup@v5
 
@@ -54,6 +63,9 @@ jobs:
           cache: "pnpm"
           node-version: 25
 
+      - name: "Install Bun"
+        uses: oven-sh/setup-bun@v2
+
       - name: "Install Go"
         if: steps.build_go.outputs.build_go == 'true'
         uses: actions/setup-go@v6
@@ -62,8 +74,13 @@ jobs:
           check-latest: true
           go-version: "stable"
 
-      - name: "Install Bun"
-        uses: oven-sh/setup-bun@v2
+      - name: "Install Rust"
+        if: steps.build_rust.outputs.build_rust == 'true'
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          components: clippy, rustfmt
+          rust-src-dir: ./src/rust
+          toolchain: stable
 
       - name: "Install hyperfine and latest 7zip version"
         run: |

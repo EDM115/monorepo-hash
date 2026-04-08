@@ -5,7 +5,9 @@
     "nhoizey.gremlins",
     "oxc.oxc-vscode",
     "pflannery.vscode-versionlens",
+    "rust-lang.rust-analyzer",
     "wix.vscode-import-cost",
     "yoavbls.pretty-ts-errors",
+    "tamasfe.even-better-toml",
   ]
 }

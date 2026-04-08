@@ -7,19 +7,32 @@ import {
 } from "node:fs/promises"
 import { join } from "node:path"
 
-type Runtime = "node" | "bun"
+type Runtime = "node" | "bun" | "go" | "rust"
 
 type MonorepoSize = "small" | "medium" | "large" | "wide"
 
 type CacheKind = "cold" | "warm"
 
-const RUNTIMES: Runtime[] = [ "node", "bun" ]
+const RUNTIMES: Runtime[] = [ "node", "bun", "go", "rust" ]
 const SIZES: MonorepoSize[] = [ "small", "medium", "large", "wide" ]
 const CACHES: CacheKind[] = [ "cold", "warm" ]
 
 const BENCH_HISTORY_DIR = "bench-history"
 const BENCH_HISTORY_NEW_DIR = "bench-history-new"
 const MASTER_TAG = "master"
+
+const emojiMap: Record<Runtime, string> = {
+  node: "🌿",
+  bun: "🥟",
+  go: "🐹",
+  rust: "🦀",
+}
+
+type DeltaSource = "measured" | "fallback-average" | "fallback-neutral"
+
+function isRuntime(value: string): value is Runtime {
+  return (RUNTIMES as readonly string[]).includes(value)
+}
 
 function ceilTo(value: number, decimals: number): number {
   const factor = 10 ** decimals
@@ -70,6 +83,20 @@ async function exists(path: string): Promise<boolean> {
   } catch {
     return false
   }
+}
+
+async function listRuntimeDirectories(baseDir: string): Promise<Runtime[]> {
+  if (!await exists(baseDir)) {
+    return []
+  }
+
+  const entries = await readdir(baseDir, { withFileTypes: true })
+
+  return entries
+    .filter((entry) => entry.isDirectory() && isRuntime(entry.name))
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+    .map((entry) => entry.name as Runtime)
+    .toSorted()
 }
 
 interface BenchResultEntry {
@@ -185,13 +212,15 @@ interface RuntimeDeltaResult {
   delta: number;
   comparedTags: string[];
   comparedFilesCount: number;
+  source: DeltaSource;
+  fallbackSourceRuntimes?: Runtime[];
 }
 
-async function computeRuntimeDelta(runtime: Runtime): Promise<RuntimeDeltaResult> {
+async function computeMeasuredRuntimeDelta(runtime: Runtime): Promise<RuntimeDeltaResult | null> {
   const comparedTags = await listComparableTags(runtime)
 
   if (comparedTags.length === 0) {
-    throw new Error(`No comparable tags found for ${runtime} in ${BENCH_HISTORY_NEW_DIR}`)
+    return null
   }
 
   const allPairs = comparedTags.flatMap((tag) => SIZES.flatMap((size) => CACHES.map((cache) => ({
@@ -225,7 +254,7 @@ async function computeRuntimeDelta(runtime: Runtime): Promise<RuntimeDeltaResult
   }))
 
   if (deltas.length === 0) {
-    throw new Error(`No comparable benchmark files found for ${runtime}`)
+    return null
   }
 
   const delta = deltas.reduce((sum, value) => sum + value, 0) / deltas.length
@@ -235,7 +264,16 @@ async function computeRuntimeDelta(runtime: Runtime): Promise<RuntimeDeltaResult
     delta,
     comparedTags,
     comparedFilesCount: deltas.length,
+    source: "measured",
   }
+}
+
+function average(numbers: number[]): number | null {
+  if (numbers.length === 0) {
+    return null
+  }
+
+  return numbers.reduce((sum, value) => sum + value, 0) / numbers.length
 }
 
 interface MasterEntry {
@@ -310,12 +348,9 @@ async function exportCorrectedMaster(runtime: Runtime, delta: number, version: s
 }
 
 function printRuntimeSection(runtime: Runtime, results: MasterResults): void {
-  const emoji = runtime === "node"
-    ? "🌿"
-    : "🥟"
-  const title = runtime === "node"
-    ? "Node"
-    : "Bun"
+  const emoji = emojiMap[runtime]
+  const title = runtime.charAt(0)
+    .toUpperCase() + runtime.slice(1)
 
   // new runner -> old runner equivalent
   console.log(`\n${emoji} ${title} master means (new → adjusted)`)
@@ -334,31 +369,82 @@ function printRuntimeSection(runtime: Runtime, results: MasterResults): void {
 
 async function main(): Promise<void> {
   const version = await readPackageVersion()
-  const runtimeDeltaList = await Promise.all(RUNTIMES.map((runtime) => computeRuntimeDelta(runtime)))
-  const nodeDelta = runtimeDeltaList.find((runtimeDelta) => runtimeDelta.runtime === "node")
-  const bunDelta = runtimeDeltaList.find((runtimeDelta) => runtimeDelta.runtime === "bun")
+  const runtimesInNewHistory = await listRuntimeDirectories(BENCH_HISTORY_NEW_DIR)
+  const runtimesWithMaster = (await Promise.all(runtimesInNewHistory.map(async (runtime) => ({
+    runtime,
+    hasMaster: await exists(join(BENCH_HISTORY_NEW_DIR, runtime, MASTER_TAG)),
+  }))))
+    .filter((entry) => entry.hasMaster)
+    .map((entry) => entry.runtime)
 
-  if (!nodeDelta || !bunDelta) {
-    throw new Error("Could not compute runtime deltas")
+  if (runtimesWithMaster.length === 0) {
+    throw new Error(`No runtime master folders found in ${BENCH_HISTORY_NEW_DIR}`)
   }
 
-  const nodeMaster = await buildMasterResults("node", nodeDelta.delta)
-  const bunMaster = await buildMasterResults("bun", bunDelta.delta)
-  const [ nodeExportCount, bunExportCount ] = await Promise.all([
-    exportCorrectedMaster("node", nodeDelta.delta, version),
-    exportCorrectedMaster("bun", bunDelta.delta, version),
-  ])
+  const measuredDeltaList = (await Promise.all(runtimesWithMaster.map((runtime) => computeMeasuredRuntimeDelta(runtime))))
+    .filter((runtimeDelta): runtimeDelta is RuntimeDeltaResult => runtimeDelta !== null)
+  const measuredDeltaByRuntime = new Map(measuredDeltaList.map((runtimeDelta) => [ runtimeDelta.runtime, runtimeDelta ]))
+  const measuredAverage = average(measuredDeltaList.map((runtimeDelta) => runtimeDelta.delta))
+  const fallbackDelta = measuredAverage ?? 1
+  const fallbackSource: DeltaSource = measuredAverage === null
+    ? "fallback-neutral"
+    : "fallback-average"
+
+  const runtimeDeltaList: RuntimeDeltaResult[] = runtimesWithMaster.map((runtime) => measuredDeltaByRuntime.get(runtime) ?? {
+    runtime,
+    delta: fallbackDelta,
+    comparedTags: [],
+    comparedFilesCount: 0,
+    source: fallbackSource,
+    fallbackSourceRuntimes: measuredDeltaList.map((runtimeDelta) => runtimeDelta.runtime),
+  })
+  const runtimeDeltaByRuntime = new Map(runtimeDeltaList.map((runtimeDelta) => [ runtimeDelta.runtime, runtimeDelta ]))
+
+  const masterEntries = await Promise.all(runtimeDeltaList.map(async (runtimeDelta) => ({
+    runtimeDelta,
+    master: await buildMasterResults(runtimeDelta.runtime, runtimeDelta.delta),
+    exportCount: await exportCorrectedMaster(runtimeDelta.runtime, runtimeDelta.delta, version),
+  })))
 
   console.log("📊 Benchmark runner deltas (apply on bench-history-new/master means)")
-  console.log(`🌿 Node delta : x ${formatDelta(nodeDelta.delta)} (${formatDeltaPercent(nodeDelta.delta)}) from ${nodeDelta.comparedTags.length} tags, ${nodeDelta.comparedFilesCount} file pairs`)
-  console.log(`🥟 Bun  delta : x ${formatDelta(bunDelta.delta)} (${formatDeltaPercent(bunDelta.delta)}) from ${bunDelta.comparedTags.length} tags, ${bunDelta.comparedFilesCount} file pairs`)
 
-  printRuntimeSection("node", nodeMaster)
-  printRuntimeSection("bun", bunMaster)
+  for (const runtime of RUNTIMES) {
+    const runtimeDelta = runtimeDeltaByRuntime.get(runtime)
+
+    if (!runtimeDelta) {
+      continue
+    }
+
+    const title = runtime.charAt(0)
+      .toUpperCase() + runtime.slice(1)
+
+    if (runtimeDelta.source === "measured") {
+      console.log(`${emojiMap[runtime]} ${title.padEnd(4)} delta : x ${formatDelta(runtimeDelta.delta)} (${formatDeltaPercent(runtimeDelta.delta)}) from ${runtimeDelta.comparedTags.length} tags, ${runtimeDelta.comparedFilesCount} file pairs`)
+    } else if (runtimeDelta.source === "fallback-average") {
+      console.log(`${emojiMap[runtime]} ${title.padEnd(4)} delta : x ${formatDelta(runtimeDelta.delta)} (${formatDeltaPercent(runtimeDelta.delta)}) using average fallback from ${runtimeDelta.fallbackSourceRuntimes?.join(", ") ?? "no runtimes"}`)
+    } else {
+      console.log(`${emojiMap[runtime]} ${title.padEnd(4)} delta : x ${formatDelta(runtimeDelta.delta)} (${formatDeltaPercent(runtimeDelta.delta)}) using neutral fallback (no comparable runtime deltas available)`)
+    }
+  }
+
+  for (const entry of masterEntries) {
+    printRuntimeSection(entry.runtimeDelta.runtime, entry.master)
+  }
 
   console.log(`\n💾 Exported corrected master benchmarks for v${version}`)
-  console.log(`🌿 ${nodeExportCount} Node files written in ${join(BENCH_HISTORY_DIR, "node", version)}`)
-  console.log(`🥟 ${bunExportCount} Bun files written in ${join(BENCH_HISTORY_DIR, "bun", version)}`)
+
+  for (const runtime of RUNTIMES) {
+    const entry = masterEntries.find((masterEntry) => masterEntry.runtimeDelta.runtime === runtime)
+
+    if (!entry) {
+      continue
+    }
+
+    const title = runtime.charAt(0)
+      .toUpperCase() + runtime.slice(1)
+
+    console.log(`${emojiMap[runtime]} ${entry.exportCount} ${title} files written in ${join(BENCH_HISTORY_DIR, runtime, version)}`)
+  }
 }
 
 await main()

@@ -1,0 +1,15 @@
+color = "Always"
+edition = "2024"
+format_code_in_doc_comments = true
+format_macro_matchers = true
+imports_granularity = "Crate"
+match_arm_leading_pipes = "Preserve"
+match_block_trailing_comma = true
+newline_style = "Unix"
+normalize_comments = true
+reorder_impl_items = true
+required_version="~1.8.0"
+style_edition = "2024"
+tab_spaces = 2
+use_field_init_shorthand = true
+use_try_shorthand = true

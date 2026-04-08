@@ -16,7 +16,7 @@
   "files.eol": "\n",
   "files.insertFinalNewline": true,
   "go.toolsEnvVars": {
-    "GOEXPERIMENT": "jsonv2",
+    "GOEXPERIMENT": "jsonv2"
   },
   "gremlins.showInProblemPane": true,
   "importCost.fontStyle": "italic",
@@ -33,8 +33,28 @@
   "js/ts.updateImportsOnFileMove.enabled": "always",
   "oxc.enable.oxlint": true,
   "oxc.unusedDisableDirectives": "warn",
+  "rust-analyzer.completion.fullFunctionSignatures.enable": true,
+  "rust-analyzer.completion.termSearch.enable": true,
+  "rust-analyzer.diagnostics.previewRustcOutput": true,
+  "rust-analyzer.diagnostics.styleLints.enable": true,
+  "rust-analyzer.hover.actions.references.enable": true,
+  "rust-analyzer.lens.references.adt.enable": true,
+  "rust-analyzer.lens.references.enumVariant.enable": true,
+  "rust-analyzer.lens.references.method.enable": true,
+  "rust-analyzer.lens.references.trait.enable": true,
+  "rust-analyzer.linkedProjects": [
+    "src/rust/Cargo.toml"
+  ],
+  "rust-analyzer.restartServerOnConfigChange": true,
+  "rust-analyzer.semanticHighlighting.operator.specialization.enable": true,
+  "rust-analyzer.semanticHighlighting.punctuation.enable": true,
+  "rust-analyzer.semanticHighlighting.punctuation.separate.macro.bang": true,
+  "rust-analyzer.semanticHighlighting.punctuation.specialization.enable": true,
+  "rust-analyzer.showSyntaxTree": true,
+  "rust-analyzer.workspace.symbol.search.kind": "all_symbols",
   "search.exclude": {
+    "pnpm-lock.yaml": true,
     "src/go/go.sum": true,
-    "pnpm-lock.yaml": true
+    "src/rust/Cargo.lock": true
   }
 }

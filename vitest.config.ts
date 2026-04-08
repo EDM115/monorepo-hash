@@ -38,6 +38,14 @@ export default defineConfig({ test: {
         setupFiles: ["tests/go/setup.ts"],
       },
     },
+    {
+      test: {
+        ...shared,
+        name: "rust",
+        include: ["tests/rust/**/*.test.ts"],
+        setupFiles: ["tests/rust/setup.ts"],
+      },
+    },
   ],
   open: false,
   reporters:

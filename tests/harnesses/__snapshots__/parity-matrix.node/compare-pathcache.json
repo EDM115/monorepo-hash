@@ -1,7 +1,7 @@
 {
   "args": [
     "--compare",
-    "--nopathcache"
+    "--pathcache"
   ],
   "pre": [
     "--generate"

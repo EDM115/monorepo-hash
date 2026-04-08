@@ -18,3 +18,4 @@ jobs:
         run: |
           gh workflow run build-bun.yml
           gh workflow run build-go.yml
+          gh workflow run build-rust.yml

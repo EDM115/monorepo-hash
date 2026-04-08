@@ -1,0 +1,172 @@
+name: Builds the Rust binaries on all platforms
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-rust:
+    name: "Build Rust for ${{ matrix.platform.id }}"
+    runs-on: ${{ matrix.platform.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - id: darwin-arm64
+            runner: macos-15
+            output: monorepo-hash-darwin-arm64
+            name: "Darwin arm64"
+            testCmd: ./rust-build/monorepo-hash-darwin-arm64 --help
+          - id: darwin-x64
+            runner: macos-15-intel
+            output: monorepo-hash-darwin-x64
+            name: "Darwin x64"
+            testCmd: ./rust-build/monorepo-hash-darwin-x64 --help
+          - id: linux-arm64
+            runner: ubuntu-24.04-arm
+            output: monorepo-hash-linux-arm64
+            name: "Linux arm64"
+            testCmd: ./rust-build/monorepo-hash-linux-arm64 --help
+          - id: linux-x64
+            runner: ubuntu-24.04
+            output: monorepo-hash-linux-x64
+            name: "Linux x64"
+            testCmd: ./rust-build/monorepo-hash-linux-x64 --help
+          - id: windows-arm64
+            runner: windows-11-arm
+            output: monorepo-hash-windows-arm64.exe
+            name: "Windows arm64"
+            testCmd: .\rust-build\monorepo-hash-windows-arm64.exe --help
+          - id: windows-x64
+            runner: windows-2025
+            output: monorepo-hash-windows-x64.exe
+            name: "Windows x64"
+            testCmd: .\rust-build\monorepo-hash-windows-x64.exe --help
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v6
+
+      - name: "Install PNPM"
+        uses: pnpm/action-setup@v5
+
+      - name: "Bump Node to v25"
+        uses: actions/setup-node@v6
+        with:
+          check-latest: true
+          cache: "pnpm"
+          node-version: 25
+
+      - name: "Install Rust"
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          components: clippy, rustfmt
+          rust-src-dir: ./src/rust
+          toolchain: stable
+
+      - name: "Install dependencies"
+        run: |
+          pnpm i --frozen-lockfile
+          cd src/rust && cargo fetch --locked
+
+      - name: "Build the binary"
+        run: pnpm cli:build-bin -r rust -p ${{ matrix.platform.id }} && pnpm cli:chmod
+
+      - name: "Test the binary"
+        run: ${{ matrix.platform.testCmd }}
+
+      - name: "Upload the binary"
+        uses: actions/upload-artifact@v7
+        with:
+          archive: false
+          path: ./rust-build/${{ matrix.platform.output }}
+
+  linux-arm64-musl:
+    name: "Build Rust for Linux arm64 musl"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v6
+
+      - name: "Set up QEMU"
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: arm64
+
+      - name: "Set up Docker Buildx"
+        uses: docker/setup-buildx-action@v4
+
+      - name: "Build and test in arm64v8/rust:alpine container"
+        run: |
+          docker run --rm \
+            --platform linux/arm64 \
+            -v "$PWD":/workspace \
+            -w /workspace \
+            arm64v8/rust:alpine \
+            sh -lc '
+              apk update && apk add --no-cache bash curl make musl-dev linux-headers g++ gcc libgcc libstdc++ libffi-dev git unzip \
+              && curl -fsSL https://fnm.vercel.app/install | bash \
+              && fnm install --latest \
+              && curl -fsSL https://get.pnpm.io/install.sh | ENV="$HOME/.shrc" SHELL="$(which sh)" sh - \
+              && export PATH="$HOME/.local/share/pnpm:$PATH" \
+              && pnpm i --frozen-lockfile \
+              && pnpm cli:build-bin -r rust -p linux-arm64-musl \
+              && pnpm cli:chmod \
+              && ./rust-build/monorepo-hash-linux-arm64-musl --help
+            '
+
+      - name: "Upload the binary"
+        uses: actions/upload-artifact@v7
+        with:
+          archive: false
+          path: ./rust-build/monorepo-hash-linux-arm64-musl
+
+  linux-x64-musl:
+    name: "Build Rust for Linux x64 musl"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v6
+
+      - name: "Set up QEMU"
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: amd64
+
+      - name: "Set up Docker Buildx"
+        uses: docker/setup-buildx-action@v4
+
+      - name: "Build and test in amd64/rust:alpine container"
+        run: |
+          docker run --rm \
+            --platform linux/amd64 \
+            -v "$PWD":/workspace \
+            -w /workspace \
+            rust:alpine \
+            sh -lc '
+              apk update && apk add --no-cache bash curl make musl-dev linux-headers g++ gcc libgcc libstdc++ libffi-dev git unzip \
+              && curl -fsSL https://fnm.vercel.app/install | sh \
+              && export FNM_NODE_DIST_MIRROR=https://unofficial-builds.nodejs.org/download/release \
+              && export FNM_ARCH=x64-musl \
+              && exec sh
+              && fnm install --latest \
+              && curl -fsSL https://get.pnpm.io/install.sh | ENV="$HOME/.shrc" SHELL="$(which sh)" sh - \
+              && export PATH="$HOME/.local/share/pnpm:$PATH" \
+              && pnpm i --frozen-lockfile \
+              && pnpm cli:build-bin -r rust -p linux-x64-musl \
+              && pnpm cli:chmod \
+              && ./rust-build/monorepo-hash-linux-x64-musl --help
+            '
+
+      - name: "Upload the binary"
+        uses: actions/upload-artifact@v7
+        with:
+          archive: false
+          path: ./rust-build/monorepo-hash-linux-x64-musl

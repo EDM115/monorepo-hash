@@ -1,6 +1,7 @@
 import {
   access,
   mkdir,
+  rm,
   readFile,
   readdir,
   writeFile,
@@ -33,12 +34,15 @@ function matrixCaseTitle(name: string): string {
     "pm-invalid-empty": "rejects empty --packagemanager value",
     "pm-invalid-value": "rejects unsupported --packagemanager value",
     "pm-wrong-existing": "suggests detected package manager when forced one is missing",
+    "pm-pnpm-empty-workspaces": "rejects empty pnpm workspace globs as non-matching when package manager is forced",
     "generate": "generates unified root hash file for all workspaces",
+    "generate-npm-workspace-cwd": "auto-detects npm workspaces when invoked from inside a workspace package",
+    "generate-force-npm-workspace-cwd": "detects forced npm workspaces when invoked from inside a workspace package",
     "generate-workspaces": "generates per-workspace hash files with --workspaces",
     "generate-debug": "generates unified debug hashes with --debug",
     "generate-debug-workspaces": "generates per-workspace debug hashes with --debug --workspaces",
     "generate-silent": "suppresses output while still generating hashes with --silent",
-    "generate-nopathcache": "generates hashes with path cache disabled via --nopathcache",
+    "generate-pathcache": "generates hashes with path cache enabled via --pathcache",
     "generate-force-pnpm": "generates hashes when package manager is explicitly forced",
     "generate-target-one": "generates hash for a single target workspace",
     "generate-target-two": "generates hashes for multiple comma-separated targets",
@@ -53,7 +57,7 @@ function matrixCaseTitle(name: string): string {
     "compare-target-two-spaced": "compares spaced comma-separated targets with current parser behavior",
     "compare-target-empty": "handles empty --target value during comparison",
     "compare-silent": "suppresses output while comparing hashes with --silent",
-    "compare-nopathcache": "compares hashes with path cache disabled via --nopathcache",
+    "compare-pathcache": "compares hashes with path cache enabled via --pathcache",
     "u-compare": "detects changed workspace in unified compare mode",
     "u-compare-debug-no-baseline-debug": "detects changed workspace in unified debug compare without baseline debug map",
     "u-compare-target-changed": "returns changed status when targeted workspace has drift in unified mode",
@@ -61,7 +65,7 @@ function matrixCaseTitle(name: string): string {
     "u-compare-target-mixed": "reports mixed changed and unchanged targeted workspaces in unified mode",
     "u-compare-target-mixed-spaced": "applies current parser behavior for spaced mixed targets in unified mode",
     "u-compare-silent": "returns changed exit code without output in unified silent compare mode",
-    "u-compare-nopathcache": "detects unified drift with path cache disabled",
+    "u-compare-pathcache": "detects unified drift with path cache enabled",
     "u-compare-debug": "reports unified debug drift with per-file divergence output",
     "u-compare-debug-target-changed": "reports unified debug drift for changed targeted workspace",
     "u-compare-debug-target-unchanged": "reports unified debug unchanged status for unchanged targeted workspace",
@@ -168,7 +172,7 @@ async function seedBaseRepo(repoDir: string): Promise<void> {
 }
 
 export function defineParityScriptMatrixSnapshotSuite(
-  runtimeName: "node" | "bun" | "go",
+  runtimeName: "node" | "bun" | "go" | "rust",
   runCli: RunCli,
 ): void {
   const __filename = fileURLToPath(import.meta.url)
@@ -209,6 +213,9 @@ export function defineParityScriptMatrixSnapshotSuite(
     const repoDir = await freshRepo(caseDef.name)
     const pre = replaceTargetPlaceholders(caseDef.pre ?? [])
     const run = replaceTargetPlaceholders(caseDef.run)
+    const caseCwd = caseDef.runCwd
+      ? join(repoDir, ...caseDef.runCwd.split("/"))
+      : repoDir
 
     if (pre.length > 0) {
       const preResult = await runCli(repoDir, pre)
@@ -222,7 +229,7 @@ export function defineParityScriptMatrixSnapshotSuite(
       await caseDef.mutate(repoDir, caseDef.name)
     }
 
-    const result = await runCli(repoDir, run)
+    const result = await runCli(caseCwd, run)
     const stdout = maskRepoPath(normalizeNewlines(result.stdout), repoDir)
     const stderr = maskRepoPath(normalizeNewlines(result.stderr), repoDir)
     const exitCode = result.exitCode ?? 0
@@ -268,8 +275,43 @@ export function defineParityScriptMatrixSnapshotSuite(
       run: [ "--generate", "--packagemanager=yarn" ],
     },
     {
+      name: "pm-pnpm-empty-workspaces",
+      run: [ "--generate", "--packagemanager=pnpm" ],
+      mutate: async (repoDir) => {
+        await writeFile(join(repoDir, "pnpm-workspace.yaml"), "packages: []\n")
+      },
+    },
+    {
       name: "generate",
       run: ["--generate"],
+    },
+    {
+      name: "generate-npm-workspace-cwd",
+      run: [ "--generate", "--silent" ],
+      runCwd: "packages/a",
+      mutate: async (repoDir) => {
+        await rm(join(repoDir, "pnpm-workspace.yaml"), { force: true })
+        await writeFile(join(repoDir, "package-lock.json"), "")
+        await writeFile(join(repoDir, "package.json"), `${JSON.stringify({
+          "name": "matrix-root",
+          "private": true,
+          "workspaces": ["packages/*"],
+        }, null, 2)}\n`)
+      },
+    },
+    {
+      name: "generate-force-npm-workspace-cwd",
+      run: [ "--generate", "--packagemanager=npm", "--silent" ],
+      runCwd: "packages/a",
+      mutate: async (repoDir) => {
+        await rm(join(repoDir, "pnpm-workspace.yaml"), { force: true })
+        await writeFile(join(repoDir, "package-lock.json"), "")
+        await writeFile(join(repoDir, "package.json"), `${JSON.stringify({
+          "name": "matrix-root",
+          "private": true,
+          "workspaces": ["packages/*"],
+        }, null, 2)}\n`)
+      },
     },
     {
       name: "generate-workspaces",
@@ -288,8 +330,8 @@ export function defineParityScriptMatrixSnapshotSuite(
       run: [ "--generate", "--silent" ],
     },
     {
-      name: "generate-nopathcache",
-      run: [ "--generate", "--nopathcache" ],
+      name: "generate-pathcache",
+      run: [ "--generate", "--pathcache" ],
     },
     {
       name: "generate-force-pnpm",
@@ -357,9 +399,9 @@ export function defineParityScriptMatrixSnapshotSuite(
       run: [ "--compare", "--silent" ],
     },
     {
-      name: "compare-nopathcache",
+      name: "compare-pathcache",
       pre: ["--generate"],
-      run: [ "--compare", "--nopathcache" ],
+      run: [ "--compare", "--pathcache" ],
     },
     {
       name: "u-compare",
@@ -418,9 +460,9 @@ export function defineParityScriptMatrixSnapshotSuite(
       },
     },
     {
-      name: "u-compare-nopathcache",
+      name: "u-compare-pathcache",
       pre: [ "--generate", "--silent" ],
-      run: [ "--compare", "--nopathcache" ],
+      run: [ "--compare", "--pathcache" ],
       mutate: async (repoDir, caseName) => {
         await writeFile(join(repoDir, "packages", "lint-config", "__parity-playground-change__.txt"), `playground-parity-change ${caseName}\n`)
       },

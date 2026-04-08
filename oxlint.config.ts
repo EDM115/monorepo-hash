@@ -19,4 +19,7 @@ export default defineConfig({
   "options": {
     typeAware: true,
   },
+  "rules": {
+    "typescript/consistent-return": "off",
+  },
 })

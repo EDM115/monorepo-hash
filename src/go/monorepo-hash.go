@@ -29,7 +29,7 @@ var packageManagers = []string{"pnpm", "npm", "deno", "bun", "yarn"}
 
 const CLI_VERSION = "2.2.0"
 
-var usePathCache = true
+var usePathCache = false
 var needsPathConversion = filepath.Separator != '/'
 var displayPathCache sync.Map
 
@@ -461,7 +461,7 @@ func fileExists(p string) bool {
 }
 
 func parseArgs(args []string) (options, int, error) {
-	opts := options{unified: true, pathCache: true}
+	opts := options{unified: true}
 	for _, arg := range args {
 		switch {
 		case arg == "--generate" || arg == "-g":
@@ -499,8 +499,8 @@ func parseArgs(args []string) (options, int, error) {
 			opts.help = true
 		case arg == "--version" || arg == "-v":
 			opts.version = true
-		case arg == "--nopathcache" || arg == "-npc":
-			opts.pathCache = false
+		case arg == "--pathcache" || arg == "-pc":
+			opts.pathCache = true
 		default:
 			return opts, 3, fmt.Errorf("Unknown option : %s", arg)
 		}
@@ -519,50 +519,42 @@ A simple script to generate or compare .hash files for monorepo workspaces
 Supports PNPM, Yarn, NPM, Bun and Deno
 
 Arguments :
-  --generate        (-g)   Generate or update .hash files for all workspaces
-  --compare         (-c)   Compare current state with existing .hash files. Capture the exit code to check for changes
-  --target="<path>" (-t)   Specify one or more targets to generate/compare (comma-separated)
-  --silent          (-s)   Suppress output messages
-  --debug           (-d)   Enable debug mode (per-file hashes)
-  --workspaces      (-w)   Use per-workspace .hash files instead of a single root one
-  --packagemanager  (-pm)  Force the package manager (pnpm, npm, deno, bun, yarn)
-  --nopathcache     (-npc) Disable path normalization cache (can reduce memory footprint on very large repos)
-  --version         (-v)   Show version information
-  --help            (-h)   Show this help message
+  --generate        (-g)  Generate or update .hash files for all workspaces
+  --compare         (-c)  Compare current state with existing .hash files. Capture the exit code to check for changes
+  --target="<path>" (-t)  Specify one or more targets to generate/compare (comma-separated)
+  --silent          (-s)  Suppress output messages
+  --debug           (-d)  Enable debug mode (per-file hashes)
+  --workspaces      (-w)  Use per-workspace .hash files instead of a single root one
+  --packagemanager  (-pm) Force the package manager (pnpm, npm, deno, bun, yarn)
+  --pathcache       (-pc) Enable path normalization cache (can augment memory footprint on very large repos)
+  --version         (-v)  Show version information
+  --help            (-h)  Show this help message
 
 `)
 }
 
 func loadDebugFile(dir string) (map[string]string, error) {
 	p := filepath.Join(dir, ".debug-hash")
-	content, err := os.ReadFile(p)
+	parsed, err := readJSONFile[map[string]string](p, "workspace .debug-hash file")
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
 		return nil, err
 	}
-	var parsed map[string]string
-	if err := json.Unmarshal(content, &parsed); err != nil {
-		return nil, err
+	if parsed == nil {
+		return nil, nil
 	}
-	return parsed, nil
+	return *parsed, nil
 }
 
 func loadRootDebugFile(root string) (map[string]map[string]string, error) {
 	p := filepath.Join(root, ".debug-hash")
-	content, err := os.ReadFile(p)
+	parsed, err := readJSONFile[map[string]map[string]string](p, "root .debug-hash file")
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
 		return nil, err
 	}
-	var parsed map[string]map[string]string
-	if err := json.Unmarshal(content, &parsed); err != nil {
-		return nil, err
+	if parsed == nil {
+		return nil, nil
 	}
-	return parsed, nil
+	return *parsed, nil
 }
 
 func generateDebug(opts options, out io.Writer, info pkgInfo, oldDebug map[string]string) ([]string, error) {
@@ -808,18 +800,31 @@ func computeFinalHash(pkgName string, pkgs map[string]pkgInfo, cache map[string]
 
 func loadRootHashFile(root string) (map[string]string, error) {
 	p := filepath.Join(root, ".hash")
-	content, err := os.ReadFile(p)
+	parsed, err := readJSONFile[map[string]string](p, "root .hash file")
+	if err != nil {
+		return nil, err
+	}
+	if parsed == nil {
+		return nil, nil
+	}
+	return *parsed, nil
+}
+
+func readJSONFile[T any](path string, description string) (*T, error) {
+	content, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil
 		}
 		return nil, err
 	}
-	var parsed map[string]string
+
+	var parsed T
 	if err := json.Unmarshal(content, &parsed); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Invalid %s at %s : %w", description, path, err)
 	}
-	return parsed, nil
+
+	return &parsed, nil
 }
 
 func marshalSortedStringMap(m map[string]string) ([]byte, error) {
@@ -1252,9 +1257,13 @@ func execute(args []string, stdout, stderr io.Writer) int {
 	}
 	if d == nil {
 		if opts.pmOption != "" {
-			auto, _ := autoDetect(wd)
+			auto, autoErr := autoDetect(wd)
+			if autoErr != nil {
+				linef(opts, stderr, "❌ %s\n", autoErr.Error())
+				return 99
+			}
 			if auto != nil {
-				linef(opts, stderr, "❌ %s workspaces not found. Did you mean --packagemanager=%s?", opts.pmOption, auto.pm)
+				linef(opts, stderr, "❌ %s workspaces not found. Did you mean --packagemanager=%s ?", opts.pmOption, auto.pm)
 			} else {
 				linef(opts, stderr, "❌ Specified package manager not found and no supported package manager detected")
 			}

@@ -2,7 +2,9 @@
   "author": "EDM115 <npmjs@edm115.dev> (https://edm115.dev)",
   "bin": {
     "monorepo-hash": "./dist/monorepo-hash.exe",
-    "monorepo-hash-js": "./dist/monorepo-hash.mjs"
+    "monorepo-hash-go": "./dist/monorepo-hash-go.exe",
+    "monorepo-hash-js": "./dist/monorepo-hash.mjs",
+    "monorepo-hash-rust": "./dist/monorepo-hash-rust.exe"
   },
   "bugs": {
     "email": "npmjs@edm115.dev",
@@ -21,13 +23,13 @@
     "globals": "~17.4.0",
     "ignore": "~7.0.5",
     "jiti": "~2.6.1",
-    "oxlint": "~1.58.0",
-    "oxlint-tsgolint": "~0.19.0",
-    "tinyexec": "~1.0.4",
+    "oxlint": "~1.59.0",
+    "oxlint-tsgolint": "~0.20.0",
+    "tinyexec": "~1.1.1",
     "tinyglobby": "~0.2.15",
     "tsdown": "~0.21.7",
     "unplugin-unused": "~0.5.7",
-    "vitest": "~4.1.2",
+    "vitest": "~4.1.3",
     "yaml": "~2.8.3"
   },
   "exports": {
@@ -91,28 +93,34 @@
     "url": "git+https://github.com/EDM115/monorepo-hash.git"
   },
   "scripts": {
-    "build": "pnpm build:node && pnpm build:bun && pnpm build:go",
+    "build": "pnpm build:node && pnpm build:bun && pnpm build:go && pnpm build:rust",
     "build:bun": "pnpm cli:build-bin -r bun -p all && pnpm cli:chmod",
-    "build:decoy": "node -e \"require('fs').writeFileSync('./dist/monorepo-hash.exe', '', 'utf8')\"",
+    "build:decoy": "node -e \"const fs = require('fs'); fs.writeFileSync('./dist/monorepo-hash.exe', '', 'utf8'); fs.writeFileSync('./dist/monorepo-hash-go.exe', '', 'utf8'); fs.writeFileSync('./dist/monorepo-hash-rust.exe', '', 'utf8');\"",
     "build:go": "pnpm cli:build-bin -r go -p all && pnpm cli:chmod",
     "build:node": "tsdown && pnpm build:decoy",
+    "build:rust": "pnpm cli:build-bin -r rust -p all && pnpm cli:chmod",
     "cli:build-bin": "jiti ./build.script.ts",
     "cli:chmod": "jiti ./build.script.ts --chmod",
     "cli:get-bench-times": "jiti ./get-bench-times.script.ts",
-    "format": "pnpm format:ts && pnpm format:go",
+    "format": "pnpm format:ts && pnpm format:go && pnpm format:rust",
     "format:ts": "eslint -c eslint.stylistic.config.ts --concurrency=auto --fix .",
     "format:go": "gofmt -w ./src/go",
-    "lint": "pnpm lint:ts && pnpm lint:go",
+    "format:rust": "cargo fmt --manifest-path ./src/rust/Cargo.toml",
+    "lint": "pnpm lint:ts && pnpm lint:go && pnpm lint:rust",
     "lint:ts": "oxlint",
     "lint:go": "cd src/go && GOEXPERIMENT=jsonv2 go vet ./... && GOEXPERIMENT=jsonv2 go tool staticcheck ./...",
+    "lint:rust": "cargo clippy --manifest-path ./src/rust/Cargo.toml --all-targets --all-features -- -D warnings",
     "postinstall": "node -e \"const fs = require('fs'); const path = require('path'); const installBinaryPath = path.join(__dirname, 'dist', 'install-binary.mjs'); const srcPath = path.join(__dirname, 'src'); if (fs.existsSync(installBinaryPath) && !fs.existsSync(srcPath)) { const child_process = require('child_process'); child_process.execFileSync(process.execPath, [installBinaryPath], { stdio: 'inherit' }); }\"",
     "release": "pnpm publish",
-    "test": "pnpm test:node && pnpm test:bun && pnpm test:go",
+    "test": "pnpm test:node && pnpm test:bun && pnpm test:go && pnpm test:rust",
     "test:bun": "pnpm cli:build-bin -r bun -p current && pnpm cli:chmod && vitest --project bun",
     "test:go": "pnpm cli:build-bin -r go -p current && pnpm cli:chmod && vitest --project go",
     "test:node": "pnpm build:node && vitest --project node",
-    "typecheck": "tsgo --noEmit"
+    "test:rust": "pnpm cli:build-bin -r rust -p current && pnpm cli:chmod && vitest --project rust",
+    "typecheck": "pnpm typecheck:ts && pnpm typecheck:rust",
+    "typecheck:ts": "tsgo --noEmit",
+    "typecheck:rust": "cargo check --manifest-path ./src/rust/Cargo.toml --all-targets --all-features"
   },
   "type": "module",
-  "version": "2.2.0-beta.go.3"
+  "version": "2.2.0-beta.rust.1"
 }
