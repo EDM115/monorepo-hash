@@ -112,9 +112,9 @@ jobs:
               apk update && apk add --no-cache bash curl make musl-dev linux-headers g++ gcc libgcc libstdc++ libffi-dev git \
               && apk add --no-cache --repository=https://dl-cdn.alpinelinux.org/alpine/edge/main --repository=https://dl-cdn.alpinelinux.org/alpine/edge/community nodejs-current \
               && curl -fsSL https://get.pnpm.io/install.sh | ENV="$HOME/.shrc" SHELL="$(which sh)" sh - \
-              && export PATH="$HOME/.local/share/pnpm:$PATH" \
               && curl https://sh.rustup.rs -sSf | sh -s -- -y \
-              && export PATH="$HOME/.cargo/bin:$PATH" \
+              && . /usr/local/cargo/env \
+              && export PATH="$HOME/.local/share/pnpm:$PATH" \
               && pnpm i --frozen-lockfile \
               && pnpm cli:build-bin -r rust -p linux-arm64-musl \
               && pnpm cli:chmod \
@@ -155,9 +155,9 @@ jobs:
               apk update && apk add --no-cache bash curl make musl-dev linux-headers g++ gcc libgcc libstdc++ libffi-dev git \
               && apk add --no-cache --repository=https://dl-cdn.alpinelinux.org/alpine/edge/main --repository=https://dl-cdn.alpinelinux.org/alpine/edge/community nodejs-current \
               && curl -fsSL https://get.pnpm.io/install.sh | ENV="$HOME/.shrc" SHELL="$(which sh)" sh - \
-              && export PATH="$HOME/.local/share/pnpm:$PATH" \
               && curl https://sh.rustup.rs -sSf | sh -s -- -y \
-              && export PATH="$HOME/.cargo/bin:$PATH" \
+              && . /usr/local/cargo/env \
+              && export PATH="$HOME/.local/share/pnpm:$PATH" \
               && pnpm i --frozen-lockfile \
               && pnpm cli:build-bin -r rust -p linux-x64-musl \
               && pnpm cli:chmod \
