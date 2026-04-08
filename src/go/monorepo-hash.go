@@ -1257,7 +1257,11 @@ func execute(args []string, stdout, stderr io.Writer) int {
 	}
 	if d == nil {
 		if opts.pmOption != "" {
-			auto, _ := autoDetect(wd)
+			auto, autoErr := autoDetect(wd)
+			if autoErr != nil {
+				linef(opts, stderr, "❌ %s\n", autoErr.Error())
+				return 99
+			}
 			if auto != nil {
 				linef(opts, stderr, "❌ %s workspaces not found. Did you mean --packagemanager=%s ?", opts.pmOption, auto.pm)
 			} else {

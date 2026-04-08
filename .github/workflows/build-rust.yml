@@ -109,7 +109,9 @@ jobs:
             -w /workspace \
             arm64v8/rust:alpine \
             sh -lc '
-              apk update && apk add --no-cache bash curl make musl-dev linux-headers g++ gcc libgcc libstdc++ libffi-dev git \
+              apk update && apk add --no-cache bash curl make musl-dev linux-headers g++ gcc libgcc libstdc++ libffi-dev git unzip \
+              && curl -fsSL https://fnm.vercel.app/install | bash \
+              && fnm install --latest \
               && curl -fsSL https://get.pnpm.io/install.sh | ENV="$HOME/.shrc" SHELL="$(which sh)" sh - \
               && export PATH="$HOME/.local/share/pnpm:$PATH" \
               && pnpm i --frozen-lockfile \
@@ -149,7 +151,12 @@ jobs:
             -w /workspace \
             rust:alpine \
             sh -lc '
-              apk update && apk add --no-cache bash curl make musl-dev linux-headers g++ gcc libgcc libstdc++ libffi-dev git \
+              apk update && apk add --no-cache bash curl make musl-dev linux-headers g++ gcc libgcc libstdc++ libffi-dev git unzip \
+              && curl -fsSL https://fnm.vercel.app/install | sh \
+              && export FNM_NODE_DIST_MIRROR=https://unofficial-builds.nodejs.org/download/release \
+              && export FNM_ARCH=x64-musl \
+              && exec sh
+              && fnm install --latest \
               && curl -fsSL https://get.pnpm.io/install.sh | ENV="$HOME/.shrc" SHELL="$(which sh)" sh - \
               && export PATH="$HOME/.local/share/pnpm:$PATH" \
               && pnpm i --frozen-lockfile \

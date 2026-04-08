@@ -177,21 +177,27 @@ fn run(args: &[String]) -> Result<(), String> {
   let detection = if let Some(pm) = &opts.pm_option {
     match detect_specified(pm) {
       Ok(Some(d)) => d,
-      Ok(None) => {
-        if let Ok(Some(auto)) = auto_detect() {
+      Ok(None) => match auto_detect() {
+        Ok(Some(auto)) => {
           errln!(
             opts.silent,
             "❌ {} workspaces not found. Did you mean --packagemanager={} ?",
             pm,
             auto.pm
           );
-        } else {
+          process::exit(5);
+        },
+        Ok(None) => {
           errln!(
             opts.silent,
             "❌ Specified package manager not found and no supported package manager detected"
           );
-        }
-        process::exit(5);
+          process::exit(5);
+        },
+        Err(error) => {
+          errln!(opts.silent, "❌ {}", error);
+          process::exit(99);
+        },
       },
       Err(error) => {
         errln!(opts.silent, "❌ {}", error);
@@ -357,13 +363,11 @@ fn parse_args(args: &[String]) -> Result<Option<CliOptions>, CliError> {
   }
 
   if wants_help || mode.is_none() {
-    if !silent {
-      outln!(
-        silent,
-        "\nmonorepo-hash by EDM115\nA simple script to generate or compare .hash files for monorepo workspaces\nSupports PNPM, Yarn, NPM, Bun and Deno\n\nArguments :\n  --generate        (-g)  Generate or update .hash files for all workspaces\n  --compare         (-c)  Compare current state with existing .hash files. Capture the exit code to check for changes\n  --target=\"<path>\" (-t)  Specify one or more targets to generate/compare (comma-separated)\n  --silent          (-s)  Suppress output messages\n  --debug           (-d)  Enable debug mode (per-file hashes)\n  --workspaces      (-w)  Use per-workspace .hash files instead of a single root one\n  --packagemanager  (-pm) Force the package manager ({})\n  --pathcache       (-pc) Enable path normalization cache (can augment memory footprint on very large repos)\n  --version         (-v)  Show version information\n  --help            (-h)  Show this help message\n",
-        PACKAGE_MANAGERS.join(", ")
-      );
-    }
+    outln!(
+      silent,
+      "\nmonorepo-hash by EDM115\nA simple script to generate or compare .hash files for monorepo workspaces\nSupports PNPM, Yarn, NPM, Bun and Deno\n\nArguments :\n  --generate        (-g)  Generate or update .hash files for all workspaces\n  --compare         (-c)  Compare current state with existing .hash files. Capture the exit code to check for changes\n  --target=\"<path>\" (-t)  Specify one or more targets to generate/compare (comma-separated)\n  --silent          (-s)  Suppress output messages\n  --debug           (-d)  Enable debug mode (per-file hashes)\n  --workspaces      (-w)  Use per-workspace .hash files instead of a single root one\n  --packagemanager  (-pm) Force the package manager ({})\n  --pathcache       (-pc) Enable path normalization cache (can augment memory footprint on very large repos)\n  --version         (-v)  Show version information\n  --help            (-h)  Show this help message\n",
+      PACKAGE_MANAGERS.join(", ")
+    );
     return Ok(None);
   }
 
@@ -1278,14 +1282,12 @@ fn compute_package_hashes(
     1
   };
 
-  if !silent {
-    outln!(
-      silent,
-      "\r🔄 Computing hashes ({}/{})",
-      zero_pad(0, pad),
-      total
-    );
-  }
+  outln!(
+    silent,
+    "\r🔄 Computing hashes ({}/{})",
+    zero_pad(0, pad),
+    total
+  );
 
   for (idx, name) in selected.iter().enumerate() {
     let (pkg_dir, pkg_rel_dir) = {
@@ -1322,19 +1324,18 @@ fn compute_package_hashes(
     }
 
     if let Some(entry) = packages.get_mut(name) {
+      // Move the freshly computed map into package state first, then borrow it back below for optional debug output so the non-debug path avoids an unconditional clone.
       entry.per_file_hashes = per_file;
       entry.own_hash = own.finalize().to_vec();
     }
 
-    if !silent {
-      outln!(
-        silent,
-        "\r🔄 Computing hashes ({}/{}) • {}",
-        zero_pad(idx + 1, pad),
-        total,
-        pkg_rel_dir
-      );
-    }
+    outln!(
+      silent,
+      "\r🔄 Computing hashes ({}/{}) • {}",
+      zero_pad(idx + 1, pad),
+      total,
+      pkg_rel_dir
+    );
 
     if debug && mode == Mode::Generate {
       let per_file_hashes = &packages
@@ -1356,11 +1357,9 @@ fn compute_package_hashes(
     fs::write(repo_root.join(".debug-hash"), content)?;
   }
 
-  if !silent {
-    outln!(silent, "\r✅ Computed all hashes ({})", total);
-    outln!(silent, "");
-    outln!(silent, "");
-  }
+  outln!(silent, "\r✅ Computed all hashes ({})", total);
+  outln!(silent, "");
+  outln!(silent, "");
 
   Ok(())
 }
@@ -1447,16 +1446,14 @@ fn generate_hashes(
     let content = serde_json::to_string_pretty(&root).unwrap_or("{}".to_string());
     fs::write(root_hash_path, content)?;
 
-    if !silent {
-      for name in selected {
-        if let (Some(pkg), Some(hash)) = (packages.get(name), final_hashes.get(name)) {
-          outln!(
-            silent,
-            "✅ {} ({} written to .hash)",
-            pkg.rel_dir_posix,
-            hash
-          );
-        }
+    for name in selected {
+      if let (Some(pkg), Some(hash)) = (packages.get(name), final_hashes.get(name)) {
+        outln!(
+          silent,
+          "✅ {} ({} written to .hash)",
+          pkg.rel_dir_posix,
+          hash
+        );
       }
     }
     return Ok(());
@@ -1465,14 +1462,12 @@ fn generate_hashes(
   for name in selected {
     if let (Some(pkg), Some(hash)) = (packages.get(name), final_hashes.get(name)) {
       fs::write(pkg.dir.join(".hash"), hash)?;
-      if !silent {
-        outln!(
-          silent,
-          "✅ {} ({} written to .hash)",
-          pkg.rel_dir_posix,
-          hash
-        );
-      }
+      outln!(
+        silent,
+        "✅ {} ({} written to .hash)",
+        pkg.rel_dir_posix,
+        hash
+      );
     }
   }
 
@@ -1609,38 +1604,36 @@ fn compare_hashes(
   changed.sort_by(|a, b| a.name.cmp(&b.name));
   missing.sort_by(|a, b| a.name.cmp(&b.name));
 
-  if !silent {
-    if !unchanged.is_empty() {
-      outln!(silent, "✅ Unchanged ({}) :", unchanged.len());
-      for item in &unchanged {
-        outln!(silent, "• {}", item);
-      }
-      outln!(silent, "");
+  if !unchanged.is_empty() {
+    outln!(silent, "✅ Unchanged ({}) :", unchanged.len());
+    for item in &unchanged {
+      outln!(silent, "• {}", item);
     }
+    outln!(silent, "");
+  }
 
-    if !changed.is_empty() {
-      outln!(silent, "⚠️  Changed ({}) :", changed.len());
-      for item in &changed {
-        outln!(silent, "• {}", item.name);
-        outln!(silent, "\told : {}", item.old_hash);
-        outln!(silent, "\tnew : {}", item.new_hash);
-        if !item.changed_deps.is_empty() {
-          outln!(silent, "\t🚧 changed dependency(s) :");
-          for dep in &item.changed_deps {
-            outln!(silent, "\t\t• {}", dep);
-          }
+  if !changed.is_empty() {
+    outln!(silent, "⚠️  Changed ({}) :", changed.len());
+    for item in &changed {
+      outln!(silent, "• {}", item.name);
+      outln!(silent, "\told : {}", item.old_hash);
+      outln!(silent, "\tnew : {}", item.new_hash);
+      if !item.changed_deps.is_empty() {
+        outln!(silent, "\t🚧 changed dependency(s) :");
+        for dep in &item.changed_deps {
+          outln!(silent, "\t\t• {}", dep);
         }
       }
-      outln!(silent, "");
     }
+    outln!(silent, "");
+  }
 
-    if !missing.is_empty() {
-      outln!(silent, "❓ Missing .hash files ({}) :", missing.len());
-      for item in &missing {
-        outln!(silent, "• {} (would be {})", item.name, item.new_hash);
-      }
-      outln!(silent, "");
+  if !missing.is_empty() {
+    outln!(silent, "❓ Missing .hash files ({}) :", missing.len());
+    for item in &missing {
+      outln!(silent, "• {} (would be {})", item.name, item.new_hash);
     }
+    outln!(silent, "");
   }
 
   if !changed.is_empty() || !missing.is_empty() {
@@ -1683,7 +1676,7 @@ fn generate_debug(
     }
   }
 
-  if !diverged.is_empty() && !silent {
+  if !diverged.is_empty() {
     outln!(
       silent,
       "⚠️  <debug> {} diverging files :",
