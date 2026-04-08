@@ -519,8 +519,6 @@ async function main(options?: {
 
       const buildArgs = [
         "build",
-        "--manifest-path",
-        "./src/rust/Cargo.toml",
         "--locked",
         "--release",
         "--target",
@@ -532,7 +530,10 @@ async function main(options?: {
       const {
         stdout, stderr, exitCode,
       } = await x("cargo", buildArgs, {
-        nodeOptions: { stdio: "inherit" },
+        nodeOptions: {
+          cwd: "./src/rust",
+          stdio: "inherit",
+        },
       })
 
       if (stdout) {

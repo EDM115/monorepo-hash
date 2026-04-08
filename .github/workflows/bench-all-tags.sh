@@ -6,6 +6,8 @@ RUNS_FAST="${RUNS_FAST:-3}" # historical tags
 RUNS_SLOW="${RUNS_SLOW:-10}" # newest tag(s)
 WARMUP="${WARMUP:-1}"
 TAGS_MODE="${TAGS_MODE:-all}" # all | last:N
+SKIP_UNSTABLE="${SKIP_UNSTABLE:-false}" # true => only x.y.z tags when auto-selecting tags
+BENCH_THIS="${BENCH_THIS:-}" # explicit comma-separated refs to benchmark, overrides tag selection
 BASELINE_TAGS="${BASELINE_TAGS:-1}" # how many newest tags get slow runs
 INCLUDE_REF="${INCLUDE_REF:-true}" # include the currently checked-out ref (HEAD) as well
 
@@ -21,6 +23,10 @@ sanitize_label() {
   echo "$s"
 }
 
+is_stable_tag() {
+  [[ "$1" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+}
+
 ROOT="$(pwd)"
 RESULTS_DIR="$ROOT/tests/benchmarks/history"
 mkdir -p "$RESULTS_DIR"
@@ -34,21 +40,42 @@ for b in "${BENCH_ARR[@]}"; do
   fi
 done
 
-# Collect tags as commit-ish
-mapfile -t TAGS < <(git tag --list --sort=version:refname)
-if [[ "$TAGS_MODE" =~ ^last:([0-9]+)$ ]]; then
-  N="${BASH_REMATCH[1]}"
-  TAGS=("${TAGS[@]: -$N}")
-fi
-
 # Build the list of refs to benchmark :
 #   ref:<label>:<commit-ish>
 REFS=()
-for t in "${TAGS[@]}"; do
-  REFS+=("tag:${t}:${t}")
-done
-if [[ "$INCLUDE_REF" == "true" ]]; then
-  REFS+=("ref:${REF_LABEL}:${REF_COMMIT}")
+if [[ -n "$BENCH_THIS" ]]; then
+  IFS=',' read -ra REQUESTED_REFS <<< "$BENCH_THIS"
+  for requested in "${REQUESTED_REFS[@]}"; do
+    requested="$(echo "$requested" | xargs)"
+    if [[ -n "$requested" ]]; then
+      REFS+=("ref:${requested}:${requested}")
+    fi
+  done
+else
+  # Collect tags as commit-ish
+  mapfile -t TAGS < <(git tag --list --sort=version:refname)
+
+  if [[ "$SKIP_UNSTABLE" == "true" ]]; then
+    FILTERED_TAGS=()
+    for t in "${TAGS[@]}"; do
+      if is_stable_tag "$t"; then
+        FILTERED_TAGS+=("$t")
+      fi
+    done
+    TAGS=("${FILTERED_TAGS[@]}")
+  fi
+
+  if [[ "$TAGS_MODE" =~ ^last:([0-9]+)$ ]]; then
+    N="${BASH_REMATCH[1]}"
+    TAGS=("${TAGS[@]: -$N}")
+  fi
+
+  for t in "${TAGS[@]}"; do
+    REFS+=("tag:${t}:${t}")
+  done
+  if [[ "$INCLUDE_REF" == "true" ]]; then
+    REFS+=("ref:${REF_LABEL}:${REF_COMMIT}")
+  fi
 fi
 
 # Figure out which refs (tags + optional REF_LABEL) get the "slow" treatment (last N entries)

@@ -3,15 +3,15 @@ use jwalk::WalkDir;
 use serde::{Deserialize, de::DeserializeOwned};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
-use std::env;
-use std::fs;
-use std::io;
-use std::path::{Path, PathBuf};
-use std::process;
-use std::sync::{
-  Mutex, OnceLock,
-  atomic::{AtomicBool, Ordering},
+use std::{
+  collections::{BTreeMap, BTreeSet, HashMap, HashSet},
+  env, fs, io,
+  path::{Path, PathBuf},
+  process,
+  sync::{
+    Mutex, OnceLock,
+    atomic::{AtomicBool, Ordering},
+  },
 };
 
 const PACKAGE_MANAGERS: &[&str] = &["pnpm", "npm", "deno", "bun", "yarn"];

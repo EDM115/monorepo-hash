@@ -8,7 +8,7 @@
 ![NPM Version](https://img.shields.io/npm/v/monorepo-hash) ![NPM Downloads](https://img.shields.io/npm/dt/monorepo-hash) ![Total binaries downloads](https://img.shields.io/github/downloads/EDM115/monorepo-hash/total?label=Total%20binaries%20downloads) [![More info](https://img.shields.io/badge/npmx-More_info-orange?logo=npm)](https://npmx.dev/monorepo-hash)
 
 ## :memo: Features
-:runner: **Fast** : Runs in huge monorepos [in no time](#rocket-benchmarks), processes workspaces in parallel, powered by Go  
+:runner: **Fast** : Runs in huge monorepos [in no time](#rocket-benchmarks), processes workspaces in parallel, powered by Go/Rust  
 :dart: **Accurate** : Generates hashes based on every tracked file  
 :left_right_arrow: **Complete** : Supports transitive workspace dependencies  
 :ok_hand: **No config** : Drop-in and instantly usable  
@@ -514,7 +514,13 @@ Here's a quick guide for contributing to `monorepo-hash` :
   cd monorepo-hash
   pnpm i --frozen-lockfile
   cd src/go && go mod download && cd ../..
-  rustup toolchain install 1.94
+  rustup toolchain install 1.94.1
+  rustup component add clippy --toolchain 1.94.1
+  rustup toolchain install nightly
+  rustup component add rustfmt --toolchain nightly
+  cargo install cargo-binstall --locked
+  cargo binstall cargo-edit --locked
+  cargo binstall cargo-outdated --locked
   cd src/rust && cargo fetch --locked && cd ../..
   ```
 3. Do your changes
@@ -533,7 +539,7 @@ Here's a quick guide for contributing to `monorepo-hash` :
 
 ### Release process
 ```bash
-# bump the version in package.json
+# bump the version in package.json, src/rust/Cargo.toml, add changelog entry in CHANGELOG.md, & update for all `const CLI_VERSION`
 git add -A && git status
 pnpm typecheck
 pnpm test
@@ -550,7 +556,8 @@ pnpm release
 ```
 
 ### Update process
-- PNPM (Node/Bun) : `pnpm up -L`
+- Check : `pnpm outdated`/`cd src/go && go list -u -m all`/`cd src/rust && cargo outdated` (requires `cargo binstall cargo-outdated`)
+- PNPM (Node/Bun) : `pnpm up && pnpm dedupe`
 - Go : `cd src/go && go get -u && go get -u tool && go mod tidy && cd ../..`
 - Rust : `cd src/rust && cargo update && cd ../..`
 

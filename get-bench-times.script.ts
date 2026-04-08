@@ -30,8 +30,31 @@ const emojiMap: Record<Runtime, string> = {
 
 type DeltaSource = "measured" | "fallback-average" | "fallback-neutral"
 
+interface CliOptions {
+  noOutput: boolean;
+}
+
 function isRuntime(value: string): value is Runtime {
   return (RUNTIMES as readonly string[]).includes(value)
+}
+
+// Benchmark deltas must be calibrated only against stable releases so prerelease-specific noise (beta/rc snapshots, rollout branches, one-off benchmark probes) never skews exports
+function isStableVersionTag(value: string): boolean {
+  return (/^\d+\.\d+\.\d+$/u).test(value)
+}
+
+function parseCliArgs(args: string[]): CliOptions {
+  let noOutput = false
+
+  for (const arg of args) {
+    if (arg === "--no-output") {
+      noOutput = true
+    } else {
+      throw new Error(`Unknown option : ${arg}`)
+    }
+  }
+
+  return { noOutput }
 }
 
 function ceilTo(value: number, decimals: number): number {
@@ -192,7 +215,7 @@ async function listComparableTags(runtime: Runtime): Promise<string[]> {
 
   const entries = await readdir(newRuntimePath, { withFileTypes: true })
   const tags = entries
-    .filter((entry) => entry.isDirectory() && entry.name !== MASTER_TAG)
+    .filter((entry) => entry.isDirectory() && entry.name !== MASTER_TAG && isStableVersionTag(entry.name))
     .map((entry) => entry.name)
     .toSorted((a, b) => a.localeCompare(b, undefined, { numeric: true }))
 
@@ -368,6 +391,7 @@ function printRuntimeSection(runtime: Runtime, results: MasterResults): void {
 }
 
 async function main(): Promise<void> {
+  const cliOptions = parseCliArgs(process.argv.slice(2))
   const version = await readPackageVersion()
   const runtimesInNewHistory = await listRuntimeDirectories(BENCH_HISTORY_NEW_DIR)
   const runtimesWithMaster = (await Promise.all(runtimesInNewHistory.map(async (runtime) => ({
@@ -403,7 +427,9 @@ async function main(): Promise<void> {
   const masterEntries = await Promise.all(runtimeDeltaList.map(async (runtimeDelta) => ({
     runtimeDelta,
     master: await buildMasterResults(runtimeDelta.runtime, runtimeDelta.delta),
-    exportCount: await exportCorrectedMaster(runtimeDelta.runtime, runtimeDelta.delta, version),
+    exportCount: cliOptions.noOutput
+      ? 0
+      : await exportCorrectedMaster(runtimeDelta.runtime, runtimeDelta.delta, version),
   })))
 
   console.log("📊 Benchmark runner deltas (apply on bench-history-new/master means)")
@@ -431,19 +457,23 @@ async function main(): Promise<void> {
     printRuntimeSection(entry.runtimeDelta.runtime, entry.master)
   }
 
-  console.log(`\n💾 Exported corrected master benchmarks for v${version}`)
+  if (cliOptions.noOutput) {
+    console.log("\n📝 --no-output enabled, skipped writing corrected benchmark files")
+  } else {
+    console.log(`\n💾 Exported corrected master benchmarks for v${version}`)
 
-  for (const runtime of RUNTIMES) {
-    const entry = masterEntries.find((masterEntry) => masterEntry.runtimeDelta.runtime === runtime)
+    for (const runtime of RUNTIMES) {
+      const entry = masterEntries.find((masterEntry) => masterEntry.runtimeDelta.runtime === runtime)
 
-    if (!entry) {
-      continue
+      if (!entry) {
+        continue
+      }
+
+      const title = runtime.charAt(0)
+        .toUpperCase() + runtime.slice(1)
+
+      console.log(`${emojiMap[runtime]} ${entry.exportCount} ${title} files written in ${join(BENCH_HISTORY_DIR, runtime, version)}`)
     }
-
-    const title = runtime.charAt(0)
-      .toUpperCase() + runtime.slice(1)
-
-    console.log(`${emojiMap[runtime]} ${entry.exportCount} ${title} files written in ${join(BENCH_HISTORY_DIR, runtime, version)}`)
   }
 }
 

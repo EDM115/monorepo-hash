@@ -7,6 +7,14 @@ on:
         description: "all | last:N (ex last:10)"
         required: false
         default: "last:2"
+      skip_unstable:
+        description: "Skip prerelease / unstable tags when auto-selecting tags"
+        required: false
+        default: "false"
+      bench_this:
+        description: "Comma-separated refs to benchmark (tag, branch, commit...). Overrides tags_mode and skip_unstable"
+        required: false
+        default: ""
       benchs:
         description: "small,medium,large,wide"
         required: false
@@ -99,6 +107,8 @@ jobs:
       - name: "Run tag sweep"
         env:
           TAGS_MODE: ${{ github.event.inputs.tags_mode }}
+          SKIP_UNSTABLE: ${{ github.event.inputs.skip_unstable }}
+          BENCH_THIS: ${{ github.event.inputs.bench_this }}
           BENCHS: ${{ github.event.inputs.benchs }}
           RUNS_FAST: ${{ github.event.inputs.runs_fast }}
           RUNS_SLOW: ${{ github.event.inputs.runs_slow }}
