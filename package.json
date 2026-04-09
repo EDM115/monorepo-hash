@@ -101,6 +101,7 @@
     "build:rust": "pnpm cli:build-bin -r rust -p all && pnpm cli:chmod",
     "cli:build-bin": "jiti ./build.script.ts",
     "cli:chmod": "jiti ./build.script.ts --chmod",
+    "cli:get-bench-graphs": "python ./bench-graphs.py",
     "cli:get-bench-times": "jiti ./get-bench-times.script.ts",
     "format": "pnpm format:ts && pnpm format:go && pnpm format:rust",
     "format:ts": "eslint -c eslint.stylistic.config.ts --concurrency=auto --fix .",

@@ -9,7 +9,7 @@
   "explorer.fileNesting.enabled": true,
   "explorer.fileNesting.patterns": {
     "oxlint.config.ts": "eslint.*",
-    "package.json": ".node-version, pnpm*, *.script.ts",
+    "package.json": ".node-version, pnpm*, *.script.ts, *.py",
     "README.md": "LICENSE, .gitignore, AGENTS.md, CHANGELOG.md, logo.*",
     "tsdown.config.ts": "tsconfig.*"
   },
