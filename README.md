@@ -465,6 +465,11 @@ Starting with `v2.0.0`, the benchmark methodology has changed : we re-runned the
 > - :chart_with_downwards_trend: : Slower than the previous version
 > - :balance_scale: : Negligible or no perceivable change in performance compared to the previous version
 
+![Benchmarks graph - Small monorepo](./bench-history/graphs/all/all-small.png)
+![Benchmarks graph - Medium monorepo](./bench-history/graphs/all/all-medium.png)
+![Benchmarks graph - Large monorepo](./bench-history/graphs/all/all-large.png)
+![Benchmarks graph - Wide monorepo](./bench-history/graphs/all/all-wide.png)
+
 | Version                                   | Small               | Medium             | Large               | Wide               |
 | :---------------------------------------- | :------------------ | :----------------- | :------------------ | :----------------- |
 | `v2.1.1 (bun)` :chart_with_upwards_trend: | 163.6 ms (50.1 ms)  | 2.994 s (715 ms)   | 40.29 s (10.887 s)  | 2.815 s (718.5 ms) |

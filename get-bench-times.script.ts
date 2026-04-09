@@ -32,6 +32,7 @@ type DeltaSource = "measured" | "fallback-average" | "fallback-neutral"
 
 interface CliOptions {
   noOutput: boolean;
+  includeUnstable: boolean;
 }
 
 function isRuntime(value: string): value is Runtime {
@@ -45,16 +46,26 @@ function isStableVersionTag(value: string): boolean {
 
 function parseCliArgs(args: string[]): CliOptions {
   let noOutput = false
+  let includeUnstable = false
 
   for (const arg of args) {
+    if (arg === "--") {
+      continue
+    }
+
     if (arg === "--no-output") {
       noOutput = true
+    } else if (arg === "--include-unstable") {
+      includeUnstable = true
     } else {
       throw new Error(`Unknown option : ${arg}`)
     }
   }
 
-  return { noOutput }
+  return {
+    noOutput,
+    includeUnstable,
+  }
 }
 
 function ceilTo(value: number, decimals: number): number {
@@ -206,7 +217,7 @@ function getBenchFilePath(baseDir: string, runtime: Runtime, tag: string, size: 
   return join(baseDir, runtime, tag, `${size}-${cache}.json`)
 }
 
-async function listComparableTags(runtime: Runtime): Promise<string[]> {
+async function listComparableTags(runtime: Runtime, includeUnstable: boolean): Promise<string[]> {
   const newRuntimePath = join(BENCH_HISTORY_NEW_DIR, runtime)
 
   if (!await exists(newRuntimePath)) {
@@ -215,7 +226,7 @@ async function listComparableTags(runtime: Runtime): Promise<string[]> {
 
   const entries = await readdir(newRuntimePath, { withFileTypes: true })
   const tags = entries
-    .filter((entry) => entry.isDirectory() && entry.name !== MASTER_TAG && isStableVersionTag(entry.name))
+    .filter((entry) => entry.isDirectory() && entry.name !== MASTER_TAG && (includeUnstable || isStableVersionTag(entry.name)))
     .map((entry) => entry.name)
     .toSorted((a, b) => a.localeCompare(b, undefined, { numeric: true }))
 
@@ -239,8 +250,8 @@ interface RuntimeDeltaResult {
   fallbackSourceRuntimes?: Runtime[];
 }
 
-async function computeMeasuredRuntimeDelta(runtime: Runtime): Promise<RuntimeDeltaResult | null> {
-  const comparedTags = await listComparableTags(runtime)
+async function computeMeasuredRuntimeDelta(runtime: Runtime, includeUnstable: boolean): Promise<RuntimeDeltaResult | null> {
+  const comparedTags = await listComparableTags(runtime, includeUnstable)
 
   if (comparedTags.length === 0) {
     return null
@@ -405,7 +416,7 @@ async function main(): Promise<void> {
     throw new Error(`No runtime master folders found in ${BENCH_HISTORY_NEW_DIR}`)
   }
 
-  const measuredDeltaList = (await Promise.all(runtimesWithMaster.map((runtime) => computeMeasuredRuntimeDelta(runtime))))
+  const measuredDeltaList = (await Promise.all(runtimesWithMaster.map((runtime) => computeMeasuredRuntimeDelta(runtime, cliOptions.includeUnstable))))
     .filter((runtimeDelta): runtimeDelta is RuntimeDeltaResult => runtimeDelta !== null)
   const measuredDeltaByRuntime = new Map(measuredDeltaList.map((runtimeDelta) => [ runtimeDelta.runtime, runtimeDelta ]))
   const measuredAverage = average(measuredDeltaList.map((runtimeDelta) => runtimeDelta.delta))

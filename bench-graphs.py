@@ -57,7 +57,12 @@ class BenchPoint:
     mean: float
 
 
-def version_sort_key(value: str) -> tuple[object, ...]:
+SEMVER_PATTERN = re.compile(
+    r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)(?:-(?P<prerelease>[0-9A-Za-z.-]+))?$"
+)
+
+
+def prerelease_sort_key(value: str) -> tuple[object, ...]:
     parts = re.findall(r"\d+|[A-Za-z]+|[^A-Za-z\d]+", value)
     key: list[object] = []
 
@@ -70,6 +75,27 @@ def version_sort_key(value: str) -> tuple[object, ...]:
             key.append((2, part))
 
     return tuple(key)
+
+
+def version_sort_key(value: str) -> tuple[object, ...]:
+    match = SEMVER_PATTERN.fullmatch(value)
+
+    if match:
+        prerelease = match.group("prerelease")
+
+        return (
+            0,
+            int(match.group("major")),
+            int(match.group("minor")),
+            int(match.group("patch")),
+            0 if prerelease is None else 1,
+            () if prerelease is None else prerelease_sort_key(prerelease),
+        )
+
+    if value == "master":
+        return (1, value)
+
+    return (2, prerelease_sort_key(value))
 
 
 def darken(color: str, factor: float = 0.72) -> str:
