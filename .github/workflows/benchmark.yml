@@ -200,7 +200,6 @@ jobs:
           cd tests/demo/small-monorepo
           hyperfine \
             --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches' \
-            --warmup 2 \
             --runs 10 \
             --export-markdown ../../benchmarks/node/small-monorepo-cold.md \
             "node ${{ steps.prepare_benchs.outputs.js_name }} --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
@@ -221,7 +220,6 @@ jobs:
           cd tests/demo/medium-monorepo
           hyperfine \
             --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches' \
-            --warmup 2 \
             --runs 10 \
             --export-markdown ../../benchmarks/node/medium-monorepo-cold.md \
             "node ${{ steps.prepare_benchs.outputs.js_name }} --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
@@ -242,7 +240,6 @@ jobs:
           cd tests/demo/large-monorepo
           hyperfine \
             --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches' \
-            --warmup 2 \
             --runs 10 \
             --export-markdown ../../benchmarks/node/large-monorepo-cold.md \
             "node ${{ steps.prepare_benchs.outputs.js_name }} --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
@@ -263,7 +260,6 @@ jobs:
           cd tests/demo/wide-monorepo
           hyperfine \
             --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches' \
-            --warmup 2 \
             --runs 10 \
             --export-markdown ../../benchmarks/node/wide-monorepo-cold.md \
             "node ${{ steps.prepare_benchs.outputs.js_name }} --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
@@ -284,7 +280,6 @@ jobs:
           cd tests/demo/small-monorepo
           hyperfine \
             --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches' \
-            --warmup 2 \
             --runs 10 \
             --export-markdown ../../benchmarks/bun/small-monorepo-cold.md \
             "./monorepo-hash-bun --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
@@ -305,7 +300,6 @@ jobs:
           cd tests/demo/medium-monorepo
           hyperfine \
             --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches' \
-            --warmup 2 \
             --runs 10 \
             --export-markdown ../../benchmarks/bun/medium-monorepo-cold.md \
             "./monorepo-hash-bun --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
@@ -326,7 +320,6 @@ jobs:
           cd tests/demo/large-monorepo
           hyperfine \
             --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches' \
-            --warmup 2 \
             --runs 10 \
             --export-markdown ../../benchmarks/bun/large-monorepo-cold.md \
             "./monorepo-hash-bun --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
@@ -347,7 +340,6 @@ jobs:
           cd tests/demo/wide-monorepo
           hyperfine \
             --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches' \
-            --warmup 2 \
             --runs 10 \
             --export-markdown ../../benchmarks/bun/wide-monorepo-cold.md \
             "./monorepo-hash-bun --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
@@ -368,7 +360,6 @@ jobs:
           cd tests/demo/small-monorepo
           hyperfine \
             --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches' \
-            --warmup 2 \
             --runs 10 \
             --export-markdown ../../benchmarks/go/small-monorepo-cold.md \
             "./monorepo-hash-go --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
@@ -389,7 +380,6 @@ jobs:
           cd tests/demo/medium-monorepo
           hyperfine \
             --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches' \
-            --warmup 2 \
             --runs 10 \
             --export-markdown ../../benchmarks/go/medium-monorepo-cold.md \
             "./monorepo-hash-go --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
@@ -410,7 +400,6 @@ jobs:
           cd tests/demo/large-monorepo
           hyperfine \
             --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches' \
-            --warmup 2 \
             --runs 10 \
             --export-markdown ../../benchmarks/go/large-monorepo-cold.md \
             "./monorepo-hash-go --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
@@ -431,7 +420,6 @@ jobs:
           cd tests/demo/wide-monorepo
           hyperfine \
             --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches' \
-            --warmup 2 \
             --runs 10 \
             --export-markdown ../../benchmarks/go/wide-monorepo-cold.md \
             "./monorepo-hash-go --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
@@ -452,7 +440,6 @@ jobs:
           cd tests/demo/small-monorepo
           hyperfine \
             --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches' \
-            --warmup 2 \
             --runs 10 \
             --export-markdown ../../benchmarks/rust/small-monorepo-cold.md \
             "./monorepo-hash-rust --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
@@ -473,7 +460,6 @@ jobs:
           cd tests/demo/medium-monorepo
           hyperfine \
             --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches' \
-            --warmup 2 \
             --runs 10 \
             --export-markdown ../../benchmarks/rust/medium-monorepo-cold.md \
             "./monorepo-hash-rust --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
@@ -494,7 +480,6 @@ jobs:
           cd tests/demo/large-monorepo
           hyperfine \
             --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches' \
-            --warmup 2 \
             --runs 10 \
             --export-markdown ../../benchmarks/rust/large-monorepo-cold.md \
             "./monorepo-hash-rust --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"
@@ -515,7 +500,6 @@ jobs:
           cd tests/demo/wide-monorepo
           hyperfine \
             --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches' \
-            --warmup 2 \
             --runs 10 \
             --export-markdown ../../benchmarks/rust/wide-monorepo-cold.md \
             "./monorepo-hash-rust --generate ${{ steps.prepare_benchs.outputs.pm_arg }} -s"

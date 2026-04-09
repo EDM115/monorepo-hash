@@ -4,7 +4,7 @@ set -euo pipefail
 BENCHS="${BENCHS:-small,medium,large,wide}"
 RUNS_FAST="${RUNS_FAST:-3}" # historical tags
 RUNS_SLOW="${RUNS_SLOW:-10}" # newest tag(s)
-WARMUP="${WARMUP:-1}"
+WARMUP="${WARMUP:-2}"
 TAGS_MODE="${TAGS_MODE:-all}" # all | last:N
 SKIP_UNSTABLE="${SKIP_UNSTABLE:-false}" # true => only x.y.z tags when auto-selecting tags
 BENCH_THIS="${BENCH_THIS:-}" # explicit comma-separated refs to benchmark, overrides tag selection
@@ -185,7 +185,6 @@ for spec in "${REFS[@]}"; do
     sleep 2
     hyperfine \
       --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches >/dev/null' \
-      --warmup "$WARMUP" \
       --runs "$RUNS" \
       --export-json "$RESULTS_DIR/node/$safe_label/${b}-cold.json" \
       "node $WT/dist/$JS_NAME --generate $PM_ARG -s"
@@ -204,7 +203,6 @@ for spec in "${REFS[@]}"; do
       sleep 2
       hyperfine \
         --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches >/dev/null' \
-        --warmup "$WARMUP" \
         --runs "$RUNS" \
         --export-json "$RESULTS_DIR/bun/$safe_label/${b}-cold.json" \
         "$WT/bun-build/monorepo-hash-linux-x64 --generate $PM_ARG -s"
@@ -224,7 +222,6 @@ for spec in "${REFS[@]}"; do
       sleep 2
       hyperfine \
         --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches >/dev/null' \
-        --warmup "$WARMUP" \
         --runs "$RUNS" \
         --export-json "$RESULTS_DIR/go/$safe_label/${b}-cold.json" \
         "$WT/go-build/monorepo-hash-linux-x64 --generate $PM_ARG -s"
@@ -244,7 +241,6 @@ for spec in "${REFS[@]}"; do
       sleep 2
       hyperfine \
         --prepare 'sync; echo 3 | sudo tee /proc/sys/vm/drop_caches >/dev/null' \
-        --warmup "$WARMUP" \
         --runs "$RUNS" \
         --export-json "$RESULTS_DIR/rust/$safe_label/${b}-cold.json" \
         "$WT/rust-build/monorepo-hash-linux-x64 --generate $PM_ARG -s"
