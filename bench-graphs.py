@@ -15,7 +15,7 @@ try:
     from matplotlib.colors import to_hex, to_rgb
 except ImportError as exc:
     raise SystemExit(
-        "matplotlib is required to generate benchmark graphs "
+        "❌ matplotlib is required to generate benchmark graphs "
         "Install it with `python -m pip install matplotlib`"
     ) from exc
 
@@ -48,6 +48,26 @@ RUNTIME_EMOJIS = {
     "go": "🐹",
     "rust": "🦀",
     ALL_RUNTIME_GROUP: "🌈",
+}
+DEFAULT_RUNTIME_BY_VERSION = {
+    "1.0.0": "node",
+    "1.1.0": "node",
+    "1.2.0": "node",
+    "1.3.0": "node",
+    "1.3.1": "node",
+    "1.4.0": "node",
+    "1.4.1": "node",
+    "1.4.2": "node",
+    "1.5.0": "node",
+    "1.5.1": "node",
+    "1.6.0": "node",
+    "1.7.0": "node",
+    "1.8.0": "node",
+    "1.9.0": "node",
+    "2.0.0": "bun",
+    "2.1.0": "bun",
+    "2.1.1": "bun",
+    "2.2.0": "bun",
 }
 
 
@@ -351,6 +371,50 @@ def create_all_runtime_graphs(
         ):
             created.append(warm_path)
 
+    overall_series: list[tuple[str, str, list[BenchPoint]]] = []
+
+    for size in SIZES:
+        cold_lookup = {
+            runtime: {
+                point.version: point.mean
+                for point in runtime_histories.get(runtime, {}).get(size, {}).get("cold", [])
+            }
+            for runtime in RUNTIMES
+        }
+        warm_lookup = {
+            runtime: {
+                point.version: point.mean
+                for point in runtime_histories.get(runtime, {}).get(size, {}).get("warm", [])
+            }
+            for runtime in RUNTIMES
+        }
+
+        cold_points: list[BenchPoint] = []
+        warm_points: list[BenchPoint] = []
+
+        for version, runtime in sorted(DEFAULT_RUNTIME_BY_VERSION.items(), key=lambda item: version_sort_key(item[0])):
+            cold_mean = cold_lookup.get(runtime, {}).get(version)
+            warm_mean = warm_lookup.get(runtime, {}).get(version)
+
+            if cold_mean is not None:
+                cold_points.append(BenchPoint(version=version, mean=cold_mean))
+
+            if warm_mean is not None:
+                warm_points.append(BenchPoint(version=version, mean=warm_mean))
+
+        overall_series.append((f"{size} cold", SIZE_COLORS[size], cold_points))
+        overall_series.append((f"{size} warm", darken(SIZE_COLORS[size]), warm_points))
+
+    overall_path = all_graphs_dir / "all-overall.png"
+    if plot_series(
+        title="Overall default-runtime performance evolution · all sizes",
+        output_path=overall_path,
+        ylabel="Mean runtime (seconds)",
+        ordered_versions=versions_from_points([points for _, _, points in overall_series]),
+        series=overall_series,
+    ):
+        created.append(overall_path)
+
     return created
 
 
@@ -390,7 +454,7 @@ def main() -> int:
     print_group_status(ALL_RUNTIME_GROUP, "combined", all_created_files)
 
     if not created_files:
-        print("No benchmark data found to plot", file=sys.stderr)
+        print("❌ No benchmark data found to plot", file=sys.stderr)
         return 1
 
     print(f"\n✅ Done, created {len(created_files)} graphs in {GRAPHS_DIR}")

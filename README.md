@@ -465,35 +465,36 @@ Starting with `v2.0.0`, the benchmark methodology has changed : we re-runned the
 > - :chart_with_downwards_trend: : Slower than the previous version
 > - :balance_scale: : Negligible or no perceivable change in performance compared to the previous version
 
+![Benchmarks graph - Overall performance of the default runtime](./bench-history/graphs/all/all-overall.png)
 ![Benchmarks graph - Small monorepo](./bench-history/graphs/all/all-small.png)
 ![Benchmarks graph - Medium monorepo](./bench-history/graphs/all/all-medium.png)
 ![Benchmarks graph - Large monorepo](./bench-history/graphs/all/all-large.png)
 ![Benchmarks graph - Wide monorepo](./bench-history/graphs/all/all-wide.png)
 
-| Version                                   | Small               | Medium             | Large               | Wide               |
-| :---------------------------------------- | :------------------ | :----------------- | :------------------ | :----------------- |
-| `v2.1.1 (bun)` :chart_with_upwards_trend: | 163.6 ms (50.1 ms)  | 2.994 s (715 ms)   | 40.29 s (10.887 s)  | 2.815 s (718.5 ms) |
-| `v2.1.1` :chart_with_upwards_trend:       | 239.4 ms (128.6 ms) | 3.755 s (3.942 s)  | 50.266 s (39.827 s) | 4.359 s (4.037 s)  |
-| `v2.1.0 (bun)` :chart_with_upwards_trend: | 208 ms (53.9 ms)    | 3.468 s (775.8 ms) | 49.896 s (12.169 s) | 3.816 s (862 ms)   |
-| `v2.1.0` :chart_with_downwards_trend:     | 253.9 ms (116.5 ms) | 3.677 s (3.438 s)  | 52.091 s (67.068 s) | 5.883 s (5.614 s)  |
-| `v2.0.0 (bun)` :chart_with_upwards_trend: | 231 ms (69.33 ms)   | 3.295 s (802.3 ms) | 41.083 s (17.319 s) | 3.081 s (761.9 ms) |
-| `v2.0.0` :chart_with_upwards_trend:       | 282.6 ms (124.1 ms) | 3.853 s (3.532 s)  | 36.773 s (35.706 s) | 4.447 s (3.599 s)  |
-| `v1.9.0 (bun)` :balance_scale:            | 224.3 ms (67.45 ms) | 3.347 s (719.9 ms) | 35.774 s (10.268 s) | 3.546 s (1.405 s)  |
-| `v1.9.0` :chart_with_downwards_trend:     | 284.5 ms (129.3 ms) | 4.140 s (3.548 s)  | 42.666 s (36.751 s) | 4.063 s (3.617 s)  |
-| `v1.8.0 (bun)` :chart_with_upwards_trend: | 216.5 ms (73.16 ms) | 3.285 s (752.5 ms) | 35.464 s (10.382 s) | 3.536 s (1.444 s)  |
-| `v1.8.0` :chart_with_upwards_trend:       | 276.2 ms (124 ms)   | 4.057 s (3.534 s)  | 42.178 s (36.731 s) | 4.051 s (3.637 s)  |
-| `v1.7.0` :balance_scale:                  | 285.2 ms (124.5 ms) | 4.117 s (3.535 s)  | 42.534 s (37.125 s) | 3.924 s (3.643 s)  |
-| `v1.6.0` :chart_with_downwards_trend:     | 285.3 ms (126.6 ms) | 4.191 s (3.556 s)  | 42.940 s (37.045 s) | 4.174 s (3.636 s)  |
-| `v1.5.1` :chart_with_downwards_trend:     | 290.6 ms (128 ms)   | 4.225 s (3.593 s)  | 42.419 s (36.959 s) | 4.062 s (3.644 s)  |
-| `v1.5.0` :chart_with_upwards_trend:       | 265.9 ms (125.8 ms) | 4.068 s (3.573 s)  | 42.245 s (36.998 s) | 4.083 s (3.606 s)  |
-| `v1.4.2` :chart_with_downwards_trend:     | 274.3 ms (130 ms)   | 4.227 s (3.574 s)  | 42.901 s (36.902 s) | 4.007 s (3.625 s)  |
-| `v1.4.1` :chart_with_upwards_trend:       | 280.6 ms (123.1 ms) | 4.067 s (3.532 s)  | 42.309 s (36.820 s) | 4.038 s (3.623 s)  |
-| `v1.4.0` :chart_with_upwards_trend:       | 264.1 ms (119.3 ms) | 4.150 s (3.535 s)  | 42.384 s (37.046 s) | 3.894 s (3.640 s)  |
-| `v1.3.1` :chart_with_upwards_trend:       | 274 ms (136.5 ms)   | 4.366 s (4.012 s)  | 89.512 s (87.311 s) | 4.152 s (3.886 s)  |
-| `v1.3.0` :chart_with_upwards_trend:       | 273.4 ms (137.9 ms) | 4.417 s (4.098 s)  | 89.956 s (88.009 s) | 4.152 s (3.898 s)  |
-| `v1.2.0` :chart_with_downwards_trend:     | 280.4 ms (137.4 ms) | 4.387 s (3.965 s)  | 92.195 s (87.312 s) | 4.266 s (4.050 s)  |
-| `v1.1.0` :chart_with_downwards_trend:     | 263.1 ms (122.9 ms) | 3.894 s (3.586 s)  | 56.071 s (37.309 s) | 4.299 s (4.021 s)  |
-| `v1.0.0` :balance_scale:                  | 247.9 ms (119.1 ms) | 3.752 s (3.576 s)  | 56.198 s (37.479 s) | 4.370 s (4.048 s)  |
+| Version                                     | Small               | Medium             | Large               | Wide               |
+| :------------------------------------------ | :------------------ | :----------------- | :------------------ | :----------------- |
+| `v2.1.1 (bun)` :chart_with_upwards_trend:   | 155.8 ms (58 ms)    | 3.474 s (839.7 ms) | 47.196 s (12.960 s) | 3.462 s (846.7 ms) |
+| `v2.1.1` :chart_with_upwards_trend:         | 191.3 ms (118.1 ms) | 3.713 s (3.722 s)  | 49.062 s (38.028 s) | 4.936 s (3.863 s)  |
+| `v2.1.0 (bun)` :chart_with_downwards_trend: | 156.8 ms (56.9 ms)  | 3.502 s (821.8 ms) | 47.464 s (12.921 s) | 3.254 s (824.9 ms) |
+| `v2.1.0` :chart_with_upwards_trend:         | 197 ms (117.9 ms)   | 3.777 s (3.680 s)  | 48.900 s (36.678 s) | 4.567 s (3.822 s)  |
+| `v2.0.0 (bun)` :chart_with_upwards_trend:   | 231 ms (69.33 ms)   | 3.295 s (802.3 ms) | 41.083 s (17.319 s) | 3.081 s (761.9 ms) |
+| `v2.0.0` :chart_with_upwards_trend:         | 282.6 ms (124.1 ms) | 3.853 s (3.532 s)  | 36.773 s (35.706 s) | 4.447 s (3.599 s)  |
+| `v1.9.0 (bun)` :balance_scale:              | 224.3 ms (67.45 ms) | 3.347 s (719.9 ms) | 35.774 s (10.268 s) | 3.546 s (1.405 s)  |
+| `v1.9.0` :chart_with_downwards_trend:       | 284.5 ms (129.3 ms) | 4.140 s (3.548 s)  | 42.666 s (36.751 s) | 4.063 s (3.617 s)  |
+| `v1.8.0 (bun)` :chart_with_upwards_trend:   | 216.5 ms (73.16 ms) | 3.285 s (752.5 ms) | 35.464 s (10.382 s) | 3.536 s (1.444 s)  |
+| `v1.8.0` :chart_with_upwards_trend:         | 276.2 ms (124 ms)   | 4.057 s (3.534 s)  | 42.178 s (36.731 s) | 4.051 s (3.637 s)  |
+| `v1.7.0` :balance_scale:                    | 285.2 ms (124.5 ms) | 4.117 s (3.535 s)  | 42.534 s (37.125 s) | 3.924 s (3.643 s)  |
+| `v1.6.0` :chart_with_downwards_trend:       | 285.3 ms (126.6 ms) | 4.191 s (3.556 s)  | 42.940 s (37.045 s) | 4.174 s (3.636 s)  |
+| `v1.5.1` :chart_with_downwards_trend:       | 290.6 ms (128 ms)   | 4.225 s (3.593 s)  | 42.419 s (36.959 s) | 4.062 s (3.644 s)  |
+| `v1.5.0` :chart_with_upwards_trend:         | 265.9 ms (125.8 ms) | 4.068 s (3.573 s)  | 42.245 s (36.998 s) | 4.083 s (3.606 s)  |
+| `v1.4.2` :chart_with_downwards_trend:       | 274.3 ms (130 ms)   | 4.227 s (3.574 s)  | 42.901 s (36.902 s) | 4.007 s (3.625 s)  |
+| `v1.4.1` :chart_with_upwards_trend:         | 280.6 ms (123.1 ms) | 4.067 s (3.532 s)  | 42.309 s (36.820 s) | 4.038 s (3.623 s)  |
+| `v1.4.0` :chart_with_upwards_trend:         | 264.1 ms (119.3 ms) | 4.150 s (3.535 s)  | 42.384 s (37.046 s) | 3.894 s (3.640 s)  |
+| `v1.3.1` :chart_with_upwards_trend:         | 274 ms (136.5 ms)   | 4.366 s (4.012 s)  | 89.512 s (87.311 s) | 4.152 s (3.886 s)  |
+| `v1.3.0` :chart_with_upwards_trend:         | 273.4 ms (137.9 ms) | 4.417 s (4.098 s)  | 89.956 s (88.009 s) | 4.152 s (3.898 s)  |
+| `v1.2.0` :chart_with_downwards_trend:       | 280.4 ms (137.4 ms) | 4.387 s (3.965 s)  | 92.195 s (87.312 s) | 4.266 s (4.050 s)  |
+| `v1.1.0` :chart_with_downwards_trend:       | 263.1 ms (122.9 ms) | 3.894 s (3.586 s)  | 56.071 s (37.309 s) | 4.299 s (4.021 s)  |
+| `v1.0.0` :balance_scale:                    | 247.9 ms (119.1 ms) | 3.752 s (3.576 s)  | 56.198 s (37.479 s) | 4.370 s (4.048 s)  |
 
 ## :telescope: Comparison
 It would be foolish to pretend that `monorepo-hash` is the only player in the space, so here are some comparisons with other tools that have similar goals.  

@@ -2,10 +2,10 @@ import {
   mkdir,
   readdir,
   readFile,
-  stat,
   writeFile,
 } from "node:fs/promises"
 import { join } from "node:path"
+import { exists } from "./src/node/install-binary"
 
 type Runtime = "node" | "bun" | "go" | "rust"
 
@@ -35,6 +35,28 @@ interface CliOptions {
   includeUnstable: boolean;
 }
 
+interface ExportTarget {
+  sourceTag: string;
+  outputTag: string;
+  displayTag: string;
+}
+
+interface RuntimeExportResult {
+  runtime: Runtime;
+  exportTargets: ExportTarget[];
+  exportCount: number;
+}
+
+interface ExportTargetResult {
+  target: ExportTarget;
+  results: MasterResults;
+}
+
+interface RuntimeExportPlan {
+  runtimeDelta: RuntimeDeltaResult;
+  exportTargets: ExportTarget[];
+}
+
 function isRuntime(value: string): value is Runtime {
   return (RUNTIMES as readonly string[]).includes(value)
 }
@@ -49,16 +71,12 @@ function parseCliArgs(args: string[]): CliOptions {
   let includeUnstable = false
 
   for (const arg of args) {
-    if (arg === "--") {
-      continue
-    }
-
     if (arg === "--no-output") {
       noOutput = true
     } else if (arg === "--include-unstable") {
       includeUnstable = true
     } else {
-      throw new Error(`Unknown option : ${arg}`)
+      throw new Error(`❌ Unknown option : ${arg}`)
     }
   }
 
@@ -109,16 +127,6 @@ function formatDeltaPercent(value: number): string {
   return `${sign} ${percent.toFixed(3)}%`
 }
 
-async function exists(path: string): Promise<boolean> {
-  try {
-    await stat(path)
-
-    return true
-  } catch {
-    return false
-  }
-}
-
 async function listRuntimeDirectories(baseDir: string): Promise<Runtime[]> {
   if (!await exists(baseDir)) {
     return []
@@ -158,7 +166,7 @@ async function readMeanSeconds(path: string): Promise<number> {
   const mean = parsed.results?.[0]?.mean
 
   if (typeof mean !== "number" || !Number.isFinite(mean)) {
-    throw new Error(`Invalid benchmark shape in ${path} : missing results[0].mean`)
+    throw new Error(`❌ Invalid benchmark shape in ${path} : missing results[0].mean`)
   }
 
   return mean
@@ -170,7 +178,7 @@ async function readPackageVersion(): Promise<string> {
   const parsed = JSON.parse(raw) as { version?: string }
 
   if (typeof parsed.version !== "string" || parsed.version.length === 0) {
-    throw new Error("Missing version in package.json")
+    throw new Error("❌ Missing version in package.json")
   }
 
   return parsed.version
@@ -217,18 +225,29 @@ function getBenchFilePath(baseDir: string, runtime: Runtime, tag: string, size: 
   return join(baseDir, runtime, tag, `${size}-${cache}.json`)
 }
 
-async function listComparableTags(runtime: Runtime, includeUnstable: boolean): Promise<string[]> {
-  const newRuntimePath = join(BENCH_HISTORY_NEW_DIR, runtime)
+async function listRuntimeSourceTags(runtime: Runtime, includeUnstable: boolean): Promise<string[]> {
+  const runtimePath = join(BENCH_HISTORY_NEW_DIR, runtime)
 
-  if (!await exists(newRuntimePath)) {
+  if (!await exists(runtimePath)) {
     return []
   }
 
-  const entries = await readdir(newRuntimePath, { withFileTypes: true })
+  const entries = await readdir(runtimePath, { withFileTypes: true })
   const tags = entries
     .filter((entry) => entry.isDirectory() && entry.name !== MASTER_TAG && (includeUnstable || isStableVersionTag(entry.name)))
     .map((entry) => entry.name)
     .toSorted((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+
+  if (entries.some((entry) => entry.isDirectory() && entry.name === MASTER_TAG)) {
+    tags.push(MASTER_TAG)
+  }
+
+  return tags
+}
+
+async function listComparableTags(runtime: Runtime, includeUnstable: boolean): Promise<string[]> {
+  const tags = (await listRuntimeSourceTags(runtime, includeUnstable))
+    .filter((tag) => tag !== MASTER_TAG)
 
   const tagChecks = await Promise.all(tags.map(async (tag) => ({
     tag,
@@ -280,7 +299,7 @@ async function computeMeasuredRuntimeDelta(runtime: Runtime, includeUnstable: bo
     const [ oldMean, newMean ] = await Promise.all([ readMeanSeconds(oldPath), readMeanSeconds(newPath) ])
 
     if (newMean <= 0) {
-      throw new Error(`Invalid mean <= 0 in ${newPath}`)
+      throw new Error(`❌ Invalid mean <= 0 in ${newPath}`)
     }
 
     // Delta to apply on new numbers to get old-runner-equivalent numbers.
@@ -317,10 +336,10 @@ interface MasterEntry {
 
 type MasterResults = Record<MonorepoSize, Record<CacheKind, MasterEntry>>
 
-async function readMasterSize(runtime: Runtime, delta: number, size: MonorepoSize): Promise<Record<CacheKind, MasterEntry>> {
+async function readTagSize(runtime: Runtime, sourceTag: string, delta: number, size: MonorepoSize): Promise<Record<CacheKind, MasterEntry>> {
   const [ coldRawSeconds, warmRawSeconds ] = await Promise.all([
-    readMeanSeconds(getBenchFilePath(BENCH_HISTORY_NEW_DIR, runtime, MASTER_TAG, size, "cold")),
-    readMeanSeconds(getBenchFilePath(BENCH_HISTORY_NEW_DIR, runtime, MASTER_TAG, size, "warm")),
+    readMeanSeconds(getBenchFilePath(BENCH_HISTORY_NEW_DIR, runtime, sourceTag, size, "cold")),
+    readMeanSeconds(getBenchFilePath(BENCH_HISTORY_NEW_DIR, runtime, sourceTag, size, "warm")),
   ])
 
   return {
@@ -335,18 +354,18 @@ async function readMasterSize(runtime: Runtime, delta: number, size: MonorepoSiz
   }
 }
 
-async function buildMasterResults(runtime: Runtime, delta: number): Promise<MasterResults> {
-  const masterPath = join(BENCH_HISTORY_NEW_DIR, runtime, MASTER_TAG)
+async function buildTagResults(runtime: Runtime, sourceTag: string, delta: number): Promise<MasterResults> {
+  const tagPath = join(BENCH_HISTORY_NEW_DIR, runtime, sourceTag)
 
-  if (!await exists(masterPath)) {
-    throw new Error(`Missing master folder for ${runtime} : ${masterPath}`)
+  if (!await exists(tagPath)) {
+    throw new Error(`❌ Missing source benchmark folder for ${runtime} : ${tagPath}`)
   }
 
   const [ small, medium, large, wide ] = await Promise.all([
-    readMasterSize(runtime, delta, "small"),
-    readMasterSize(runtime, delta, "medium"),
-    readMasterSize(runtime, delta, "large"),
-    readMasterSize(runtime, delta, "wide"),
+    readTagSize(runtime, sourceTag, delta, "small"),
+    readTagSize(runtime, sourceTag, delta, "medium"),
+    readTagSize(runtime, sourceTag, delta, "large"),
+    readTagSize(runtime, sourceTag, delta, "wide"),
   ])
 
   return {
@@ -357,37 +376,80 @@ async function buildMasterResults(runtime: Runtime, delta: number): Promise<Mast
   }
 }
 
-async function exportCorrectedMaster(runtime: Runtime, delta: number, version: string): Promise<number> {
-  const destinationDir = join(BENCH_HISTORY_DIR, runtime, version)
+async function listMissingExportTargets(runtime: Runtime, version: string, includeUnstable: boolean): Promise<ExportTarget[]> {
+  const oldRuntimePath = join(BENCH_HISTORY_DIR, runtime)
+  const existingOldTags = new Set<string>()
 
-  await mkdir(destinationDir, { recursive: true })
+  if (await exists(oldRuntimePath)) {
+    const entries = await readdir(oldRuntimePath, { withFileTypes: true })
 
-  const files = SIZES.flatMap((size) => CACHES.map((cache) => ({
-    sourcePath: getBenchFilePath(BENCH_HISTORY_NEW_DIR, runtime, MASTER_TAG, size, cache),
-    destinationPath: getBenchFilePath(BENCH_HISTORY_DIR, runtime, version, size, cache),
-  })))
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        existingOldTags.add(entry.name)
+      }
+    }
+  }
 
-  await Promise.all(files.map(async ({
-    sourcePath, destinationPath,
-  }) => {
-    const raw = await readFile(sourcePath, "utf8")
-    // oxlint-disable-next-line no-unsafe-type-assertion
-    const parsed = JSON.parse(raw) as BenchFile
-    const corrected = applyDeltaToBenchFile(parsed, delta)
+  const targetsByOutputTag = new Map<string, ExportTarget>()
 
-    await writeFile(destinationPath, `${JSON.stringify(corrected, null, 2)}\n`, "utf8")
-  }))
+  for (const sourceTag of await listRuntimeSourceTags(runtime, includeUnstable)) {
+    const outputTag = sourceTag === MASTER_TAG
+      ? version
+      : sourceTag
 
-  return files.length
+    if (existingOldTags.has(outputTag) || targetsByOutputTag.has(outputTag)) {
+      continue
+    }
+
+    targetsByOutputTag.set(outputTag, {
+      sourceTag,
+      outputTag,
+      displayTag: sourceTag === MASTER_TAG
+        ? `${version} (from master)`
+        : sourceTag,
+    })
+  }
+
+  return [ ...targetsByOutputTag.values() ]
 }
 
-function printRuntimeSection(runtime: Runtime, results: MasterResults): void {
+async function exportCorrectedTargets(runtime: Runtime, delta: number, exportTargets: ExportTarget[]): Promise<number> {
+  let writtenFilesCount = 0
+
+  for (const target of exportTargets) {
+    const destinationDir = join(BENCH_HISTORY_DIR, runtime, target.outputTag)
+
+    // oxlint-disable-next-line no-await-in-loop
+    await mkdir(destinationDir, { recursive: true })
+
+    const files = SIZES.flatMap((size) => CACHES.map((cache) => ({
+      sourcePath: getBenchFilePath(BENCH_HISTORY_NEW_DIR, runtime, target.sourceTag, size, cache),
+      destinationPath: getBenchFilePath(BENCH_HISTORY_DIR, runtime, target.outputTag, size, cache),
+    })))
+
+    // oxlint-disable-next-line no-await-in-loop
+    await Promise.all(files.map(async ({
+      sourcePath, destinationPath,
+    }) => {
+      const raw = await readFile(sourcePath, "utf8")
+      // oxlint-disable-next-line no-unsafe-type-assertion
+      const parsed = JSON.parse(raw) as BenchFile
+      const corrected = applyDeltaToBenchFile(parsed, delta)
+
+      await writeFile(destinationPath, `${JSON.stringify(corrected, null, 2)}\n`, "utf8")
+    }))
+
+    writtenFilesCount += files.length
+  }
+
+  return writtenFilesCount
+}
+
+function printRuntimeSection(runtime: Runtime, label: string, results: MasterResults): void {
   const emoji = emojiMap[runtime]
-  const title = runtime.charAt(0)
-    .toUpperCase() + runtime.slice(1)
 
   // new runner -> old runner equivalent
-  console.log(`\n${emoji} ${title} master means (new → adjusted)`)
+  console.log(`\n${emoji} ${label} (new → adjusted)`)
 
   for (const size of SIZES) {
     const cold = results[size].cold
@@ -413,7 +475,7 @@ async function main(): Promise<void> {
     .map((entry) => entry.runtime)
 
   if (runtimesWithMaster.length === 0) {
-    throw new Error(`No runtime master folders found in ${BENCH_HISTORY_NEW_DIR}`)
+    throw new Error(`❌ No runtime master folders found in ${BENCH_HISTORY_NEW_DIR}`)
   }
 
   const measuredDeltaList = (await Promise.all(runtimesWithMaster.map((runtime) => computeMeasuredRuntimeDelta(runtime, cliOptions.includeUnstable))))
@@ -435,12 +497,35 @@ async function main(): Promise<void> {
   })
   const runtimeDeltaByRuntime = new Map(runtimeDeltaList.map((runtimeDelta) => [ runtimeDelta.runtime, runtimeDelta ]))
 
-  const masterEntries = await Promise.all(runtimeDeltaList.map(async (runtimeDelta) => ({
+  const exportPlan: RuntimeExportPlan[] = await Promise.all(runtimeDeltaList.map(async (runtimeDelta) => ({
     runtimeDelta,
-    master: await buildMasterResults(runtimeDelta.runtime, runtimeDelta.delta),
-    exportCount: cliOptions.noOutput
+    exportTargets: await listMissingExportTargets(runtimeDelta.runtime, version, cliOptions.includeUnstable),
+  })))
+
+  const exportTargetResults = new Map<Runtime, ExportTargetResult[]>()
+
+  for (const {
+    runtimeDelta,
+    exportTargets,
+  } of exportPlan) {
+    // oxlint-disable-next-line no-await-in-loop
+    const results = await Promise.all(exportTargets.map(async (target) => ({
+      target,
+      results: await buildTagResults(runtimeDelta.runtime, target.sourceTag, runtimeDelta.delta),
+    })))
+
+    exportTargetResults.set(runtimeDelta.runtime, results)
+  }
+
+  const exportResults: RuntimeExportResult[] = await Promise.all(exportPlan.map(async ({
+    runtimeDelta,
+    exportTargets,
+  }) => ({
+    runtime: runtimeDelta.runtime,
+    exportTargets,
+    exportCount: cliOptions.noOutput || exportTargets.length === 0
       ? 0
-      : await exportCorrectedMaster(runtimeDelta.runtime, runtimeDelta.delta, version),
+      : await exportCorrectedTargets(runtimeDelta.runtime, runtimeDelta.delta, exportTargets),
   })))
 
   console.log("📊 Benchmark runner deltas (apply on bench-history-new/master means)")
@@ -464,17 +549,14 @@ async function main(): Promise<void> {
     }
   }
 
-  for (const entry of masterEntries) {
-    printRuntimeSection(entry.runtimeDelta.runtime, entry.master)
-  }
-
   if (cliOptions.noOutput) {
     console.log("\n📝 --no-output enabled, skipped writing corrected benchmark files")
   } else {
-    console.log(`\n💾 Exported corrected master benchmarks for v${version}`)
+    console.log(`\n💾 Exported corrected missing benchmark files for v${version}`)
 
     for (const runtime of RUNTIMES) {
-      const entry = masterEntries.find((masterEntry) => masterEntry.runtimeDelta.runtime === runtime)
+      const entry = exportResults.find((runtimeExportResult) => runtimeExportResult.runtime === runtime)
+      const perTargetResults = exportTargetResults.get(runtime) ?? []
 
       if (!entry) {
         continue
@@ -483,7 +565,24 @@ async function main(): Promise<void> {
       const title = runtime.charAt(0)
         .toUpperCase() + runtime.slice(1)
 
-      console.log(`${emojiMap[runtime]} ${entry.exportCount} ${title} files written in ${join(BENCH_HISTORY_DIR, runtime, version)}`)
+      const missingTags = entry.exportTargets.map((target) => target.displayTag)
+
+      if (missingTags.length === 0) {
+        console.log(`\n${emojiMap[runtime]} ${title} missing tags : none`)
+        continue
+      }
+
+      console.log(`\n${emojiMap[runtime]} ${title} missing tags : ${missingTags.join(", ")}`)
+
+      for (const targetResult of perTargetResults) {
+        printRuntimeSection(
+          runtime,
+          `${title} ${targetResult.target.displayTag}`,
+          targetResult.results,
+        )
+      }
+
+      console.log(`\n${emojiMap[runtime]} ${entry.exportCount} ${title} files written in ${join(BENCH_HISTORY_DIR, runtime)}`)
     }
   }
 }
