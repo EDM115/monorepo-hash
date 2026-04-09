@@ -336,6 +336,7 @@ dependencies = [
  "glob-match",
  "ignore",
  "jwalk",
+ "rayon",
  "serde",
  "serde-saphyr",
  "serde_json",

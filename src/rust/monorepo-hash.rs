@@ -1,23 +1,27 @@
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use jwalk::WalkDir;
+use rayon::prelude::*;
 use serde::{Deserialize, de::DeserializeOwned};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::{
-  collections::{BTreeMap, BTreeSet, HashMap, HashSet},
-  env, fs, io,
+  cell::RefCell,
+  collections::{BTreeMap, HashMap, HashSet},
+  env, fs,
+  io::{self, IsTerminal, Write},
   path::{Path, PathBuf},
   process,
-  sync::{
-    Mutex, OnceLock,
-    atomic::{AtomicBool, Ordering},
-  },
+  sync::atomic::{AtomicBool, AtomicUsize, Ordering},
 };
 
 const PACKAGE_MANAGERS: &[&str] = &["pnpm", "npm", "deno", "bun", "yarn"];
 const CLI_VERSION: &str = "2.2.0";
 static USE_PATH_CACHE: AtomicBool = AtomicBool::new(false);
-static PATH_DISPLAY_CACHE: OnceLock<Mutex<HashMap<String, String>>> = OnceLock::new();
+type DigestBytes = [u8; 32];
+
+thread_local! {
+  static PATH_DISPLAY_CACHE: RefCell<HashMap<String, String>> = RefCell::new(HashMap::new());
+}
 
 macro_rules! outln {
   ($silent:expr, $($arg:tt)*) => {
@@ -33,6 +37,21 @@ macro_rules! errln {
       eprintln!($($arg)*);
     }
   };
+}
+
+fn progressln(silent: bool, message: impl AsRef<str>) {
+  if silent {
+    return;
+  }
+
+  let message = message.as_ref();
+
+  if io::stdout().is_terminal() {
+    print!("\r\x1b[2K{message}");
+    let _ = io::stdout().flush();
+  } else {
+    println!("\r{message}");
+  }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -97,8 +116,8 @@ struct PackageInfo {
   dir: PathBuf,
   rel_dir_posix: String,
   deps: Vec<String>,
-  per_file_hashes: BTreeMap<String, String>,
-  own_hash: Vec<u8>,
+  per_file_hashes: Option<HashMap<String, DigestBytes>>,
+  own_hash: DigestBytes,
 }
 
 #[derive(Debug)]
@@ -113,6 +132,21 @@ struct CompareChanged {
 struct CompareMissing {
   name: String,
   new_hash: String,
+}
+
+#[derive(Debug)]
+struct LoadedPackage {
+  name: String,
+  dir: PathBuf,
+  rel_dir_posix: String,
+  manifest: PackageJson,
+}
+
+#[derive(Debug)]
+struct HashedWorkspace {
+  name: String,
+  per_file_hashes: Option<HashMap<String, DigestBytes>>,
+  own_hash: DigestBytes,
 }
 
 fn args_request_silent(args: &[String]) -> bool {
@@ -235,7 +269,6 @@ fn run(args: &[String]) -> Result<(), String> {
     errln!(opts.silent, "❌ No package.json files found in workspaces");
     process::exit(4);
   }
-  resolve_internal_deps(&mut packages);
 
   let selected_names = select_packages(&packages, opts.targets.as_ref());
   let packages_to_hash = packages_to_hash(&packages, &selected_names);
@@ -428,21 +461,18 @@ fn to_posix_path(value: &str) -> String {
     return value.replace('\\', "/");
   }
 
-  let cache = PATH_DISPLAY_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+  PATH_DISPLAY_CACHE.with(|cache| {
+    let mut cache = cache.borrow_mut();
 
-  {
-    let guard = cache.lock().expect("path cache poisoned");
-
-    if let Some(cached) = guard.get(value) {
+    if let Some(cached) = cache.get(value) {
       return cached.clone();
     }
-  }
 
-  let transformed = value.replace('\\', "/");
-  let mut guard = cache.lock().expect("path cache poisoned");
-  guard.insert(value.to_string(), transformed.clone());
+    let transformed = value.replace('\\', "/");
+    cache.insert(value.to_string(), transformed.clone());
 
-  transformed
+    transformed
+  })
 }
 
 fn strip_json_comments(input: &str) -> String {
@@ -692,6 +722,47 @@ fn compile_local_ignore(pkg_dir: &Path) -> io::Result<Option<Gitignore>> {
   Ok(Some(compiled))
 }
 
+fn contains_workspace_glob_meta(pattern: &str) -> bool {
+  let bytes = pattern.as_bytes();
+
+  for (idx, byte) in bytes.iter().enumerate() {
+    let ch = *byte as char;
+
+    if matches!(ch, '*' | '[' | '{' | '?') {
+      return true;
+    }
+
+    if ch == '@' && bytes.get(idx + 1).is_some_and(|next| *next as char == '(') {
+      return true;
+    }
+  }
+
+  false
+}
+
+fn workspace_pattern_search_root(pattern: &str) -> String {
+  let bytes = pattern.as_bytes();
+  let mut wildcard_idx = pattern.len();
+
+  for (idx, byte) in bytes.iter().enumerate() {
+    let ch = *byte as char;
+
+    if matches!(ch, '*' | '[' | '{' | '?')
+      || (ch == '@' && bytes.get(idx + 1).is_some_and(|next| *next as char == '('))
+    {
+      wildcard_idx = idx;
+      break;
+    }
+  }
+
+  let prefix = &pattern[..wildcard_idx];
+
+  prefix
+    .rsplit_once('/')
+    .map(|(dir, _)| dir.trim_matches('/').to_string())
+    .unwrap_or_default()
+}
+
 fn find_first_supported_extglob(pattern: &str) -> Option<(usize, char)> {
   let bytes = pattern.as_bytes();
 
@@ -926,63 +997,92 @@ fn workspace_pattern_matches(pattern: &str, rel: &str, rel_dir: &str) -> bool {
   rel_dir == pattern
 }
 
-fn load_packages(detection: &Detection) -> io::Result<HashMap<String, PackageInfo>> {
-  let mut package_jsons = BTreeSet::new();
+fn collect_workspace_package_jsons(root: &Path, globs: &[String]) -> io::Result<Vec<PathBuf>> {
+  let mut seen = HashSet::new();
 
-  let pattern_specs = prepare_workspace_patterns(&detection.globs);
+  for spec in prepare_workspace_patterns(globs) {
+    for pattern in spec.patterns {
+      if pattern.is_empty() || !contains_workspace_glob_meta(&pattern) {
+        let mut candidate = root.to_path_buf();
 
-  for entry in
-    WalkDir::new(&detection.root)
-      .sort(true)
-      .process_read_dir(|_, _, _, dir_entry_results| {
-        dir_entry_results.retain(|dir_entry_result| match dir_entry_result {
-          Ok(dir_entry) => {
-            !dir_entry.file_type.is_dir()
-              || !matches!(dir_entry.file_name.to_str(), Some("node_modules" | ".git"))
-          },
-          Err(_) => true,
-        });
-      })
-  {
-    let entry = match entry {
-      Ok(entry) => entry,
-      Err(err) => return Err(io::Error::other(err.to_string())),
-    };
+        if !pattern.is_empty() {
+          for part in pattern.split('/') {
+            candidate.push(part);
+          }
+        }
 
-    if !entry.file_type().is_file() {
-      continue;
-    }
+        candidate.push("package.json");
 
-    if entry.file_name() != "package.json" {
-      continue;
-    }
+        if candidate.is_file() {
+          if spec.negated {
+            seen.remove(&candidate);
+          } else {
+            seen.insert(candidate);
+          }
+        }
 
-    let path = entry.path();
-    let rel = to_posix_path(
-      &path
-        .strip_prefix(&detection.root)
-        .unwrap_or(&path)
-        .to_string_lossy(),
-    );
-    let rel_dir = rel.strip_suffix("/package.json").unwrap_or("");
-    let mut included = false;
-
-    for spec in &pattern_specs {
-      if spec
-        .patterns
-        .iter()
-        .any(|pattern| workspace_pattern_matches(pattern, &rel, rel_dir))
-      {
-        included = !spec.negated;
+        continue;
       }
-    }
 
-    if included {
-      package_jsons.insert(path.to_path_buf());
+      let search_root_rel = workspace_pattern_search_root(&pattern);
+      let start_dir = if search_root_rel.is_empty() {
+        root.to_path_buf()
+      } else {
+        let mut start = root.to_path_buf();
+
+        for part in search_root_rel.split('/') {
+          start.push(part);
+        }
+
+        start
+      };
+
+      if !start_dir.exists() {
+        continue;
+      }
+
+      for entry in WalkDir::new(&start_dir)
+        .sort(true)
+        .process_read_dir(|_, _, _, entries| {
+          entries.retain(|entry_result| match entry_result {
+            Ok(entry) => {
+              !entry.file_type.is_dir()
+                || !matches!(entry.file_name.to_str(), Some("node_modules" | ".git"))
+            },
+            Err(_) => true,
+          });
+        })
+      {
+        let entry = entry.map_err(|e| io::Error::other(e.to_string()))?;
+
+        if !entry.file_type().is_file() || entry.file_name() != "package.json" {
+          continue;
+        }
+
+        let path = entry.path().to_path_buf();
+        let rel = to_posix_path(&path.strip_prefix(root).unwrap_or(&path).to_string_lossy());
+        let rel_dir = rel.strip_suffix("/package.json").unwrap_or("");
+
+        if workspace_pattern_matches(&pattern, &rel, rel_dir) {
+          if spec.negated {
+            seen.remove(&path);
+          } else {
+            seen.insert(path);
+          }
+        }
+      }
     }
   }
 
-  let mut packages = HashMap::new();
+  let mut matches = seen.into_iter().collect::<Vec<_>>();
+  matches.sort();
+
+  Ok(matches)
+}
+
+fn load_packages(detection: &Detection) -> io::Result<HashMap<String, PackageInfo>> {
+  let package_jsons = collect_workspace_package_jsons(&detection.root, &detection.globs)?;
+  let mut loaded = Vec::with_capacity(package_jsons.len());
 
   for package_json_path in package_jsons {
     let raw = fs::read_to_string(&package_json_path)?;
@@ -991,6 +1091,7 @@ fn load_packages(detection: &Detection) -> io::Result<HashMap<String, PackageInf
 
     let name = parsed
       .name
+      .clone()
       .ok_or_else(|| io::Error::other("Package missing name"))?;
 
     let dir = package_json_path
@@ -1002,16 +1103,56 @@ fn load_packages(detection: &Detection) -> io::Result<HashMap<String, PackageInf
       .unwrap_or(&dir)
       .to_string_lossy()
       .to_string();
-    let rel = to_posix_path(&rel);
+    loaded.push(LoadedPackage {
+      name,
+      dir,
+      rel_dir_posix: to_posix_path(&rel),
+      manifest: parsed,
+    });
+  }
+
+  let package_names = loaded
+    .iter()
+    .map(|pkg| pkg.name.clone())
+    .collect::<HashSet<_>>();
+  let mut packages = HashMap::with_capacity(loaded.len());
+
+  for loaded_pkg in loaded {
+    let mut deps = HashSet::new();
+
+    if let Some(map) = loaded_pkg.manifest.dependencies.as_ref() {
+      for dep in map.keys() {
+        if package_names.contains(dep) {
+          deps.insert(dep.clone());
+        }
+      }
+    }
+    if let Some(map) = loaded_pkg.manifest.dev_dependencies.as_ref() {
+      for dep in map.keys() {
+        if package_names.contains(dep) {
+          deps.insert(dep.clone());
+        }
+      }
+    }
+    if let Some(map) = loaded_pkg.manifest.peer_dependencies.as_ref() {
+      for dep in map.keys() {
+        if package_names.contains(dep) {
+          deps.insert(dep.clone());
+        }
+      }
+    }
+
+    let mut deps = deps.into_iter().collect::<Vec<_>>();
+    deps.sort();
 
     packages.insert(
-      name,
+      loaded_pkg.name,
       PackageInfo {
-        dir,
-        rel_dir_posix: rel,
-        deps: Vec::new(),
-        per_file_hashes: BTreeMap::new(),
-        own_hash: Vec::new(),
+        dir: loaded_pkg.dir,
+        rel_dir_posix: loaded_pkg.rel_dir_posix,
+        deps,
+        per_file_hashes: None,
+        own_hash: [0; 32],
       },
     );
   }
@@ -1019,57 +1160,11 @@ fn load_packages(detection: &Detection) -> io::Result<HashMap<String, PackageInf
   Ok(packages)
 }
 
-fn resolve_internal_deps(packages: &mut HashMap<String, PackageInfo>) {
-  let package_names = packages.keys().cloned().collect::<HashSet<_>>();
-  let mut deps_by_pkg = HashMap::new();
-
-  for (name, pkg) in packages.iter() {
-    let pkg_json_path = pkg.dir.join("package.json");
-    let Ok(raw) = fs::read_to_string(pkg_json_path) else {
-      continue;
-    };
-    let Ok(parsed): Result<PackageJson, _> = serde_json::from_str(&raw) else {
-      continue;
-    };
-
-    let mut deps = BTreeSet::new();
-    if let Some(map) = parsed.dependencies {
-      for dep in map.keys() {
-        if package_names.contains(dep) {
-          deps.insert(dep.clone());
-        }
-      }
-    }
-    if let Some(map) = parsed.dev_dependencies {
-      for dep in map.keys() {
-        if package_names.contains(dep) {
-          deps.insert(dep.clone());
-        }
-      }
-    }
-    if let Some(map) = parsed.peer_dependencies {
-      for dep in map.keys() {
-        if package_names.contains(dep) {
-          deps.insert(dep.clone());
-        }
-      }
-    }
-
-    deps_by_pkg.insert(name.clone(), deps.into_iter().collect::<Vec<_>>());
-  }
-
-  for (name, deps) in deps_by_pkg {
-    if let Some(pkg) = packages.get_mut(&name) {
-      pkg.deps = deps;
-    }
-  }
-}
-
 fn select_packages(
   packages: &HashMap<String, PackageInfo>,
   targets: Option<&Vec<String>>,
 ) -> Vec<String> {
-  let mut selected = BTreeSet::new();
+  let mut selected = HashSet::new();
 
   if let Some(targets) = targets {
     let rel_to_name = packages
@@ -1102,7 +1197,7 @@ fn packages_to_hash(packages: &HashMap<String, PackageInfo>, selected: &[String]
   fn add_with_deps(
     name: &str,
     packages: &HashMap<String, PackageInfo>,
-    selected: &mut BTreeSet<String>,
+    selected: &mut HashSet<String>,
   ) {
     if !selected.insert(name.to_string()) {
       return;
@@ -1114,7 +1209,7 @@ fn packages_to_hash(packages: &HashMap<String, PackageInfo>, selected: &[String]
     }
   }
 
-  let mut to_hash = BTreeSet::new();
+  let mut to_hash = HashSet::new();
 
   for name in selected {
     add_with_deps(name, packages, &mut to_hash);
@@ -1175,30 +1270,35 @@ fn collect_workspace_files(
   pkg_root: &Path,
   root_ignore: Option<&Gitignore>,
   local_ignore: Option<&Gitignore>,
-  out: &mut Vec<(PathBuf, String)>,
-) -> io::Result<()> {
-  for entry in fs::read_dir(dir)? {
-    let entry = entry?;
-    let path = entry.path();
-    let file_name = entry.file_name();
-    let file_name = file_name.to_string_lossy();
-    let file_type = entry.file_type()?;
+) -> io::Result<Vec<(PathBuf, String)>> {
+  let mut out = Vec::new();
 
-    if file_type.is_dir() {
-      if file_name == "node_modules" || file_name == ".git" {
-        continue;
-      }
+  for entry in WalkDir::new(dir)
+    .sort(true)
+    .process_read_dir(|_, _, _, entries| {
+      entries.retain(|entry_result| match entry_result {
+        Ok(e) => {
+          !e.file_type.is_dir() || !matches!(e.file_name.to_str(), Some("node_modules" | ".git"))
+        },
+        Err(_) => true,
+      });
+    })
+  {
+    let entry = entry.map_err(|e| io::Error::other(e.to_string()))?;
+    let path = entry.path();
+
+    if entry.file_type().is_dir() {
       if should_ignore_path(&path, true, repo_root, pkg_root, root_ignore, local_ignore) {
         continue;
       }
-      collect_workspace_files(&path, repo_root, pkg_root, root_ignore, local_ignore, out)?;
       continue;
     }
 
-    if !file_type.is_file() {
+    if !entry.file_type().is_file() {
       continue;
     }
 
+    let file_name = entry.file_name().to_string_lossy();
     if file_name == ".hash" || file_name == ".debug-hash" {
       continue;
     }
@@ -1214,18 +1314,22 @@ fn collect_workspace_files(
       .to_string();
     let rel_pkg = to_posix_path(&rel_pkg);
 
-    out.push((path, rel_pkg));
+    out.push((path.to_path_buf(), rel_pkg));
   }
 
-  Ok(())
+  out.sort_unstable_by(|a, b| a.1.cmp(&b.1));
+  Ok(out)
 }
 
-fn sha256_hex_for_file(path: &Path, rel_posix: &str) -> io::Result<String> {
+fn sha256_bytes_for_file(path: &Path, rel_posix: &str) -> io::Result<[u8; 32]> {
   let mut hasher = Sha256::new();
   hasher.update(rel_posix.as_bytes());
   let content = fs::read(path)?;
   hasher.update(&content);
-  Ok(hex_encode(&hasher.finalize()))
+  let digest = hasher.finalize();
+  let mut out = [0u8; 32];
+  out.copy_from_slice(&digest);
+  Ok(out)
 }
 
 fn hex_encode(bytes: &[u8]) -> String {
@@ -1245,20 +1349,76 @@ fn zero_pad(num: usize, places: usize) -> String {
   format!("{num:0places$}")
 }
 
-fn hex_decode(hex: &str) -> Option<Vec<u8>> {
-  if !hex.len().is_multiple_of(2) {
-    return None;
+fn hash_workspace_entries(files: Vec<(PathBuf, String)>) -> io::Result<Vec<(String, DigestBytes)>> {
+  const FILE_HASH_PARALLEL_THRESHOLD: usize = 64;
+
+  if files.len() >= FILE_HASH_PARALLEL_THRESHOLD {
+    return files
+      .into_par_iter()
+      .map(|(path, rel)| Ok((rel.clone(), sha256_bytes_for_file(&path, &rel)?)))
+      .collect();
   }
-  let mut out = Vec::with_capacity(hex.len() / 2);
-  let chars: Vec<char> = hex.chars().collect();
-  let mut i = 0;
-  while i < chars.len() {
-    let hi = chars[i].to_digit(16)?;
-    let lo = chars[i + 1].to_digit(16)?;
-    out.push(((hi << 4) | lo) as u8);
-    i += 2;
+
+  files
+    .into_iter()
+    .map(|(path, rel)| Ok((rel.clone(), sha256_bytes_for_file(&path, &rel)?)))
+    .collect()
+}
+
+fn compute_own_hash_from_entries(entries: &[(String, DigestBytes)]) -> DigestBytes {
+  let mut hasher = Sha256::new();
+
+  for (_, digest) in entries {
+    hasher.update(digest);
   }
-  Some(out)
+
+  let digest = hasher.finalize();
+  let mut out = [0; 32];
+  out.copy_from_slice(&digest);
+
+  out
+}
+
+fn compute_workspace_hash_result(
+  pkg_dir: &Path,
+  repo_root: &Path,
+  root_ignore: Option<&Gitignore>,
+  debug: bool,
+) -> io::Result<(DigestBytes, Option<HashMap<String, DigestBytes>>)> {
+  let local_ignore = compile_local_ignore(pkg_dir)?;
+  let files = collect_workspace_files(
+    pkg_dir,
+    repo_root,
+    pkg_dir,
+    root_ignore,
+    local_ignore.as_ref(),
+  )?;
+  let entries = hash_workspace_entries(files)?;
+  let own_hash = compute_own_hash_from_entries(&entries);
+
+  let per_file_hashes = if debug {
+    let mut per_file_hashes = HashMap::with_capacity(entries.len());
+
+    for (rel, digest) in entries {
+      per_file_hashes.insert(rel, digest);
+    }
+
+    Some(per_file_hashes)
+  } else {
+    None
+  };
+
+  Ok((own_hash, per_file_hashes))
+}
+
+fn per_file_hashes_to_hex_map(per_file: &HashMap<String, DigestBytes>) -> BTreeMap<String, String> {
+  let mut sorted = BTreeMap::new();
+
+  for (key, value) in per_file {
+    sorted.insert(key.clone(), hex_encode(value));
+  }
+
+  sorted
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1282,72 +1442,68 @@ fn compute_package_hashes(
     1
   };
 
-  outln!(
+  progressln(
     silent,
-    "\r🔄 Computing hashes ({}/{})",
-    zero_pad(0, pad),
-    total
+    format!("🔄 Computing hashes ({}/{})", zero_pad(0, pad), total),
   );
 
-  for (idx, name) in selected.iter().enumerate() {
-    let (pkg_dir, pkg_rel_dir) = {
+  let completed = AtomicUsize::new(0);
+  let workspace_results: io::Result<Vec<HashedWorkspace>> = selected
+    .par_iter()
+    .map(|name| {
       let pkg = packages
         .get(name)
         .ok_or_else(|| io::Error::other("Package missing metadata"))?;
+      let (own_hash, per_file_hashes) =
+        compute_workspace_hash_result(&pkg.dir, repo_root, root_ignore, debug)?;
 
-      (pkg.dir.clone(), pkg.rel_dir_posix.clone())
+      let current = completed.fetch_add(1, Ordering::Relaxed) + 1;
+      progressln(
+        silent,
+        format!(
+          "🔄 Computing hashes ({}/{}) • {}",
+          zero_pad(current, pad),
+          total,
+          pkg.rel_dir_posix,
+        ),
+      );
+
+      Ok(HashedWorkspace {
+        name: name.clone(),
+        per_file_hashes,
+        own_hash,
+      })
+    })
+    .collect();
+
+  for workspace_result in workspace_results? {
+    let Some(pkg) = packages.get_mut(&workspace_result.name) else {
+      return Err(io::Error::other("Package missing metadata"));
     };
 
-    let local_ignore = compile_local_ignore(&pkg_dir)?;
-    let mut files = Vec::new();
-    collect_workspace_files(
-      &pkg_dir,
-      repo_root,
-      &pkg_dir,
-      root_ignore,
-      local_ignore.as_ref(),
-      &mut files,
-    )?;
-    files.sort_by(|a, b| a.1.cmp(&b.1));
+    pkg.per_file_hashes = workspace_result.per_file_hashes;
+    pkg.own_hash = workspace_result.own_hash;
+  }
 
-    let mut per_file = BTreeMap::new();
-    for (path, rel) in files {
-      let h = sha256_hex_for_file(&path, &rel)?;
-      per_file.insert(rel, h);
-    }
-
-    let mut own = Sha256::new();
-    for hash in per_file.values() {
-      if let Some(bytes) = hex_decode(hash) {
-        own.update(bytes);
-      }
-    }
-
-    if let Some(entry) = packages.get_mut(name) {
-      // Move the freshly computed map into package state first, then borrow it back below for optional debug output so the non-debug path avoids an unconditional clone.
-      entry.per_file_hashes = per_file;
-      entry.own_hash = own.finalize().to_vec();
-    }
-
-    outln!(
-      silent,
-      "\r🔄 Computing hashes ({}/{}) • {}",
-      zero_pad(idx + 1, pad),
-      total,
-      pkg_rel_dir
-    );
-
-    if debug && mode == Mode::Generate {
-      let per_file_hashes = &packages
+  if debug && mode == Mode::Generate {
+    for name in selected {
+      let pkg = packages
         .get(name)
-        .ok_or_else(|| io::Error::other("Package missing metadata"))?
-        .per_file_hashes;
+        .ok_or_else(|| io::Error::other("Package missing metadata"))?;
+      let per_file_hashes = pkg
+        .per_file_hashes
+        .as_ref()
+        .ok_or_else(|| io::Error::other("Debug per-file hashes missing"))?;
 
       if unified {
-        root_debug.insert(pkg_rel_dir, per_file_hashes.clone());
+        root_debug.insert(
+          pkg.rel_dir_posix.clone(),
+          per_file_hashes_to_hex_map(per_file_hashes),
+        );
       } else {
-        let content = serde_json::to_string_pretty(per_file_hashes).unwrap_or("{}".to_string());
-        fs::write(pkg_dir.join(".debug-hash"), content)?;
+        let content = serde_json::to_string_pretty(&per_file_hashes_to_hex_map(per_file_hashes))
+          .unwrap_or("{}".to_string());
+        fs::write(pkg.dir.join(".debug-hash"), content)?;
       }
     }
   }
@@ -1357,7 +1513,7 @@ fn compute_package_hashes(
     fs::write(repo_root.join(".debug-hash"), content)?;
   }
 
-  outln!(silent, "\r✅ Computed all hashes ({})", total);
+  progressln(silent, format!("✅ Computed all hashes ({})", total));
   outln!(silent, "");
   outln!(silent, "");
 
@@ -1371,12 +1527,12 @@ fn compute_final_hashes(
   fn compute_one(
     name: &str,
     packages: &HashMap<String, PackageInfo>,
-    cache: &mut HashMap<String, String>,
+    cache: &mut HashMap<String, DigestBytes>,
     stack: &mut Vec<String>,
     visiting: &mut HashSet<String>,
-  ) -> Result<String, CliError> {
+  ) -> Result<DigestBytes, CliError> {
     if let Some(v) = cache.get(name) {
-      return Ok(v.clone());
+      return Ok(*v);
     }
 
     if visiting.contains(name) {
@@ -1397,24 +1553,23 @@ fn compute_final_hashes(
     stack.push(name.to_string());
 
     let mut hasher = Sha256::new();
-    hasher.update(&pkg.own_hash);
+    hasher.update(pkg.own_hash);
 
     for dep in &pkg.deps {
-      let dep_hash = compute_one(dep, packages, cache, stack, visiting)?;
-      if let Some(bytes) = hex_decode(&dep_hash) {
-        hasher.update(bytes);
-      }
+      hasher.update(compute_one(dep, packages, cache, stack, visiting)?);
     }
 
     stack.pop();
     visiting.remove(name);
 
-    let final_hex = hex_encode(&hasher.finalize());
-    cache.insert(name.to_string(), final_hex.clone());
-    Ok(final_hex)
+    let digest = hasher.finalize();
+    let mut out = [0; 32];
+    out.copy_from_slice(&digest);
+    cache.insert(name.to_string(), out);
+    Ok(out)
   }
 
-  let mut cache = HashMap::new();
+  let mut cache = HashMap::with_capacity(selected.len());
   let mut visiting = HashSet::new();
   let mut stack = Vec::new();
 
@@ -1422,7 +1577,12 @@ fn compute_final_hashes(
     compute_one(name, packages, &mut cache, &mut stack, &mut visiting)?;
   }
 
-  Ok(cache)
+  Ok(
+    cache
+      .into_iter()
+      .map(|(name, digest)| (name, hex_encode(&digest)))
+      .collect(),
+  )
 }
 
 fn generate_hashes(
@@ -1435,7 +1595,7 @@ fn generate_hashes(
 ) -> io::Result<()> {
   if unified {
     let root_hash_path = repo_root.join(".hash");
-    let mut root = read_json_file::<BTreeMap<String, String>>(&root_hash_path, "root .hash file")?
+    let mut root = read_json_file::<HashMap<String, String>>(&root_hash_path, "root .hash file")?
       .unwrap_or_default();
 
     for name in selected {
@@ -1443,7 +1603,8 @@ fn generate_hashes(
         root.insert(pkg.rel_dir_posix.clone(), hash.clone());
       }
     }
-    let content = serde_json::to_string_pretty(&root).unwrap_or("{}".to_string());
+    let content =
+      serde_json::to_string_pretty(&BTreeMap::from_iter(root)).unwrap_or("{}".to_string());
     fs::write(root_hash_path, content)?;
 
     for name in selected {
@@ -1483,7 +1644,7 @@ fn compare_hashes(
   debug: bool,
   silent: bool,
 ) -> io::Result<()> {
-  let mut old_by_name = HashMap::new();
+  let mut old_by_name = HashMap::with_capacity(packages.len());
   let mut root_debug = None;
 
   if unified {
@@ -1530,7 +1691,15 @@ fn compare_hashes(
   let mut changed = Vec::<CompareChanged>::new();
   let mut missing = Vec::<CompareMissing>::new();
 
-  fn transitive_deps(name: &str, packages: &HashMap<String, PackageInfo>) -> HashSet<String> {
+  fn transitive_deps(
+    name: &str,
+    packages: &HashMap<String, PackageInfo>,
+    cache: &mut HashMap<String, Vec<String>>,
+  ) -> Vec<String> {
+    if let Some(cached) = cache.get(name) {
+      return cached.clone();
+    }
+
     let mut out = HashSet::new();
     let mut stack = packages
       .get(name)
@@ -1548,8 +1717,15 @@ fn compare_hashes(
         }
       }
     }
-    out
+
+    let mut resolved = out.into_iter().collect::<Vec<_>>();
+    resolved.sort();
+    cache.insert(name.to_string(), resolved.clone());
+
+    resolved
   }
+
+  let mut transitive_cache = HashMap::with_capacity(selected.len());
 
   for name in selected {
     let Some(pkg) = packages.get(name) else {
@@ -1581,12 +1757,12 @@ fn compare_hashes(
       }
     }
 
-    let mut changed_deps = transitive_deps(name, packages)
+    let mut changed_deps = transitive_deps(name, packages, &mut transitive_cache)
       .into_iter()
       .filter(|d| all_changed.contains(d))
       .filter_map(|d| packages.get(&d).map(|p| p.rel_dir_posix.clone()))
       .collect::<Vec<_>>();
-    changed_deps.sort();
+    changed_deps.sort_unstable();
 
     if old_hash != new_hash || !changed_deps.is_empty() {
       changed.push(CompareChanged {
@@ -1600,9 +1776,9 @@ fn compare_hashes(
     }
   }
 
-  unchanged.sort();
-  changed.sort_by(|a, b| a.name.cmp(&b.name));
-  missing.sort_by(|a, b| a.name.cmp(&b.name));
+  unchanged.sort_unstable();
+  changed.sort_unstable_by(|a, b| a.name.cmp(&b.name));
+  missing.sort_unstable_by(|a, b| a.name.cmp(&b.name));
 
   if !unchanged.is_empty() {
     outln!(silent, "✅ Unchanged ({}) :", unchanged.len());
@@ -1659,22 +1835,29 @@ fn generate_debug(
     return Vec::new();
   };
 
-  let mut seen = BTreeSet::new();
+  let Some(per_file_hashes) = pkg.per_file_hashes.as_ref() else {
+    return Vec::new();
+  };
+
+  let mut seen = HashSet::new();
 
   for key in old_debug.keys() {
     seen.insert(key.clone());
   }
-  for key in pkg.per_file_hashes.keys() {
+  for key in per_file_hashes.keys() {
     seen.insert(key.clone());
   }
 
-  let mut diverged = Vec::new();
+  let mut diverged = Vec::with_capacity(seen.len());
 
   for key in seen {
-    if old_debug.get(&key) != pkg.per_file_hashes.get(&key) {
+    let new_hex = per_file_hashes.get(&key).map(|d| hex_encode(d));
+    if old_debug.get(&key) != new_hex.as_ref() {
       diverged.push(key);
     }
   }
+
+  diverged.sort_unstable();
 
   if !diverged.is_empty() {
     outln!(
