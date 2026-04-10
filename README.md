@@ -435,8 +435,7 @@ jobs:
 </details>
 
 Here we use the actions cache to store the `.hash` files, so that we can reuse them in the next runs.  
-This is especially useful because when you generate hashes, the action will pick them up from the latest commit and not the latest run.  
-For the very first run, you might need to create a workflow which will only checkout and save the .hash files in a cache for future runs.
+This is especially useful because when you generate hashes, the action will pick them up from the latest commit and not the latest run.
 
 ## :construction: Limitations
 - If you use another Version Control System than `git`, we can't ignore your files correctly for the hashes generation (note : any VCS that uses `.gitignore` files, such as [`Jujutsu`](https://www.jj-vcs.dev/latest/working-copy/#ignored-files) will work just fine)
@@ -444,6 +443,11 @@ For the very first run, you might need to create a workflow which will only chec
   I recommend to set this up in your IDE and formatter config.
 
 ## :rocket: Benchmarks
+> [!CAUTION]  
+> Those benchmarks aim to representing *overall* how the CLI performs across versions, runtimes and monorepo sizes, but they are not to be taken as absolute truth.  
+> The performance can vary a lot based on the machine, the disk, the CPU load and many other factors.  
+> Minor variations are to be expected between runs as GitHub Actions aren't an isolated environment and the servers are shared between multiple users.
+
 These benchmarks have been realised on Standard GitHub-hosted runner (`ubuntu-24.04`) that you can get by running any Action.  
 The specs as I'm writing this are an AMD EPYC 7763 64-Core (4) @ 3.25 GHz CPU, 15.61 GiB of RAM and 144.26 GiB of SSD storage. Keep in mind that since the servers are shared between multiple users, the performance may vary slightly between runs.  
 They have been reproduced 10 times with a cold and warm disk cache thanks to [hyperfine](https://github.com/sharkdp/hyperfine).  
@@ -498,9 +502,10 @@ Starting with `v2.0.0`, the benchmark methodology has changed : we re-runned the
 
 ## :telescope: Comparison
 It would be foolish to pretend that `monorepo-hash` is the only player in the space, so here are some comparisons with other tools that have similar goals.  
-Some of you might say "Why not just use [`Turborepo`](https://turborepo.dev/) since you mention it at the beginning ?" and you could but usage differs. You can run `turbo ls --affected` to check which workspaces are affected by changes, *and* it does take in consideration transitive dependencies, but it isn't aware of "is the root included in the workspaces list ?", it doesn't give reusable hashes for other tools and doesn't have a programmatic API. However since it's written in Rust, it's very fast.  
-Overall `Turborepo` is mainly a **task runner**, and its caching mechanism is centered around tasks and not packages themselves, although it is a byproduct of the way it works. It also compares against your SCM's branch and not a specified snapshot.  
-Other task runners like [`Nx`](https://nx.dev/), [`moonrepo`](https://moonrepo.dev/), [`Lerna`](https://lerna.js.org/) or [`Rush`](https://rushjs.io/) have similar limitations, and usually require their own configuration files (who doesn't *love* having one more file on the repo root ? :smiling_face_with_three_hearts:). On top of that, they might actually be quite slower than `monorepo-hash` since they have so much more features.
+Some of you might say "Why not just use [`Turborepo`](https://turborepo.dev/) since you mention it at the beginning ?" and you could but usage differs.  
+You can run `turbo ls --affected` to check which workspaces are affected by changes, and it *does* take in consideration transitive dependencies. But it isn't aware of "is the root included in the workspaces list ?", it doesn't give reusable hashes for other tools and doesn't have a programmatic API. However since it's written in Rust, it's very fast.  
+Overall `Turborepo` is mainly a **task runner**, and its caching mechanism is centered around tasks and not packages themselves, although it is a byproduct of the way it works. It also compares against your VCS's branch and not a specified snapshot.  
+Other task runners like [`Nx`](https://nx.dev/), [`moonrepo`](https://moonrepo.dev/), [`Lerna`](https://lerna.js.org/) or [`Rush`](https://rushjs.io/) have similar limitations (centered around tasks and not workspaces, based on VCS, no exposed hashes, ...), and usually require their own configuration files (who doesn't *love* having one more file on the repo root ? :smiling_face_with_three_hearts:). On top of that, they might actually be quite slower than `monorepo-hash` since they have so much more features.  
 A second category is **package managers** themselves. For example, [`PNPM`](https://pnpm.io/) offers `--filter "[<since>]"` to only run commands on packages that have changed since the specified branch/commit, and it does take in consideration transitive dependencies. However, it is mainly here for task running (again...) and is tied again to your VCS.  
 Lastly there are **specialized tools** (like us !), such as [`bazel-diff`](https://github.com/Tinder/bazel-diff) (specific to Bazel), [`Yanice`](https://github.com/abuob/yanice), [`traf`](https://github.com/lemonade-hq/traf) and [`@rushstack/package-deps-hash`](https://api.rushstack.io/pages/package-deps-hash/) (specific to Rush), to name a few. They all have their advantages and drawbacks, but overall they either work only with specific tooling, require some manual configuration, are language-specific or don't even expose a CLI.  
 If you wish to read more about the comparison between `monorepo-hash` and other tools, check this issue : [[INFO] 📣 Alternatives comparison : a ChatGPT yap session (#26)](https://github.com/EDM115/monorepo-hash/issues/26)

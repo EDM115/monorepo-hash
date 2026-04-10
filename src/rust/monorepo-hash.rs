@@ -1,5 +1,5 @@
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
-use jwalk::WalkDir;
+use jwalk::{Parallelism, WalkDir};
 use rayon::prelude::*;
 use serde::{Deserialize, de::DeserializeOwned};
 use serde_json::Value;
@@ -1042,6 +1042,7 @@ fn collect_workspace_package_jsons(root: &Path, globs: &[String]) -> io::Result<
       }
 
       for entry in WalkDir::new(&start_dir)
+        .skip_hidden(false)
         .sort(true)
         .process_read_dir(|_, _, _, entries| {
           entries.retain(|entry_result| match entry_result {
@@ -1274,6 +1275,8 @@ fn collect_workspace_files(
   let mut out = Vec::new();
 
   for entry in WalkDir::new(dir)
+    .skip_hidden(false)
+    .parallelism(Parallelism::Serial)
     .sort(true)
     .process_read_dir(|_, _, _, entries| {
       entries.retain(|entry_result| match entry_result {
@@ -1351,8 +1354,9 @@ fn zero_pad(num: usize, places: usize) -> String {
 
 fn hash_workspace_entries(files: Vec<(PathBuf, String)>) -> io::Result<Vec<(String, DigestBytes)>> {
   const FILE_HASH_PARALLEL_THRESHOLD: usize = 64;
+  let can_parallelize_files = rayon::current_thread_index().is_none();
 
-  if files.len() >= FILE_HASH_PARALLEL_THRESHOLD {
+  if can_parallelize_files && files.len() >= FILE_HASH_PARALLEL_THRESHOLD {
     return files
       .into_par_iter()
       .map(|(path, rel)| Ok((rel.clone(), sha256_bytes_for_file(&path, &rel)?)))
@@ -1447,34 +1451,65 @@ fn compute_package_hashes(
     format!("🔄 Computing hashes ({}/{})", zero_pad(0, pad), total),
   );
 
-  let completed = AtomicUsize::new(0);
-  let workspace_results: io::Result<Vec<HashedWorkspace>> = selected
-    .par_iter()
-    .map(|name| {
-      let pkg = packages
-        .get(name)
-        .ok_or_else(|| io::Error::other("Package missing metadata"))?;
-      let (own_hash, per_file_hashes) =
-        compute_workspace_hash_result(&pkg.dir, repo_root, root_ignore, debug)?;
+  let workspace_results: io::Result<Vec<HashedWorkspace>> = if total <= 1 {
+    selected
+      .iter()
+      .enumerate()
+      .map(|(idx, name)| {
+        let pkg = packages
+          .get(name)
+          .ok_or_else(|| io::Error::other("Package missing metadata"))?;
+        let (own_hash, per_file_hashes) =
+          compute_workspace_hash_result(&pkg.dir, repo_root, root_ignore, debug)?;
 
-      let current = completed.fetch_add(1, Ordering::Relaxed) + 1;
-      progressln(
-        silent,
-        format!(
-          "🔄 Computing hashes ({}/{}) • {}",
-          zero_pad(current, pad),
-          total,
-          pkg.rel_dir_posix,
-        ),
-      );
+        progressln(
+          silent,
+          format!(
+            "🔄 Computing hashes ({}/{}) • {}",
+            zero_pad(idx + 1, pad),
+            total,
+            pkg.rel_dir_posix,
+          ),
+        );
 
-      Ok(HashedWorkspace {
-        name: name.clone(),
-        per_file_hashes,
-        own_hash,
+        Ok(HashedWorkspace {
+          name: name.clone(),
+          per_file_hashes,
+          own_hash,
+        })
       })
-    })
-    .collect();
+      .collect()
+  } else {
+    let completed = AtomicUsize::new(0);
+
+    selected
+      .par_iter()
+      .map(|name| {
+        let pkg = packages
+          .get(name)
+          .ok_or_else(|| io::Error::other("Package missing metadata"))?;
+        let (own_hash, per_file_hashes) =
+          compute_workspace_hash_result(&pkg.dir, repo_root, root_ignore, debug)?;
+
+        let current = completed.fetch_add(1, Ordering::Relaxed) + 1;
+        progressln(
+          silent,
+          format!(
+            "🔄 Computing hashes ({}/{}) • {}",
+            zero_pad(current, pad),
+            total,
+            pkg.rel_dir_posix,
+          ),
+        );
+
+        Ok(HashedWorkspace {
+          name: name.clone(),
+          per_file_hashes,
+          own_hash,
+        })
+      })
+      .collect()
+  };
 
   for workspace_result in workspace_results? {
     let Some(pkg) = packages.get_mut(&workspace_result.name) else {

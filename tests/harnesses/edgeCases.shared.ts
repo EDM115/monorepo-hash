@@ -185,6 +185,58 @@ export function defineEdgeCasesSuite(runCli: RunCli): void {
     })
   })
 
+  describe("dotfiles", () => {
+    let dotfilesDir: string
+
+    beforeAll(async () => {
+      dotfilesDir = join(cwd, "dotfiles-test")
+      await mkdirp(dotfilesDir)
+      const workspaceYaml = "packages:\n  - \"packages/*\""
+
+      await writeFile(join(dotfilesDir, "pnpm-workspace.yaml"), workspaceYaml)
+
+      const pkgDir = join(dotfilesDir, "packages", "pkg-dotfiles")
+
+      await mkdirp(join(pkgDir, ".well-known"))
+      await mkdirp(join(pkgDir, "dist"))
+      await writeJson(join(pkgDir, "package.json"), {
+        name: "pkg-dotfiles",
+        version: "1.0.0",
+      }, { spaces: 2 })
+      await writeFile(join(pkgDir, "index.js"), "export const value = 1\n")
+      await writeFile(join(pkgDir, ".env"), "MODE=test\n")
+      await writeFile(join(pkgDir, ".gitignore"), "dist/\n")
+      await writeFile(join(pkgDir, ".well-known", ".secret.json"), "{}\n")
+      await writeFile(join(pkgDir, "dist", ".dontInclude"), "export TOKEN=0xaaaa\n")
+    })
+
+    afterAll(async () => {
+      if (dotfilesDir && (await pathExists(dotfilesDir))) {
+        await remove(dotfilesDir)
+      }
+    })
+
+    it("includes dotfiles in workspace hashing", async () => {
+      await runCli(dotfilesDir, [ "--generate", "--debug" ])
+      const debugPath = join(dotfilesDir, ".debug-hash")
+
+      expect(await pathExists(debugPath))
+        .toBe(true)
+      // oxlint-disable-next-line no-unsafe-type-assertion
+      const debugContent = JSON.parse(await readFile(debugPath, "utf8")) as Record<string, Record<string, string>>
+      const pkgFiles = Object.keys(debugContent["packages/pkg-dotfiles"] ?? {})
+
+      expect(pkgFiles)
+        .toContain(".env")
+      expect(pkgFiles)
+        .toContain(".gitignore")
+      expect(pkgFiles)
+        .toContain(".well-known/.secret.json")
+      expect(pkgFiles)
+        .not.toContain("dist/.dontInclude")
+    })
+  })
+
   describe("target filtering", () => {
     let targetDir: string
 

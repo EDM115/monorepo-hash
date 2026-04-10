@@ -410,7 +410,7 @@ async function listMissingExportTargets(runtime: Runtime, version: string, inclu
     })
   }
 
-  return [ ...targetsByOutputTag.values() ]
+  return [...targetsByOutputTag.values()]
 }
 
 async function exportCorrectedTargets(runtime: Runtime, delta: number, exportTargets: ExportTarget[]): Promise<number> {
@@ -569,6 +569,7 @@ async function main(): Promise<void> {
 
       if (missingTags.length === 0) {
         console.log(`\n${emojiMap[runtime]} ${title} missing tags : none`)
+
         continue
       }
 
