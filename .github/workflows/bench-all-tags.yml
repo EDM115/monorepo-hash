@@ -8,9 +8,9 @@ on:
         required: false
         default: "last:2"
       skip_unstable:
-        description: "Skip prerelease / unstable tags when auto-selecting tags"
+        description: "Skip prerelease/unstable tags when auto-selecting tags"
         required: false
-        default: "false"
+        default: "true"
       bench_this:
         description: "Comma-separated refs to benchmark (tag, branch, commit...). Overrides tags_mode and skip_unstable"
         required: false
