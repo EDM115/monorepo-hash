@@ -9,6 +9,7 @@ import (
 	json "encoding/json/v2"
 	"errors"
 	"fmt"
+	"hash"
 	"io"
 	"io/fs"
 	"os"
@@ -32,6 +33,7 @@ const CLI_VERSION = "2.2.0"
 var usePathCache = false
 var needsPathConversion = filepath.Separator != '/'
 var displayPathCache sync.Map
+var emptyOwnHash = sha256.Sum256(nil)
 
 type options struct {
 	mode      string
@@ -73,6 +75,11 @@ type pkgInfo struct {
 	ownHash       []byte
 }
 
+type finalHashValue struct {
+	raw [sha256.Size]byte
+	hex string
+}
+
 type compareChanged struct {
 	Name       string   `json:"name"`
 	OldHash    string   `json:"oldHash"`
@@ -95,15 +102,17 @@ type ignoreMatcher struct {
 	m gitignore.Matcher
 }
 
-func (m *ignoreMatcher) shouldIgnore(rel string, isDir bool) bool {
+func (m *ignoreMatcher) isActive() bool {
+	return m != nil && m.m != nil
+}
+
+func (m *ignoreMatcher) shouldIgnoreParts(parts []string, isDir bool) bool {
 	if m == nil || m.m == nil {
 		return false
 	}
-	rel = toPosix(rel)
-	if rel == "" || rel == "." {
+	if len(parts) == 0 {
 		return false
 	}
-	parts := strings.Split(rel, "/")
 	return m.m.Match(parts, isDir)
 }
 
@@ -118,6 +127,13 @@ func newIgnoreMatcher(content string, domain []string) *ignoreMatcher {
 		patterns = append(patterns, gitignore.ParsePattern(line, domain))
 	}
 	return &ignoreMatcher{m: gitignore.NewMatcher(patterns)}
+}
+
+func sumHashToRawAndHex(h hash.Hash) ([sha256.Size]byte, string) {
+	var raw [sha256.Size]byte
+	sum := h.Sum(nil)
+	copy(raw[:], sum)
+	return raw, hex.EncodeToString(sum)
 }
 
 func toPosix(p string) string {
@@ -365,6 +381,7 @@ func detectDeno(start string) (*detected, error) {
 func detectPkgJSON(start string) (*detected, error) {
 	dir := start
 	var pkgPath string
+	var pkgContent []byte
 	for {
 		candidate := filepath.Join(dir, "package.json")
 		content, err := os.ReadFile(candidate)
@@ -373,6 +390,7 @@ func detectPkgJSON(start string) (*detected, error) {
 			if json.Unmarshal(content, &raw) == nil {
 				if _, ok := raw["workspaces"]; ok {
 					pkgPath = candidate
+					pkgContent = content
 					break
 				}
 			}
@@ -383,14 +401,10 @@ func detectPkgJSON(start string) (*detected, error) {
 		}
 		dir = parent
 	}
-	content, err := os.ReadFile(pkgPath)
-	if err != nil {
-		return nil, err
-	}
 	var raw struct {
 		Workspaces any `json:"workspaces"`
 	}
-	if err := json.Unmarshal(content, &raw); err != nil {
+	if err := json.Unmarshal(pkgContent, &raw); err != nil {
 		return nil, nil
 	}
 	globs := make([]string, 0)
@@ -634,40 +648,61 @@ func collectWorkspacePackageJSONs(root string, globs []string) ([]string, error)
 
 func getWorkspaceFileList(pkgDir, relDir string, rootIgnore, pkgIgnore *ignoreMatcher) ([]string, error) {
 	files := make([]string, 0, 64)
+	baseLen := len(pkgDir)
+	rootIgnoreActive := rootIgnore.isActive()
+	pkgIgnoreActive := pkgIgnore.isActive()
+	relPrefix := ""
+	if relDir != "" {
+		relPrefix = relDir + "/"
+	}
 	err := filepath.WalkDir(pkgDir, func(current string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		relNative, err := filepath.Rel(pkgDir, current)
-		if err != nil {
-			return err
+		rel := "."
+		if current != pkgDir {
+			if len(current) > baseLen && strings.HasPrefix(current, pkgDir) && os.IsPathSeparator(current[baseLen]) {
+				rel = current[baseLen+1:]
+			} else {
+				relNative, err := filepath.Rel(pkgDir, current)
+				if err != nil {
+					return err
+				}
+				rel = relNative
+			}
+			if needsPathConversion {
+				rel = toPosix(rel)
+			}
 		}
-		rel := toPosix(relNative)
 		if rel == "." {
 			return nil
+		}
+		var repoParts []string
+		if rootIgnoreActive || pkgIgnoreActive {
+			repoPath := rel
+			if relPrefix != "" {
+				repoPath = relPrefix + rel
+			}
+			repoParts = strings.Split(repoPath, "/")
 		}
 		if d.IsDir() {
 			if d.Name() == "node_modules" || d.Name() == ".git" {
 				return filepath.SkipDir
 			}
-			repoPath := rel
-			if relDir != "" {
-				repoPath = relDir + "/" + rel
-			}
-			if rootIgnore.shouldIgnore(repoPath, true) || pkgIgnore.shouldIgnore(repoPath, true) {
-				return filepath.SkipDir
+			if repoParts != nil {
+				if rootIgnore.shouldIgnoreParts(repoParts, true) || pkgIgnore.shouldIgnoreParts(repoParts, true) {
+					return filepath.SkipDir
+				}
 			}
 			return nil
 		}
 		if d.Name() == ".hash" || d.Name() == ".debug-hash" {
 			return nil
 		}
-		repoPath := rel
-		if relDir != "" {
-			repoPath = relDir + "/" + rel
-		}
-		if rootIgnore.shouldIgnore(repoPath, false) || pkgIgnore.shouldIgnore(repoPath, false) {
-			return nil
+		if repoParts != nil {
+			if rootIgnore.shouldIgnoreParts(repoParts, false) || pkgIgnore.shouldIgnoreParts(repoParts, false) {
+				return nil
+			}
 		}
 		files = append(files, rel)
 		return nil
@@ -679,14 +714,14 @@ func getWorkspaceFileList(pkgDir, relDir string, rootIgnore, pkgIgnore *ignoreMa
 	return files, nil
 }
 
-func computePerFileHashes(dir string, fileList []string) (map[string]string, error) {
+func computeWorkspaceHashes(dir string, fileList []string) (map[string]string, []byte, error) {
 	if len(fileList) == 0 {
-		return map[string]string{}, nil
+		return map[string]string{}, emptyOwnHash[:], nil
 	}
 	workers := min(max(runtime.NumCPU(), 2), len(fileList))
 	type result struct {
-		path string
 		hash string
+		raw  [sha256.Size]byte
 	}
 	results := make([]result, len(fileList))
 	var next atomic.Uint32
@@ -718,82 +753,62 @@ func computePerFileHashes(dir string, fileList []string) (map[string]string, err
 					return
 				}
 				h := sha256.New()
-				h.Write([]byte(rel))
-				h.Write(content)
+				_, _ = io.WriteString(h, rel)
+				_, _ = h.Write(content)
 
 				if cancelled.Load() {
 					return
 				}
 
-				results[current] = result{path: rel, hash: hex.EncodeToString(h.Sum(nil))}
+				raw, hash := sumHashToRawAndHex(h)
+				results[current] = result{hash: hash, raw: raw}
 			}
 		})
 	}
 	wg.Wait()
 
 	if firstErr != nil {
-		return nil, firstErr
+		return nil, nil, firstErr
 	}
 
 	output := make(map[string]string, len(fileList))
-	for _, r := range results {
-		if r.path == "" {
-			continue
-		}
-		output[r.path] = r.hash
+	ownHasher := sha256.New()
+	for idx, rel := range fileList {
+		output[rel] = results[idx].hash
+		_, _ = ownHasher.Write(results[idx].raw[:])
 	}
-	return output, nil
+	return output, ownHasher.Sum(nil), nil
 }
 
-func computeOwnHashFromPerFile(perFile map[string]string) ([]byte, error) {
-	keys := make([]string, 0, len(perFile))
-	for k := range perFile {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	h := sha256.New()
-	for _, k := range keys {
-		decoded, err := hex.DecodeString(perFile[k])
-		if err != nil {
-			return nil, err
-		}
-		h.Write(decoded)
-	}
-	return h.Sum(nil), nil
-}
-
-func computeFinalHash(pkgName string, pkgs map[string]pkgInfo, cache map[string]string, stack []string, visitingIndex map[string]int) (string, error) {
+func computeFinalHash(pkgName string, pkgs map[string]pkgInfo, cache map[string]finalHashValue, stack []string, visitingIndex map[string]int) (finalHashValue, error) {
 	if h, ok := cache[pkgName]; ok {
 		return h, nil
 	}
 	if idx, ok := visitingIndex[pkgName]; ok {
 		cycle := append(append([]string{}, stack[idx:]...), pkgName)
-		return "", fmt.Errorf("Circular dependency detected : %s", strings.Join(cycle, " -> "))
+		return finalHashValue{}, fmt.Errorf("Circular dependency detected : %s", strings.Join(cycle, " -> "))
 	}
 	pkg, ok := pkgs[pkgName]
 	if !ok {
-		return "", fmt.Errorf("Metadata missing for package %s", pkgName)
+		return finalHashValue{}, fmt.Errorf("Metadata missing for package %s", pkgName)
 	}
 	if len(pkg.ownHash) == 0 {
-		return "", fmt.Errorf("ownHash missing for package %s", pkgName)
+		return finalHashValue{}, fmt.Errorf("ownHash missing for package %s", pkgName)
 	}
 	visitingIndex[pkgName] = len(stack)
 	stack = append(stack, pkgName)
 	h := sha256.New()
-	h.Write(pkg.ownHash)
+	_, _ = h.Write(pkg.ownHash)
 	for _, dep := range pkg.deps {
-		depHex, err := computeFinalHash(dep, pkgs, cache, stack, visitingIndex)
+		depHash, err := computeFinalHash(dep, pkgs, cache, stack, visitingIndex)
 		if err != nil {
-			return "", err
+			return finalHashValue{}, err
 		}
-		buf, err := hex.DecodeString(depHex)
-		if err != nil {
-			return "", err
-		}
-		h.Write(buf)
+		_, _ = h.Write(depHash.raw[:])
 	}
 	delete(visitingIndex, pkgName)
-	final := hex.EncodeToString(h.Sum(nil))
+	raw, finalHex := sumHashToRawAndHex(h)
+	final := finalHashValue{raw: raw, hex: finalHex}
 	cache[pkgName] = final
 	return final, nil
 }
@@ -975,13 +990,13 @@ func writeRootDebugFile(root string, m map[string]map[string]string) error {
 	return os.WriteFile(filepath.Join(root, ".debug-hash"), content, 0o644)
 }
 
-func generateHashes(opts options, out io.Writer, repoRoot string, pkgs map[string]pkgInfo, finalCache map[string]string) error {
+func generateHashes(opts options, out io.Writer, repoRoot string, pkgs map[string]pkgInfo, finalCache map[string]finalHashValue) error {
 	names := make([]string, 0, len(pkgs))
 	for name := range pkgs {
 		names = append(names, name)
 	}
 	sort.Strings(names)
-	targetSet := map[string]struct{}{}
+	targetSet := make(map[string]struct{}, len(opts.targets))
 	if len(opts.targets) > 0 {
 		for _, t := range opts.targets {
 			targetSet[t] = struct{}{}
@@ -1000,7 +1015,7 @@ func generateHashes(opts options, out io.Writer, repoRoot string, pkgs map[strin
 			if !ok {
 				return fmt.Errorf("final hash missing for package %s", name)
 			}
-			m[rel] = hash
+			m[rel] = hash.hex
 		}
 		if err := writeRootHashFile(repoRoot, m); err != nil {
 			return err
@@ -1027,15 +1042,15 @@ func generateHashes(opts options, out io.Writer, repoRoot string, pkgs map[strin
 		if !ok {
 			return fmt.Errorf("final hash missing for package %s", name)
 		}
-		if err := os.WriteFile(filepath.Join(p.dir, ".hash"), []byte(hash), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(p.dir, ".hash"), []byte(hash.hex), 0o644); err != nil {
 			return err
 		}
-		linef(opts, out, "✅ %s (%s written to .hash)", rel, hash)
+		linef(opts, out, "✅ %s (%s written to .hash)", rel, hash.hex)
 	}
 	return nil
 }
 
-func compareHashes(opts options, out io.Writer, repoRoot string, pkgs map[string]pkgInfo, finalCache map[string]string) (compareResult, error) {
+func compareHashes(opts options, out io.Writer, repoRoot string, pkgs map[string]pkgInfo, finalCache map[string]finalHashValue) (compareResult, error) {
 	res := compareResult{}
 	oldHashMap := map[string]string{}
 	var rootDebug map[string]map[string]string
@@ -1066,22 +1081,18 @@ func compareHashes(opts options, out io.Writer, repoRoot string, pkgs map[string
 
 	allChanged := map[string]struct{}{}
 	for name, current := range finalCache {
-		if old, ok := oldHashMap[name]; ok && old != current {
+		if old, ok := oldHashMap[name]; ok && old != current.hex {
 			allChanged[name] = struct{}{}
 		}
 	}
 
-	adjacency := map[string][]string{}
-	for name, info := range pkgs {
-		adjacency[name] = append([]string{}, info.deps...)
-	}
 	transitiveCache := map[string]map[string]struct{}{}
 	getTransitive := func(pkgName string) map[string]struct{} {
 		if c, ok := transitiveCache[pkgName]; ok {
 			return c
 		}
 		visited := map[string]struct{}{}
-		stack := append([]string{}, adjacency[pkgName]...)
+		stack := append([]string{}, pkgs[pkgName].deps...)
 		for len(stack) > 0 {
 			dep := stack[len(stack)-1]
 			stack = stack[:len(stack)-1]
@@ -1089,7 +1100,11 @@ func compareHashes(opts options, out io.Writer, repoRoot string, pkgs map[string
 				continue
 			}
 			visited[dep] = struct{}{}
-			for _, next := range adjacency[dep] {
+			depInfo, ok := pkgs[dep]
+			if !ok {
+				continue
+			}
+			for _, next := range depInfo.deps {
 				if _, ok := visited[next]; !ok {
 					stack = append(stack, next)
 				}
@@ -1101,7 +1116,7 @@ func compareHashes(opts options, out io.Writer, repoRoot string, pkgs map[string
 
 	toCheck := make([]string, 0, len(pkgs))
 	if len(opts.targets) > 0 {
-		targetSet := map[string]struct{}{}
+		targetSet := make(map[string]struct{}, len(opts.targets))
 		for _, t := range opts.targets {
 			targetSet[t] = struct{}{}
 		}
@@ -1126,7 +1141,7 @@ func compareHashes(opts options, out io.Writer, repoRoot string, pkgs map[string
 		oldHash, hasOld := oldHashMap[pkgName]
 		posixRel := displayPath(info.relDir, false)
 		if !hasOld {
-			res.MissingTargets = append(res.MissingTargets, compareMissing{Name: posixRel, NewHash: newHash})
+			res.MissingTargets = append(res.MissingTargets, compareMissing{Name: posixRel, NewHash: newHash.hex})
 			continue
 		}
 		if opts.debug {
@@ -1157,8 +1172,8 @@ func compareHashes(opts options, out io.Writer, repoRoot string, pkgs map[string
 			}
 		}
 		sort.Strings(depsChanged)
-		if oldHash != newHash || len(depsChanged) > 0 {
-			res.ChangedTargets = append(res.ChangedTargets, compareChanged{Name: posixRel, OldHash: oldHash, NewHash: newHash, ChangedDep: depsChanged})
+		if oldHash != newHash.hex || len(depsChanged) > 0 {
+			res.ChangedTargets = append(res.ChangedTargets, compareChanged{Name: posixRel, OldHash: oldHash, NewHash: newHash.hex, ChangedDep: depsChanged})
 		} else {
 			res.UnchangedTargets = append(res.UnchangedTargets, posixRel)
 		}
@@ -1400,12 +1415,7 @@ func execute(args []string, stdout, stderr io.Writer) int {
 			linef(opts, stderr, "❌ %s\n", err.Error())
 			return 99
 		}
-		perFile, err := computePerFileHashes(m.dir, files)
-		if err != nil {
-			linef(opts, stderr, "❌ %s\n", err.Error())
-			return 99
-		}
-		ownHash, err := computeOwnHashFromPerFile(perFile)
+		perFile, ownHash, err := computeWorkspaceHashes(m.dir, files)
 		if err != nil {
 			linef(opts, stderr, "❌ %s\n", err.Error())
 			return 99
@@ -1430,7 +1440,7 @@ func execute(args []string, stdout, stderr io.Writer) int {
 	logf(opts, stdout, true, "✅ Computed all hashes (%d)", total)
 	linef(opts, stdout, "\n")
 
-	finalCache := make(map[string]string, len(pkgs))
+	finalCache := make(map[string]finalHashValue, len(pkgs))
 	for _, name := range toHash {
 		if _, err := computeFinalHash(name, pkgs, finalCache, []string{}, map[string]int{}); err != nil {
 			linef(opts, stderr, "❌ %s\n", err.Error())
