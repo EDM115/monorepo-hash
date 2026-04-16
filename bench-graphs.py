@@ -228,6 +228,7 @@ def plot_series(
     ax.set_title(title)
     ax.set_xlabel("Version")
     ax.set_ylabel(ylabel)
+    ax.set_ylim(bottom=0)
     ax.set_xticks(range(len(ordered_versions)))
     ax.set_xticklabels(ordered_versions, rotation=45, ha="right")
     ax.grid(True, axis="y", linestyle="--", alpha=0.35)

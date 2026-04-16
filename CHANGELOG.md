@@ -1,9 +1,46 @@
 # monorepo-hash changelog
 
 ## v2.2.0
+> [!IMPORTANT]  
+> This version will mainly serve as a transition to a better and faster implementation of the bundled binary.  
+> If you don't plan on testing them, there's no need to upgrade to this version yet. `v2.3.0` will be the one to look forward to for the general public.  
+> Please give some feedback on [[FEEDBACK] 📣 Which new binary implementation to choose ? (Go vs Rust)](https://github.com/EDM115/monorepo-hash/issues/32) to help us picking the best one :\)
+
 ### Breaking changes
-💥✨⚡️ feat/perf : the bundled binary is made with Go. beta, more details to come later. check [#25](https://github.com/EDM115/monorepo-hash/pull/25)  
-💥✨⚡️ feat/perf : the bundled binary is made with Rust. beta, more details to come later. check [#27](https://github.com/EDM115/monorepo-hash/pull/27)
+💥✨ feat : the `--nopathcache`/`-npc` flag have been removed. path normalization cache is now disabled by default to avoid spiking memory usage and negligible speed gains, plus the next implementations will be fast enough for it to not matter anymore. you can force the cache behavior using the new `--pathcache`/`-pc` flag  
+💥✨⚡️ feat/perf : expose 2 new (temporary) commands (`monorepo-hash-go` & `monorepo-hash-rust`) to test the new binaries. those commands will be removed on `v2.3.0` and are only here to gather feedback. install size will be around 6-7% larger  
+🍱 assets : the `benchmarks-results-{ver}.zip` file will no longer be a Release asset. check [`bench-history/`](https://github.com/EDM115/monorepo-hash/tree/master/bench-history) instead
+
+⚡️ perf : early exit when an error occured in the worker pool  
+⚡️ perf : don't write empty buffers  
+⚡️ perf : early exit when missing package metadata  
+⚡️ perf : early exit when the hashes haven't been computed properly  
+⚡️ perf : early exit when no `package.json` files are found in a workspace  
+✨ feat : always sort entries in the output files/stdout  
+🐛 fix : no-cache installs should be much faster instead of taking 30s minimum by closing early the stream, disabling keepalive and creating the file resource only when we have a 200 code; regardless of your package manager. this will especially be noticeable on `v2.3.0` where the `postinstall` script will be near-instant (provided GitHub doesn't mess up)  
+🐛 fix : properly exit with a readable message when parsing a corrupt JSON file  
+🐛 fix : don't swallow defined errors as unknown ones (99)  
+📝 docs : refresh the README with Go/Rust mentions, new versions, benchmarks disclaimer, add graphs, comparison with other tools, Go & Rust contribution commands, ...  
+♻️✅ refactor, tests : mutualize all common tests under unified harnesses to avoid test duplication, ensure all implementations are tested the same way  
+✅ tests : add more tests to ensure parity between implementations and catch more edge cases (35 => 125, 62 => 153 for Node !)  
+👷 ci : don't do warmups on benchmark cold cache runs to avoid wasting time  
+👷 ci : two warmup runs for the all tag bench to be consistent with per-tag bench  
+👷 ci : allow to skip pre-release tags & specify a subset of tags for the all tag bench  
+👷 ci : per-runtime build actions & simpler matrix-based declaration for Bun & Rust  
+👷 ci : raise the build time limit to 30mins, raise the per-tag bench time limit to 360mins  
+🔨🧑‍💻 scripts, dev : added a Python script to generate the benchmark graphs (requires `matplotlib`)  
+🔨🧑‍💻 scripts, dev : enhance the build script to run `chmod +x` on the binaries, add Go & Rust commands, ability to use `current` as a platform, remove sourcemaps from the Bun bin  
+🔨🧑‍💻 scripts, dev : improve the bench times normalization script to include multiple previous reference versions & compute version's average for nonexisting previous runtimes, not output files on demand, skip prerelease tags, allow to just check a version in a nice output & overall be more reliable  
+🧑‍💻 dev : add recommended VS Code extensions & settings  
+🧑‍💻 dev : added `AGENTS.md` for AI agents guidance  
+🧑‍💻 dev : simplify the scripts  
+🧑‍💻 dev : simplify the PNPM lockfile  
+🔧 config : better & faster TS config  
+💬 text : normalize naming of tools  
+🍱 assets : re-normalize the bench times for `v2.1.0` and `v2.1.1`  
+⬆️ deps : bump all deps
+
+**Full Changelog**: https://github.com/EDM115/monorepo-hash/compare/2.1.1...2.2.0
 
 ## v2.1.1
 ### Breaking changes

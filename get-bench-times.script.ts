@@ -33,6 +33,7 @@ type DeltaSource = "measured" | "fallback-average" | "fallback-neutral"
 interface CliOptions {
   noOutput: boolean;
   includeUnstable: boolean;
+  versionTag?: string;
 }
 
 interface ExportTarget {
@@ -45,6 +46,7 @@ interface RuntimeExportResult {
   runtime: Runtime;
   exportTargets: ExportTarget[];
   exportCount: number;
+  wouldWriteCount: number;
 }
 
 interface ExportTargetResult {
@@ -69,12 +71,33 @@ function isStableVersionTag(value: string): boolean {
 function parseCliArgs(args: string[]): CliOptions {
   let noOutput = false
   let includeUnstable = false
+  let versionTag: string | undefined
 
-  for (const arg of args) {
+  for (let index = 0; index < args.length; index++) {
+    const arg = args[index]
+
+    if (arg === undefined) {
+      continue
+    }
+
     if (arg === "--no-output") {
       noOutput = true
     } else if (arg === "--include-unstable") {
       includeUnstable = true
+    } else if (arg === "--ver") {
+      versionTag = args[index + 1]
+
+      if (!versionTag) {
+        throw new Error("❌ Missing value for --ver")
+      }
+
+      index++
+    } else if (arg.startsWith("--ver=")) {
+      versionTag = arg.slice("--ver=".length)
+
+      if (versionTag.length === 0) {
+        throw new Error("❌ Missing value for --ver")
+      }
     } else {
       throw new Error(`❌ Unknown option : ${arg}`)
     }
@@ -83,6 +106,7 @@ function parseCliArgs(args: string[]): CliOptions {
   return {
     noOutput,
     includeUnstable,
+    versionTag,
   }
 }
 
@@ -335,6 +359,7 @@ interface MasterEntry {
 }
 
 type MasterResults = Record<MonorepoSize, Record<CacheKind, MasterEntry>>
+type StoredTagResults = Record<MonorepoSize, Record<CacheKind, number>>
 
 async function readTagSize(runtime: Runtime, sourceTag: string, delta: number, size: MonorepoSize): Promise<Record<CacheKind, MasterEntry>> {
   const [ coldRawSeconds, warmRawSeconds ] = await Promise.all([
@@ -366,6 +391,40 @@ async function buildTagResults(runtime: Runtime, sourceTag: string, delta: numbe
     readTagSize(runtime, sourceTag, delta, "medium"),
     readTagSize(runtime, sourceTag, delta, "large"),
     readTagSize(runtime, sourceTag, delta, "wide"),
+  ])
+
+  return {
+    small,
+    medium,
+    large,
+    wide,
+  }
+}
+
+async function readStoredTagSize(runtime: Runtime, tag: string, size: MonorepoSize): Promise<Record<CacheKind, number>> {
+  const [ coldSeconds, warmSeconds ] = await Promise.all([
+    readMeanSeconds(getBenchFilePath(BENCH_HISTORY_DIR, runtime, tag, size, "cold")),
+    readMeanSeconds(getBenchFilePath(BENCH_HISTORY_DIR, runtime, tag, size, "warm")),
+  ])
+
+  return {
+    cold: coldSeconds,
+    warm: warmSeconds,
+  }
+}
+
+async function buildStoredTagResults(runtime: Runtime, tag: string): Promise<StoredTagResults> {
+  const tagPath = join(BENCH_HISTORY_DIR, runtime, tag)
+
+  if (!await exists(tagPath)) {
+    throw new Error(`❌ Missing benchmark folder for ${runtime} : ${tagPath}`)
+  }
+
+  const [ small, medium, large, wide ] = await Promise.all([
+    readStoredTagSize(runtime, tag, "small"),
+    readStoredTagSize(runtime, tag, "medium"),
+    readStoredTagSize(runtime, tag, "large"),
+    readStoredTagSize(runtime, tag, "wide"),
   ])
 
   return {
@@ -445,6 +504,10 @@ async function exportCorrectedTargets(runtime: Runtime, delta: number, exportTar
   return writtenFilesCount
 }
 
+function countExportTargetFiles(exportTargets: ExportTarget[]): number {
+  return exportTargets.length * SIZES.length * CACHES.length
+}
+
 function printRuntimeSection(runtime: Runtime, label: string, results: MasterResults): void {
   const emoji = emojiMap[runtime]
 
@@ -463,8 +526,64 @@ function printRuntimeSection(runtime: Runtime, label: string, results: MasterRes
   }
 }
 
+function printStoredRuntimeSection(runtime: Runtime, label: string, results: StoredTagResults): void {
+  const emoji = emojiMap[runtime]
+
+  console.log(`\n${emoji} ${label}`)
+
+  for (const size of SIZES) {
+    console.log(`• ${size.padEnd(6)} | ❄️  ${formatDuration(results[size].cold)
+      .padEnd(8)} | 🔥 ${formatDuration(results[size].warm)
+      .padEnd(8)}`)
+  }
+}
+
+async function printStoredVersionDetails(tag: string): Promise<void> {
+  const runtimeChecks = await Promise.all(RUNTIMES.map(async (runtime) => ({
+    runtime,
+    hasTag: await exists(join(BENCH_HISTORY_DIR, runtime, tag)),
+  })))
+  const availableRuntimes = runtimeChecks
+    .filter((runtimeCheck) => runtimeCheck.hasTag)
+    .map((runtimeCheck) => runtimeCheck.runtime)
+
+  if (availableRuntimes.length === 0) {
+    throw new Error(`❌ No benchmark data found for ${tag} in ${BENCH_HISTORY_DIR}`)
+  }
+
+  console.log(`📦 Benchmark details for ${tag} from ${BENCH_HISTORY_DIR}`)
+
+  const resultsByRuntime = await Promise.all(availableRuntimes.map(async (runtime) => ({
+    runtime,
+    results: await buildStoredTagResults(runtime, tag),
+  })))
+
+  for (const {
+    runtime,
+    results,
+  } of resultsByRuntime) {
+    const title = runtime.charAt(0)
+      .toUpperCase() + runtime.slice(1)
+
+    printStoredRuntimeSection(runtime, `${title} ${tag}`, results)
+  }
+
+  const missingRuntimes = RUNTIMES.filter((runtime) => !availableRuntimes.includes(runtime))
+
+  if (missingRuntimes.length > 0) {
+    console.log(`\n⚠️ Missing ${tag} benchmark data in ${BENCH_HISTORY_DIR} for : ${missingRuntimes.join(", ")}`)
+  }
+}
+
 async function main(): Promise<void> {
   const cliOptions = parseCliArgs(process.argv.slice(2))
+
+  if (cliOptions.versionTag) {
+    await printStoredVersionDetails(cliOptions.versionTag)
+
+    return
+  }
+
   const version = await readPackageVersion()
   const runtimesInNewHistory = await listRuntimeDirectories(BENCH_HISTORY_NEW_DIR)
   const runtimesWithMaster = (await Promise.all(runtimesInNewHistory.map(async (runtime) => ({
@@ -523,6 +642,7 @@ async function main(): Promise<void> {
   }) => ({
     runtime: runtimeDelta.runtime,
     exportTargets,
+    wouldWriteCount: countExportTargetFiles(exportTargets),
     exportCount: cliOptions.noOutput || exportTargets.length === 0
       ? 0
       : await exportCorrectedTargets(runtimeDelta.runtime, runtimeDelta.delta, exportTargets),
@@ -550,41 +670,45 @@ async function main(): Promise<void> {
   }
 
   if (cliOptions.noOutput) {
-    console.log("\n📝 --no-output enabled, skipped writing corrected benchmark files")
+    console.log(`\n📝 --no-output enabled, skipped writing corrected benchmark files for v${version}`)
   } else {
     console.log(`\n💾 Exported corrected missing benchmark files for v${version}`)
+  }
 
-    for (const runtime of RUNTIMES) {
-      const entry = exportResults.find((runtimeExportResult) => runtimeExportResult.runtime === runtime)
-      const perTargetResults = exportTargetResults.get(runtime) ?? []
+  for (const runtime of RUNTIMES) {
+    const entry = exportResults.find((runtimeExportResult) => runtimeExportResult.runtime === runtime)
+    const perTargetResults = exportTargetResults.get(runtime) ?? []
 
-      if (!entry) {
-        continue
-      }
-
-      const title = runtime.charAt(0)
-        .toUpperCase() + runtime.slice(1)
-
-      const missingTags = entry.exportTargets.map((target) => target.displayTag)
-
-      if (missingTags.length === 0) {
-        console.log(`\n${emojiMap[runtime]} ${title} missing tags : none`)
-
-        continue
-      }
-
-      console.log(`\n${emojiMap[runtime]} ${title} missing tags : ${missingTags.join(", ")}`)
-
-      for (const targetResult of perTargetResults) {
-        printRuntimeSection(
-          runtime,
-          `${title} ${targetResult.target.displayTag}`,
-          targetResult.results,
-        )
-      }
-
-      console.log(`\n${emojiMap[runtime]} ${entry.exportCount} ${title} files written in ${join(BENCH_HISTORY_DIR, runtime)}`)
+    if (!entry) {
+      continue
     }
+
+    const title = runtime.charAt(0)
+      .toUpperCase() + runtime.slice(1)
+
+    const missingTags = entry.exportTargets.map((target) => target.displayTag)
+
+    if (missingTags.length === 0) {
+      console.log(`\n${emojiMap[runtime]} ${title} missing tags : none`)
+
+      continue
+    }
+
+    console.log(`\n${emojiMap[runtime]} ${title} missing tags : ${missingTags.join(", ")}`)
+
+    for (const targetResult of perTargetResults) {
+      printRuntimeSection(
+        runtime,
+        `${title} ${targetResult.target.displayTag}`,
+        targetResult.results,
+      )
+    }
+
+    const exportSummary = cliOptions.noOutput
+      ? `${entry.wouldWriteCount} ${title} files ready in ${join(BENCH_HISTORY_DIR, runtime)} (skipped writing due to --no-output)`
+      : `${entry.exportCount} ${title} files written in ${join(BENCH_HISTORY_DIR, runtime)}`
+
+    console.log(`\n${emojiMap[runtime]} ${exportSummary}`)
   }
 }
 

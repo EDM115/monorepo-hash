@@ -1534,7 +1534,7 @@ export async function runCli(customArgv?: string[]): Promise<Awaited<ReturnType<
         log(`❌ Invalid package manager ("${val}"), supported values are : ${PACKAGE_MANAGERS.join(", ")}`, false, "error")
         safeExit(2)
 
-        throw new Error(`Invalid package manager: ${val}`)
+        throw new Error(`Invalid package manager : ${val}`)
       }
 
       pmOption = val

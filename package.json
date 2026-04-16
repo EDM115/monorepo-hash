@@ -13,21 +13,21 @@
   "description": "A CLI tool to generate hashes for the workspaces of your monorepo",
   "devDependencies": {
     "@stylistic/eslint-plugin": "~5.10.0",
-    "@types/bun": "~1.3.11",
+    "@types/bun": "~1.3.12",
     "@types/node": "latest",
-    "@typescript-eslint/parser": "~8.58.1",
+    "@typescript-eslint/parser": "~8.58.2",
     "@typescript/native-preview": "latest",
     "edm115-lint": "~0.2.1",
     "empathic": "~2.0.0",
     "eslint": "~10.2.0",
-    "globals": "~17.4.0",
+    "globals": "~17.5.0",
     "ignore": "~7.0.5",
     "jiti": "~2.6.1",
-    "oxlint": "~1.59.0",
-    "oxlint-tsgolint": "~0.20.0",
+    "oxlint": "~1.60.0",
+    "oxlint-tsgolint": "~0.21.1",
     "tinyexec": "~1.1.1",
     "tinyglobby": "~0.2.16",
-    "tsdown": "~0.21.7",
+    "tsdown": "~0.21.9",
     "unplugin-unused": "~0.5.7",
     "vitest": "~4.1.4",
     "yaml": "~2.8.3"
@@ -123,5 +123,5 @@
     "typecheck:rust": "cd src/rust && cargo check --all-targets --all-features"
   },
   "type": "module",
-  "version": "2.2.0-beta.rust.2"
+  "version": "2.2.0"
 }

@@ -17,11 +17,11 @@ require (
 	github.com/BurntSushi/toml v1.6.0 // indirect
 	github.com/akavel/rsrc v0.10.2 // indirect
 	github.com/go-git/gcfg/v2 v2.0.2 // indirect
-	github.com/go-git/go-billy/v6 v6.0.0-20260407203733-14bb35b7934c // indirect
+	github.com/go-git/go-billy/v6 v6.0.0-20260410103409-85b6241850b5 // indirect
 	github.com/josephspurrier/goversioninfo v1.5.0 // indirect
-	golang.org/x/exp/typeparams v0.0.0-20260312153236-7ab1446f8b90 // indirect
-	golang.org/x/mod v0.34.0 // indirect
+	golang.org/x/exp/typeparams v0.0.0-20260410095643-746e56fc9e2f // indirect
+	golang.org/x/mod v0.35.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/tools v0.43.0 // indirect
+	golang.org/x/tools v0.44.0 // indirect
 	honnef.co/go/tools v0.7.0 // indirect
 )

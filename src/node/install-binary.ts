@@ -265,21 +265,19 @@ export async function main(): Promise<void> {
   const url = `${releaseBaseUrl}/${assetName}`
   const destPath = join(__dirname, "monorepo-hash.exe")
 
-  /* const optionalBinaryTargets = await Promise.all(
-    ([
-      [ "go", join(__dirname, "monorepo-hash-go.exe") ],
-      [ "rust", join(__dirname, "monorepo-hash-rust.exe") ],
-    ] as const).map(async ([ variant, variantDestPath ]) => {
-      if (!await exists(variantDestPath)) {
-        return null
-      }
+  const optionalBinaryTargets = await Promise.all(([
+    [ "go", join(__dirname, "monorepo-hash-go.exe") ],
+    [ "rust", join(__dirname, "monorepo-hash-rust.exe") ],
+  ] as const).map(async ([ variant, variantDestPath ]) => {
+    if (!await exists(variantDestPath)) {
+      return null
+    }
 
-      return {
-        assetName: getVariantAssetName(assetName, variant),
-        destPath: variantDestPath,
-      }
-    }),
-  ) */
+    return {
+      assetName: getVariantAssetName(assetName, variant),
+      destPath: variantDestPath,
+    }
+  }))
 
   await mkdir(__dirname, { recursive: true })
 
@@ -298,7 +296,7 @@ export async function main(): Promise<void> {
     return
   }
 
-  /* await Promise.all(optionalBinaryTargets.map(async (optionalBinaryTarget) => {
+  await Promise.all(optionalBinaryTargets.map(async (optionalBinaryTarget) => {
     if (!optionalBinaryTarget) {
       return
     }
@@ -314,7 +312,7 @@ export async function main(): Promise<void> {
 
       console.warn(`monorepo-hash : failed to download ${optionalBinaryTarget.assetName} (${msg}), skipping optional binary`)
     }
-  })) */
+  }))
 }
 
 // Only run when invoked directly (postinstall), not when imported

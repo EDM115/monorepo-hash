@@ -451,7 +451,7 @@ This is especially useful because when you generate hashes, the action will pick
 These benchmarks have been realised on Standard GitHub-hosted runner (`ubuntu-24.04`) that you can get by running any Action.  
 The specs as I'm writing this are an AMD EPYC 7763 64-Core (4) @ 3.25 GHz CPU, 15.61 GiB of RAM and 144.26 GiB of SSD storage. Keep in mind that since the servers are shared between multiple users, the performance may vary slightly between runs.  
 They have been reproduced 10 times with a cold and warm disk cache thanks to [hyperfine](https://github.com/sharkdp/hyperfine).  
-Cold cache results are more representative of a first run in CI or on a fresh boot. The script run speed doesn't really change, the only performance overhead on a cold cache is the time it takes to run Node/Bun/Go (and reading files from the disk). You can expect warm cache runs to be at least 1/3 faster than cold cache ones.  
+Cold cache results are more representative of a first run in CI or on a fresh boot. The script run speed doesn't really change, the only performance overhead on a cold cache is the time it takes to run Node/Bun/Go/Rust (and reading files from the disk). You can expect warm cache runs to be at least 1/3 faster than cold cache ones.  
 The versions denoted with `(bun)` are using the Bun binary build of `monorepo-hash`, which removes the Node overhead, uses Bun internal replacements and is generally faster. This build is the default one since `v2.0.0`.  
 The versions denoted with `(go)` are using the Go binary build of `monorepo-hash`, which is even faster than the Bun version and 95% smaller. This build might be the default one since `v2.3.0`.  
 The versions denoted with `(rust)` are using the Rust binary build of `monorepo-hash`, which is on-par with the Go version in terms of performance and is twice as small. This build might be the default one since `v2.3.0`.  
@@ -477,6 +477,10 @@ Starting with `v2.0.0`, the benchmark methodology has changed : we re-runned the
 
 | Version                                     | Small               | Medium             | Large               | Wide               |
 | :------------------------------------------ | :------------------ | :----------------- | :------------------ | :----------------- |
+| `v2.2.0 (rust)` :chart_with_upwards_trend:  | 63.9 ms (4.3 ms)    | 4.083 s (243.4 ms) | 60.727 s (3.784 s)  | 2.942 s (190.9 ms) |
+| `v2.2.0 (go)` :chart_with_upwards_trend:    | 55.2 ms (5.1 ms)    | 3.007 s (279.9 ms) | 33.513 s (4.246 s)  | 3.053 s (283.9 ms) |
+| `v2.2.0 (bun)` :chart_with_upwards_trend:   | 161 ms (56.1 ms)    | 3.472 s (857.1 ms) | 42.653 s (13.104 s) | 3.328 s (852.4 ms) |
+| `v2.2.0` :chart_with_upwards_trend:         | 189.2 ms (118.2 ms) | 3.749 s (3.859 s)  | 45.269 s (38.096 s) | 4.615 s (3.956 s)  |
 | `v2.1.1 (bun)` :chart_with_upwards_trend:   | 155.8 ms (58 ms)    | 3.474 s (839.7 ms) | 47.196 s (12.960 s) | 3.462 s (846.7 ms) |
 | `v2.1.1` :chart_with_upwards_trend:         | 191.3 ms (118.1 ms) | 3.713 s (3.722 s)  | 49.062 s (38.028 s) | 4.936 s (3.863 s)  |
 | `v2.1.0 (bun)` :chart_with_downwards_trend: | 156.8 ms (56.9 ms)  | 3.502 s (821.8 ms) | 47.464 s (12.921 s) | 3.254 s (824.9 ms) |

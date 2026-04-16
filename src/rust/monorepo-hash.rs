@@ -1590,7 +1590,12 @@ fn compute_final_hashes<'a>(
     if visiting.contains(name) {
       let mut cycle = String::from("Circular dependency detected : ");
 
-      for (index, dep) in stack.iter().copied().chain(std::iter::once(name)).enumerate() {
+      for (index, dep) in stack
+        .iter()
+        .copied()
+        .chain(std::iter::once(name))
+        .enumerate()
+      {
         if index > 0 {
           cycle.push_str(" -> ");
         }
@@ -1633,7 +1638,13 @@ fn compute_final_hashes<'a>(
   let mut stack = Vec::new();
 
   for name in selected {
-    compute_one(name.as_str(), packages, &mut cache, &mut stack, &mut visiting)?;
+    compute_one(
+      name.as_str(),
+      packages,
+      &mut cache,
+      &mut stack,
+      &mut visiting,
+    )?;
   }
 
   Ok(
