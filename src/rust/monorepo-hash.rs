@@ -475,6 +475,10 @@ fn to_posix_path(value: &str) -> String {
   })
 }
 
+fn path_relative_to_posix(path: &Path, base: &Path) -> String {
+  to_posix_path(&path.strip_prefix(base).unwrap_or(path).to_string_lossy())
+}
+
 fn strip_json_comments(input: &str) -> String {
   let mut out = String::with_capacity(input.len());
   let bytes = input.as_bytes();
@@ -1234,29 +1238,17 @@ fn should_ignore_path(
   root_ignore: Option<&Gitignore>,
   local_ignore: Option<&Gitignore>,
 ) -> bool {
-  let rel_repo = path
-    .strip_prefix(repo_root)
-    .unwrap_or(path)
-    .to_string_lossy()
-    .to_string();
-  let rel_repo = to_posix_path(&rel_repo);
   if let Some(ignore) = root_ignore
     && ignore
-      .matched_path_or_any_parents(Path::new(&rel_repo), is_dir)
+      .matched_path_or_any_parents(Path::new(&path_relative_to_posix(path, repo_root)), is_dir)
       .is_ignore()
   {
     return true;
   }
 
-  let rel_pkg = path
-    .strip_prefix(pkg_root)
-    .unwrap_or(path)
-    .to_string_lossy()
-    .to_string();
-  let rel_pkg = to_posix_path(&rel_pkg);
   if let Some(ignore) = local_ignore
     && ignore
-      .matched_path_or_any_parents(Path::new(&rel_pkg), is_dir)
+      .matched_path_or_any_parents(Path::new(&path_relative_to_posix(path, pkg_root)), is_dir)
       .is_ignore()
   {
     return true;
@@ -1273,15 +1265,45 @@ fn collect_workspace_files(
   local_ignore: Option<&Gitignore>,
 ) -> io::Result<Vec<(PathBuf, String)>> {
   let mut out = Vec::new();
+  let repo_root_buf = repo_root.to_path_buf();
+  let pkg_root_buf = pkg_root.to_path_buf();
+  let root_ignore = root_ignore.cloned();
+  let local_ignore = local_ignore.cloned();
 
   for entry in WalkDir::new(dir)
     .skip_hidden(false)
     .parallelism(Parallelism::Serial)
     .sort(true)
-    .process_read_dir(|_, _, _, entries| {
+    .process_read_dir(move |_, _, _, entries| {
       entries.retain(|entry_result| match entry_result {
         Ok(e) => {
-          !e.file_type.is_dir() || !matches!(e.file_name.to_str(), Some("node_modules" | ".git"))
+          let path = e.parent_path.join(&e.file_name);
+
+          if e.file_type.is_dir() {
+            return !matches!(e.file_name.to_str(), Some("node_modules" | ".git"))
+              && !should_ignore_path(
+                &path,
+                true,
+                &repo_root_buf,
+                &pkg_root_buf,
+                root_ignore.as_ref(),
+                local_ignore.as_ref(),
+              );
+          }
+
+          if e.file_type.is_file() {
+            return !matches!(e.file_name.to_str(), Some(".hash" | ".debug-hash"))
+              && !should_ignore_path(
+                &path,
+                false,
+                &repo_root_buf,
+                &pkg_root_buf,
+                root_ignore.as_ref(),
+                local_ignore.as_ref(),
+              );
+          }
+
+          true
         },
         Err(_) => true,
       });
@@ -1290,34 +1312,11 @@ fn collect_workspace_files(
     let entry = entry.map_err(|e| io::Error::other(e.to_string()))?;
     let path = entry.path();
 
-    if entry.file_type().is_dir() {
-      if should_ignore_path(&path, true, repo_root, pkg_root, root_ignore, local_ignore) {
-        continue;
-      }
-      continue;
-    }
-
     if !entry.file_type().is_file() {
       continue;
     }
 
-    let file_name = entry.file_name().to_string_lossy();
-    if file_name == ".hash" || file_name == ".debug-hash" {
-      continue;
-    }
-
-    if should_ignore_path(&path, false, repo_root, pkg_root, root_ignore, local_ignore) {
-      continue;
-    }
-
-    let rel_pkg = path
-      .strip_prefix(pkg_root)
-      .unwrap_or(&path)
-      .to_string_lossy()
-      .to_string();
-    let rel_pkg = to_posix_path(&rel_pkg);
-
-    out.push((path.to_path_buf(), rel_pkg));
+    out.push((path.to_path_buf(), path_relative_to_posix(&path, pkg_root)));
   }
 
   out.sort_unstable_by(|a, b| a.1.cmp(&b.1));
@@ -1359,13 +1358,21 @@ fn hash_workspace_entries(files: Vec<(PathBuf, String)>) -> io::Result<Vec<(Stri
   if can_parallelize_files && files.len() >= FILE_HASH_PARALLEL_THRESHOLD {
     return files
       .into_par_iter()
-      .map(|(path, rel)| Ok((rel.clone(), sha256_bytes_for_file(&path, &rel)?)))
+      .map(|(path, rel)| {
+        let digest = sha256_bytes_for_file(&path, &rel)?;
+
+        Ok((rel, digest))
+      })
       .collect();
   }
 
   files
     .into_iter()
-    .map(|(path, rel)| Ok((rel.clone(), sha256_bytes_for_file(&path, &rel)?)))
+    .map(|(path, rel)| {
+      let digest = sha256_bytes_for_file(&path, &rel)?;
+
+      Ok((rel, digest))
+    })
     .collect()
 }
 
@@ -1555,27 +1562,34 @@ fn compute_package_hashes(
   Ok(())
 }
 
-fn compute_final_hashes(
-  packages: &HashMap<String, PackageInfo>,
-  selected: &[String],
+fn compute_final_hashes<'a>(
+  packages: &'a HashMap<String, PackageInfo>,
+  selected: &'a [String],
 ) -> Result<HashMap<String, String>, CliError> {
-  fn compute_one(
-    name: &str,
-    packages: &HashMap<String, PackageInfo>,
-    cache: &mut HashMap<String, DigestBytes>,
-    stack: &mut Vec<String>,
-    visiting: &mut HashSet<String>,
+  fn compute_one<'a>(
+    name: &'a str,
+    packages: &'a HashMap<String, PackageInfo>,
+    cache: &mut HashMap<&'a str, DigestBytes>,
+    stack: &mut Vec<&'a str>,
+    visiting: &mut HashSet<&'a str>,
   ) -> Result<DigestBytes, CliError> {
     if let Some(v) = cache.get(name) {
       return Ok(*v);
     }
 
     if visiting.contains(name) {
-      let mut cycle = stack.clone();
-      cycle.push(name.to_string());
+      let mut cycle = String::from("Circular dependency detected : ");
+
+      for (index, dep) in stack.iter().copied().chain(std::iter::once(name)).enumerate() {
+        if index > 0 {
+          cycle.push_str(" -> ");
+        }
+        cycle.push_str(dep);
+      }
+
       return Err(CliError {
         code: 6,
-        message: format!("Circular dependency detected : {}", cycle.join(" -> ")),
+        message: cycle,
       });
     }
 
@@ -1584,14 +1598,14 @@ fn compute_final_hashes(
       message: format!("Package metadata missing for {}", name),
     })?;
 
-    visiting.insert(name.to_string());
-    stack.push(name.to_string());
+    visiting.insert(name);
+    stack.push(name);
 
     let mut hasher = Sha256::new();
     hasher.update(pkg.own_hash);
 
     for dep in &pkg.deps {
-      hasher.update(compute_one(dep, packages, cache, stack, visiting)?);
+      hasher.update(compute_one(dep.as_str(), packages, cache, stack, visiting)?);
     }
 
     stack.pop();
@@ -1600,7 +1614,7 @@ fn compute_final_hashes(
     let digest = hasher.finalize();
     let mut out = [0; 32];
     out.copy_from_slice(&digest);
-    cache.insert(name.to_string(), out);
+    cache.insert(name, out);
     Ok(out)
   }
 
@@ -1609,13 +1623,13 @@ fn compute_final_hashes(
   let mut stack = Vec::new();
 
   for name in selected {
-    compute_one(name, packages, &mut cache, &mut stack, &mut visiting)?;
+    compute_one(name.as_str(), packages, &mut cache, &mut stack, &mut visiting)?;
   }
 
   Ok(
     cache
       .into_iter()
-      .map(|(name, digest)| (name, hex_encode(&digest)))
+      .map(|(name, digest)| (name.to_string(), hex_encode(&digest)))
       .collect(),
   )
 }
