@@ -33,6 +33,7 @@ const CLI_VERSION = "2.2.0"
 var usePathCache = false
 var needsPathConversion = filepath.Separator != '/'
 var displayPathCache sync.Map
+var emptyOwnHash = sha256.Sum256(nil)
 
 type options struct {
 	mode      string
@@ -660,7 +661,7 @@ func getWorkspaceFileList(pkgDir, relDir string, rootIgnore, pkgIgnore *ignoreMa
 		}
 		rel := "."
 		if current != pkgDir {
-			if baseLen < len(current) && strings.HasPrefix(current, pkgDir) {
+			if baseLen+1 <= len(current) && strings.HasPrefix(current, pkgDir) && os.IsPathSeparator(current[baseLen]) {
 				rel = current[baseLen+1:]
 			} else {
 				relNative, err := filepath.Rel(pkgDir, current)
@@ -715,7 +716,6 @@ func getWorkspaceFileList(pkgDir, relDir string, rootIgnore, pkgIgnore *ignoreMa
 
 func computeWorkspaceHashes(dir string, fileList []string) (map[string]string, []byte, error) {
 	if len(fileList) == 0 {
-		emptyOwnHash := sha256.Sum256(nil)
 		return map[string]string{}, emptyOwnHash[:], nil
 	}
 	workers := min(max(runtime.NumCPU(), 2), len(fileList))
@@ -780,8 +780,7 @@ func computeWorkspaceHashes(dir string, fileList []string) (map[string]string, [
 		output[rel] = results[idx].hash
 		_, _ = ownHasher.Write(results[idx].raw[:])
 	}
-	ownHash := make([]byte, 0, sha256.Size)
-	return output, ownHasher.Sum(ownHash), nil
+	return output, ownHasher.Sum(nil), nil
 }
 
 func computeFinalHash(pkgName string, pkgs map[string]pkgInfo, cache map[string]finalHashValue, stack []string, visitingIndex map[string]int) (finalHashValue, error) {
