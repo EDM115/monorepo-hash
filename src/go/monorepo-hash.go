@@ -130,7 +130,8 @@ func newIgnoreMatcher(content string, domain []string) *ignoreMatcher {
 
 func sumHashToRawAndHex(h hash.Hash) ([sha256.Size]byte, string) {
 	var raw [sha256.Size]byte
-	sum := h.Sum(raw[:0])
+	sum := h.Sum(nil)
+	copy(raw[:], sum)
 	return raw, hex.EncodeToString(sum)
 }
 
@@ -715,7 +716,7 @@ func getWorkspaceFileList(pkgDir, relDir string, rootIgnore, pkgIgnore *ignoreMa
 func computeWorkspaceHashes(dir string, fileList []string) (map[string]string, []byte, error) {
 	if len(fileList) == 0 {
 		emptyOwnHash := sha256.Sum256(nil)
-		return map[string]string{}, append([]byte(nil), emptyOwnHash[:]...), nil
+		return map[string]string{}, emptyOwnHash[:], nil
 	}
 	workers := min(max(runtime.NumCPU(), 2), len(fileList))
 	if workers < 1 {
@@ -1089,17 +1090,13 @@ func compareHashes(opts options, out io.Writer, repoRoot string, pkgs map[string
 		}
 	}
 
-	adjacency := map[string][]string{}
-	for name, info := range pkgs {
-		adjacency[name] = info.deps
-	}
 	transitiveCache := map[string]map[string]struct{}{}
 	getTransitive := func(pkgName string) map[string]struct{} {
 		if c, ok := transitiveCache[pkgName]; ok {
 			return c
 		}
 		visited := map[string]struct{}{}
-		stack := append([]string{}, adjacency[pkgName]...)
+		stack := append([]string{}, pkgs[pkgName].deps...)
 		for len(stack) > 0 {
 			dep := stack[len(stack)-1]
 			stack = stack[:len(stack)-1]
@@ -1107,7 +1104,11 @@ func compareHashes(opts options, out io.Writer, repoRoot string, pkgs map[string
 				continue
 			}
 			visited[dep] = struct{}{}
-			for _, next := range adjacency[dep] {
+			depInfo, ok := pkgs[dep]
+			if !ok {
+				continue
+			}
+			for _, next := range depInfo.deps {
 				if _, ok := visited[next]; !ok {
 					stack = append(stack, next)
 				}
