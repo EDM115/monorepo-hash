@@ -1277,30 +1277,40 @@ fn collect_workspace_files(
     .process_read_dir(move |_, _, _, entries| {
       entries.retain(|entry_result| match entry_result {
         Ok(e) => {
-          let path = e.parent_path.join(&e.file_name);
+          let file_name = e.file_name.to_str();
 
           if e.file_type.is_dir() {
-            return !matches!(e.file_name.to_str(), Some("node_modules" | ".git"))
-              && !should_ignore_path(
-                &path,
-                true,
-                &repo_root_buf,
-                &pkg_root_buf,
-                root_ignore.as_ref(),
-                local_ignore.as_ref(),
-              );
+            if matches!(file_name, Some("node_modules" | ".git")) {
+              return false;
+            }
+
+            let path = e.parent_path.join(&e.file_name);
+
+            return !should_ignore_path(
+              &path,
+              true,
+              &repo_root_buf,
+              &pkg_root_buf,
+              root_ignore.as_ref(),
+              local_ignore.as_ref(),
+            );
           }
 
           if e.file_type.is_file() {
-            return !matches!(e.file_name.to_str(), Some(".hash" | ".debug-hash"))
-              && !should_ignore_path(
-                &path,
-                false,
-                &repo_root_buf,
-                &pkg_root_buf,
-                root_ignore.as_ref(),
-                local_ignore.as_ref(),
-              );
+            if matches!(file_name, Some(".hash" | ".debug-hash")) {
+              return false;
+            }
+
+            let path = e.parent_path.join(&e.file_name);
+
+            return !should_ignore_path(
+              &path,
+              false,
+              &repo_root_buf,
+              &pkg_root_buf,
+              root_ignore.as_ref(),
+              local_ignore.as_ref(),
+            );
           }
 
           true
