@@ -660,16 +660,19 @@ func getWorkspaceFileList(pkgDir, relDir string, rootIgnore, pkgIgnore *ignoreMa
 		if rel == "." {
 			return nil
 		}
+		var repoParts []string
+		if rootIgnoreActive || pkgIgnoreActive {
+			repoPath := rel
+			if relPrefix != "" {
+				repoPath = relPrefix + rel
+			}
+			repoParts = strings.Split(repoPath, "/")
+		}
 		if d.IsDir() {
 			if d.Name() == "node_modules" || d.Name() == ".git" {
 				return filepath.SkipDir
 			}
-			if rootIgnoreActive || pkgIgnoreActive {
-				repoPath := rel
-				if relPrefix != "" {
-					repoPath = relPrefix + rel
-				}
-				repoParts := strings.Split(repoPath, "/")
+			if repoParts != nil {
 				if rootIgnore.shouldIgnoreParts(repoParts, true) || pkgIgnore.shouldIgnoreParts(repoParts, true) {
 					return filepath.SkipDir
 				}
@@ -679,12 +682,7 @@ func getWorkspaceFileList(pkgDir, relDir string, rootIgnore, pkgIgnore *ignoreMa
 		if d.Name() == ".hash" || d.Name() == ".debug-hash" {
 			return nil
 		}
-		if rootIgnoreActive || pkgIgnoreActive {
-			repoPath := rel
-			if relPrefix != "" {
-				repoPath = relPrefix + rel
-			}
-			repoParts := strings.Split(repoPath, "/")
+		if repoParts != nil {
 			if rootIgnore.shouldIgnoreParts(repoParts, false) || pkgIgnore.shouldIgnoreParts(repoParts, false) {
 				return nil
 			}
@@ -747,8 +745,8 @@ func computeWorkspaceHashes(dir string, fileList []string) (map[string]string, [
 				}
 
 				var raw [sha256.Size]byte
-				sum := h.Sum(raw[:0])
-				results[current] = result{hash: hex.EncodeToString(sum), raw: raw}
+				_ = h.Sum(raw[:0])
+				results[current] = result{hash: hex.EncodeToString(raw[:]), raw: raw}
 			}
 		})
 	}
@@ -796,8 +794,8 @@ func computeFinalHash(pkgName string, pkgs map[string]pkgInfo, cache map[string]
 	}
 	delete(visitingIndex, pkgName)
 	var raw [sha256.Size]byte
-	sum := h.Sum(raw[:0])
-	final := finalHashValue{raw: raw, hex: hex.EncodeToString(sum)}
+	_ = h.Sum(raw[:0])
+	final := finalHashValue{raw: raw, hex: hex.EncodeToString(raw[:])}
 	cache[pkgName] = final
 	return final, nil
 }
