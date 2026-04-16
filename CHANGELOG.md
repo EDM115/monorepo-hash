@@ -1,4 +1,4 @@
-# monorepo-hash changelog
+# `monorepo-hash` changelog
 
 ## v2.2.0
 > [!IMPORTANT]  
@@ -11,7 +11,7 @@
 💥✨⚡️ feat/perf : expose 2 new (temporary) commands (`monorepo-hash-go` & `monorepo-hash-rust`) to test the new binaries. those commands will be removed on `v2.3.0` and are only here to gather feedback. install size will be around 6-7% larger  
 🍱 assets : the `benchmarks-results-{ver}.zip` file will no longer be a Release asset. check [`bench-history/`](https://github.com/EDM115/monorepo-hash/tree/master/bench-history) instead
 
-⚡️ perf : early exit when an error occured in the worker pool  
+⚡️ perf : early exit when an error occurred in the worker pool  
 ⚡️ perf : don't write empty buffers  
 ⚡️ perf : early exit when missing package metadata  
 ⚡️ perf : early exit when the hashes haven't been computed properly  
@@ -30,7 +30,7 @@
 👷 ci : raise the build time limit to 30mins, raise the per-tag bench time limit to 360mins  
 🔨🧑‍💻 scripts, dev : added a Python script to generate the benchmark graphs (requires `matplotlib`)  
 🔨🧑‍💻 scripts, dev : enhance the build script to run `chmod +x` on the binaries, add Go & Rust commands, ability to use `current` as a platform, remove sourcemaps from the Bun bin  
-🔨🧑‍💻 scripts, dev : improve the bench times normalization script to include multiple previous reference versions & compute version's average for nonexisting previous runtimes, not output files on demand, skip prerelease tags, allow to just check a version in a nice output & overall be more reliable  
+🔨🧑‍💻 scripts, dev : improve the bench times normalization script to include multiple previous reference versions & compute version's average for nonexistent previous runtimes, not output files on demand, skip prerelease tags, allow to just check a version in a nice output & overall be more reliable  
 🧑‍💻 dev : add recommended VS Code extensions & settings  
 🧑‍💻 dev : added `AGENTS.md` for AI agents guidance  
 🧑‍💻 dev : simplify the scripts  

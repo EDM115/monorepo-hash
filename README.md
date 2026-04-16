@@ -1,6 +1,6 @@
 <div align="center">
 
-# monorepo-hash
+# `monorepo-hash`
 **A CLI tool to generate hashes for the workspaces of your monorepo**
 
 <img src="https://raw.githubusercontent.com/EDM115/monorepo-hash/refs/heads/master/logo.webp" alt="monorepo-hash logo" width="200" height="200">
