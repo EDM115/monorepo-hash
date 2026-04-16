@@ -661,7 +661,7 @@ func getWorkspaceFileList(pkgDir, relDir string, rootIgnore, pkgIgnore *ignoreMa
 		}
 		rel := "."
 		if current != pkgDir {
-			if baseLen+1 <= len(current) && strings.HasPrefix(current, pkgDir) && os.IsPathSeparator(current[baseLen]) {
+			if len(current) > baseLen && strings.HasPrefix(current, pkgDir) && os.IsPathSeparator(current[baseLen]) {
 				rel = current[baseLen+1:]
 			} else {
 				relNative, err := filepath.Rel(pkgDir, current)
@@ -719,9 +719,6 @@ func computeWorkspaceHashes(dir string, fileList []string) (map[string]string, [
 		return map[string]string{}, emptyOwnHash[:], nil
 	}
 	workers := min(max(runtime.NumCPU(), 2), len(fileList))
-	if workers < 1 {
-		workers = 1
-	}
 	type result struct {
 		hash string
 		raw  [sha256.Size]byte
