@@ -9,6 +9,7 @@ import (
 	json "encoding/json/v2"
 	"errors"
 	"fmt"
+	"hash"
 	"io"
 	"io/fs"
 	"os"
@@ -125,6 +126,12 @@ func newIgnoreMatcher(content string, domain []string) *ignoreMatcher {
 		patterns = append(patterns, gitignore.ParsePattern(line, domain))
 	}
 	return &ignoreMatcher{m: gitignore.NewMatcher(patterns)}
+}
+
+func sumHashToRawAndHex(h hash.Hash) ([sha256.Size]byte, string) {
+	var raw [sha256.Size]byte
+	sum := h.Sum(raw[:0])
+	return raw, hex.EncodeToString(sum)
 }
 
 func toPosix(p string) string {
@@ -652,7 +659,15 @@ func getWorkspaceFileList(pkgDir, relDir string, rootIgnore, pkgIgnore *ignoreMa
 		}
 		rel := "."
 		if current != pkgDir {
-			rel = current[baseLen+1:]
+			if baseLen < len(current) && strings.HasPrefix(current, pkgDir) {
+				rel = current[baseLen+1:]
+			} else {
+				relNative, err := filepath.Rel(pkgDir, current)
+				if err != nil {
+					return err
+				}
+				rel = relNative
+			}
 			if needsPathConversion {
 				rel = toPosix(rel)
 			}
@@ -703,6 +718,9 @@ func computeWorkspaceHashes(dir string, fileList []string) (map[string]string, [
 		return map[string]string{}, append([]byte(nil), emptyOwnHash[:]...), nil
 	}
 	workers := min(max(runtime.NumCPU(), 2), len(fileList))
+	if workers < 1 {
+		workers = 1
+	}
 	type result struct {
 		hash string
 		raw  [sha256.Size]byte
@@ -744,9 +762,8 @@ func computeWorkspaceHashes(dir string, fileList []string) (map[string]string, [
 					return
 				}
 
-				var raw [sha256.Size]byte
-				_ = h.Sum(raw[:0])
-				results[current] = result{hash: hex.EncodeToString(raw[:]), raw: raw}
+				raw, hash := sumHashToRawAndHex(h)
+				results[current] = result{hash: hash, raw: raw}
 			}
 		})
 	}
@@ -793,9 +810,8 @@ func computeFinalHash(pkgName string, pkgs map[string]pkgInfo, cache map[string]
 		_, _ = h.Write(depHash.raw[:])
 	}
 	delete(visitingIndex, pkgName)
-	var raw [sha256.Size]byte
-	_ = h.Sum(raw[:0])
-	final := finalHashValue{raw: raw, hex: hex.EncodeToString(raw[:])}
+	raw, finalHex := sumHashToRawAndHex(h)
+	final := finalHashValue{raw: raw, hex: finalHex}
 	cache[pkgName] = final
 	return final, nil
 }
