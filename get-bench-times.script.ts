@@ -359,6 +359,7 @@ interface MasterEntry {
 }
 
 type MasterResults = Record<MonorepoSize, Record<CacheKind, MasterEntry>>
+
 type StoredTagResults = Record<MonorepoSize, Record<CacheKind, number>>
 
 async function readTagSize(runtime: Runtime, sourceTag: string, delta: number, size: MonorepoSize): Promise<Record<CacheKind, MasterEntry>> {

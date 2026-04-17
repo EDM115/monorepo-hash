@@ -1,0 +1,1344 @@
+name: Checks ecosystem repositories against expected .hash outputs
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ecosystem:
+    name: "Ecosystem check"
+    runs-on: ubuntu-slim
+    timeout-minutes: 90
+    env:
+      ECOSYSTEM_WORKDIR: ./.github/tmp/ecosystem
+      ECOSYSTEM_REPOS: |
+        [
+          {
+            "name": "modrinth",
+            "url": "https://github.com/modrinth/code.git",
+            "commit": "3c2cc7568d8a2aad686b663720957605aaabc1a8",
+            "expectedHash": {
+              "apps/app": "d2057bf82872c3db1839852a70ef35dda425742f789d32e138f34f174dd17cc7",
+              "apps/app-frontend": "182ab8c2822525a00bbc6d237ca0b409155a39494a0de2ea3b9b7cdf6f8c1e63",
+              "apps/app-playground": "5c30323fbb6592fe80216709b31f95f2344cc038e44f3dc7e022c4f80a0452b4",
+              "apps/daedalus_client": "94245afc91c4dcf812c9a7141975124a26b0f32d481a4b1b9de01e6c8551fb5c",
+              "apps/docs": "48f1fa3b9382d4c7d90948568ac2763d1ef2f470ed861b135866b84dd77dbb82",
+              "apps/frontend": "29ed3f51ea40aab6552956342b55daf24734b25045a4baae5336221b58202d4a",
+              "apps/labrinth": "f0e5416397ef11c914ed034c493605128937fef62bb1286cab77b204bab3a87a",
+              "packages/api-client": "25347c7aa1efe3a70268f9fd37f226f364b186b40cbe116ab3dc4f23adc213f3",
+              "packages/app-lib": "d0b71121e9cfa2d03ce5d19ce782483114db61c8adf765b4b25de9e84587666f",
+              "packages/assets": "8522f8b3ced4b568adb211820d43dda62172374432795744dba483a44a54122d",
+              "packages/blog": "d40a54ccd560db650c866de557eaba9dd0afdef31092f75c717372ca51c4bda9",
+              "packages/daedalus": "4152f14a5566378f73b6a674b118bb339a8df3be399ebe4ff39fb351606399d0",
+              "packages/moderation": "c88f258c9664d925802a871bed8e035783aefdcd406188edca7cade725f30387",
+              "packages/tooling-config": "36780224fa8795c9f8180373fd22c9c7f9b36e00e2b6a17076738ef3755a770f",
+              "packages/ui": "46c5830e7d7390fd4e80a6e0657ce907bdbdbde4a5e8e26b6fcf7abf06bf8987",
+              "packages/utils": "8c04b2d9126ce9e0eb850fb50867333d576a672c3b28332eef08027690fe6f59"
+            }
+          },
+          {
+            "name": "nuxt-seo",
+            "url": "https://github.com/harlan-zw/nuxt-seo.git",
+            "commit": "8006fd02906f88328ddb9a7068c2189cb761caf2",
+            "expectedHash": {
+              "packages/devtools-layer": "2a9b479415eb307f73344b8c5eef8ab9584d2173c1438827f2930ba347ec3d8d",
+              "packages/nuxt-seo": "45c03666b44fdff85d2f434ab5b7496651db6d07e070cf148243f4d1f5138678",
+              "packages/nuxt-seo/playground": "37efe5400064ec15cf0bea888909e79e25c09652e7b6d7ccd10017fb4e9e29c3",
+              "packages/shared": "cb879f84aaf267192c9977ef65e1b405d9a24bf349060ef72b75d7fed8e5b3e2",
+              "packages/telemetry": "5768bfdf1cb4980d9704867fd0088568dd25b51cd907f2b2b2e724e64cc6aefe",
+              "playground": "a4075dba537e7487610aca1df9dca5d14faed5678f46cf153e3bfa1fdfff3bec"
+            }
+          },
+          {
+            "name": "shepherd",
+            "url": "https://github.com/shipshapecode/shepherd.git",
+            "commit": "9cf8d03a5049161f9a657caf4ce59be86ca0f108",
+            "expectedHash": {
+              "docs-src": "995b50d4de899fde347257cb1f6586db83f8a192535872d3229b5fb18b27ad1b",
+              "landing": "c8461b023e148c7b3757408645911cda9528243cc33ae6e381af07aeb31fb73f",
+              "packages/react": "237d8ff12e1d522ac6cb77e2523992a2049b76589cd13d0744d25e44191aaaa1",
+              "shepherd.js": "f6770647601351871aaad3bc99152913a533d170a448c5b52d9a4cc244846e05"
+            }
+          },
+          {
+            "name": "hono-middleware",
+            "url": "https://github.com/honojs/middleware.git",
+            "commit": "1df5782f753f65527c36f9d6e19c1da2122d172e",
+            "expectedHash": {
+              ".github/actions/what-changed": "a202ff19b3340afd1314b7976698fc7e1b845ed49ad39596ec8546743d1a1ae5",
+              "packages/ajv-validator": "dec358a4d071178ee118ee4c64be2e5b27c38a2da5854e51cd1d8270fcf8b46d",
+              "packages/arktype-validator": "92f93fb6300c9780d671ced288e74b9fa155615919db0a795013b11d5ab8cc27",
+              "packages/auth-js": "46fcf4ce08d5597e4dede11bad7b99c31203558fa8dde7bb01de65464a0b85eb",
+              "packages/bun-compress": "7d6342b1eb9786bae0c99593ba0c49b2d84b12507d6e7328bb355ec488c32031",
+              "packages/bun-transpiler": "79686adeade3e3c76ac86f692706f669b76a425e860305692f6ec9d1e63f2b3d",
+              "packages/capnweb": "9fc50d5dd441ed7b21cb424d6c232a00b5c864857bdf133b4ef99b95cdb3c915",
+              "packages/casbin": "288e10718ce1a8f4d2ce00bb39a39c8995d22eaf04f07cdacc46103d282a05ef",
+              "packages/class-validator": "6d3077bb33455220174571bdc8f735915e2d4f07e84cd79b2c8b8af1117fdf0b",
+              "packages/clerk-auth": "0dc79f4ba43f2a25d57aa7de01117c1c66a9d3c831476ef1e95029318830a8ec",
+              "packages/cloudflare-access": "b8accb82184a5b2e2d1bb02e7081de93fa3e5c5639468469144f922f12434032",
+              "packages/conform-validator": "d7b49c75b08d9d0848576bab4ce39dddfbebabbc23ecd59b8e69c23205b60cc3",
+              "packages/effect-validator": "5acfecd1551a7099ecf28cdeddc528b26947794f9c15def00eae2da11a492d74",
+              "packages/esbuild-transpiler": "f2a784fad0ac055687c1affe7d278ed5d5afc7c712198451c0ca4ffa405c09a1",
+              "packages/eslint-config": "6e5ca8a8aa64b2e12eaf5cab15122bf0a8edd3a1a444457335a944d37b944f45",
+              "packages/event-emitter": "d0f14656e4c34ff3648b67538aef6fde0b63307e2dcb4d5ed6a91284349cf793",
+              "packages/firebase-auth": "0587a2f460730958ad422aaed6913928a4fc60d5fd894178bea9a25067063e12",
+              "packages/graphql-server": "4b707fc3ea633195a4a8d04f1825d10b295e04cca4ec745ba07e8dc2c2b8d1b4",
+              "packages/hello": "2bfcf08021599ed963aec74d04820b05689551d665778bc242fe043e5bbb0a70",
+              "packages/mcp": "11acb0093ed60de549ccabd9ff3a131ac1684882c395242e96215edb8e3cd9a0",
+              "packages/medley-router": "c69782c354c3d6a8eef1e801fe605a578490827c061a1d5c71da18c52eb615ef",
+              "packages/node-ws": "632903c66734a6a38abb2604e4517f9f653377bed31f6ba170932a1f5d177852",
+              "packages/oauth-providers": "3609213ec5d97a33b299fb82ac77e9706ec5a7c0ce5113115f047a2dfcf9a4fa",
+              "packages/oidc-auth": "350680e657a174a29422d4c38558ded8403f910247313b61d08a826b967587f3",
+              "packages/otel": "acbd85959bce91c25b16468156e059e585e0d5797917e626e28cc23a16010735",
+              "packages/prometheus": "c55c14d3bde66f99ec5140dd121198a52bfd6fa46a2b7443cc7e1e85ca56bb83",
+              "packages/qwik-city": "f7e937d40736e53a759e75fd592d89074eef821e6d0b655bf8e4177660f0b496",
+              "packages/react-compat": "1388ab2895a94aa7c86cac9e96067c8c1c88b85f6710a9218c97f4dcefcc2f67",
+              "packages/react-renderer": "cccdde78868d672fd1919719a053ceb5b369ebfcf9767d269519d2e38cfbcf09",
+              "packages/sentry": "9f392e99f04f6415b6ad0fa284b6e5b86ca1ed849edf9f903714fa2d91239394",
+              "packages/session": "4f457e78dd2893da529ecd851d848b336351479270eb9bc6e789483e2e2695f4",
+              "packages/ssg-plugins-essential": "076ba462c0c202c943637405c201b01a163d3dc1fe2e0da4ed9c3873709da693",
+              "packages/standard-validator": "71329d7bb1826e35f273168b10f6cfacc8b3184c61e9e6da43aa68db96e13bcc",
+              "packages/stytch-auth": "64c8aea57c4e4e58c1ef5764666cc015248dc90514d125328a99c1ae009d5b58",
+              "packages/swagger-editor": "7e32eafd89da12de0da397c89ef5c9806a806cc1708baab08c4487555ad79f0a",
+              "packages/swagger-ui": "8431d18aa37315d8614a79143355cec023eb94b427b345e7c1421ac434688807",
+              "packages/trpc-server": "cad1029d42a622e849450e1a424627d499e6d73329dcf68e9e164773ee90c8cf",
+              "packages/tsyringe": "03265e5a91331b87fd026d246961db0abb5c290f57e85038f2bd3c23e47e07bd",
+              "packages/typebox-validator": "a0de78ba0afc6ba25f8c68b923daaed5466db914fbe13320b1cc0d14cf853826",
+              "packages/typedriver-validator": "6989a1156500a38f08a5177342a7291845c2d13850575957afd0e2bdcbe20742",
+              "packages/typia-validator": "b257329110b48e4cf38edcf5cdefdff45f62314f41c2d73076ec5409500ba22b",
+              "packages/ua-blocker": "90f36cf682661c0b18a8e0ded1271aa8ef66ab459f0bda904811ef5eab9d7eab",
+              "packages/valibot-validator": "824859747fe8aeb367b639d0d3ab0e2c3c27fa9e2793b7aab5f7a020f04a2ae2",
+              "packages/zod-openapi": "f626eaabe34efaf72bd977d2dad0de25a9a87049be5a9ad357ae16f6ac6519d1",
+              "packages/zod-validator": "748fe83cd8367ceea9d7bff290f2b740de130268da3d1f38d6937d3b2a6051fd"
+            }
+          },
+          {
+            "name": "data-fair-processings",
+            "url": "https://github.com/data-fair/processings.git",
+            "commit": "f2a18aadb0b1536f0c6e1c24b427f2fa325da493",
+            "expectedHash": {
+              "api": "ae21f524f8b6496dc7525de5488d9abc87937345ffbd8ece74948c0a1cbebf2d",
+              "shared": "0ec5186a6de74879844d1cb807dcbffac1615c21775daccffb56b5bbb40f2535",
+              "ui": "64547dc63bf4c7c01d94e9c8cd31b3a59b6908d53da211207169e351495ec75e",
+              "worker": "796e084952f70d0a8ddf028d8efc713baf0b99f277840c59df8c95ae74e5013e"
+            }
+          },
+          {
+            "name": "tradefolio",
+            "url": "https://github.com/RaalnanUno/TradeFolio.git",
+            "commit": "d92cd632e36da84504d991ccdcfdfb4bc405e3e4",
+            "expectedHash": {
+              "electron": "0293db17aee176a9d827cd311de0415b5d63e44b5c4d6a91d87ddb62b8fb8b75"
+            }
+          },
+          {
+            "name": "tamagui-starter",
+            "url": "https://github.com/tamagui/starter-free.git",
+            "commit": "7ccaf93527d89f301db13968aaeef0f1febd1e4b",
+            "expectedHash": {{
+              "apps/expo": "196cccf2c3223856446796a2fa0bfbec3ceb38d5735a478f218d268985150376",
+              "apps/next": "10d8a7c8b0946aef84f49233d82c0de93c66070795982bb30b8ac7d6a41b0d30",
+              "packages/app": "b90c467c25a6d381f6e849c867b335275171f5048169117e8b620ecbb2799779",
+              "packages/config": "6e85c0bbd1000edb188e2a0c586ff28de4431a0ce6ab64bc5248f0a7da2149ba",
+              "packages/ui": "e081a02b2de79c12c2d8d11e15823eaf87169dd50136cf5b281a099198152f2e"
+            }
+          },
+          {
+            "name": "astro",
+            "url": "https://github.com/withastro/astro.git",
+            "commit": "77beb7efa65165c6ba07be06b0c0d3b52a39976e",
+            "expectedHash": {
+              "benchmark": "c12cb925d205ed931b1d695683824012477b01d88f19e3c8429aa939585bc95e",
+              "benchmark/packages/adapter": "f853695dd9b1026fa57c18d8f1a29657fb00c64e2918221182efd4e9b385106a",
+              "benchmark/packages/timer": "f37f23e98c8c14e6e11c98fb3ad0615071e0b46ddaf71a63415a16d26f0c19cf",
+              "benchmark/static-projects/build-hybrid": "198e83051c86fccb71e1bd87202f01c58836c307c3ddecbe4dad917951d42d0f",
+              "benchmark/static-projects/build-server": "83b312f0304b3d6f3577381c543d6d314ca9ef58c0d1e9ace53123377acc0f7b",
+              "benchmark/static-projects/build-static": "e00ef79f3275cec8c3506e6870acbeee707a6fe1ac76f5718b32f81e13737ee1",
+              "examples/basics": "9dd54269270b991d50c7f04cd82a4086beac965818d69e6be0003c03b964df7c",
+              "examples/blog": "fdda08e84795322cafefc32460b423458bf77a60d783e0deb7eca4254f88d771",
+              "examples/component": "1a60e41ee4063f74d16389361ba7d19961f8c79e325901075bee5a0591df6fbe",
+              "examples/container-with-vitest": "af7da5c557dbd7163b7f765ec0b330b51297a9e622531f6b6bc697eeb1d5b7fe",
+              "examples/framework-alpine": "d01578a61d4de423a6f124b714138ae770a545d27992ac6132558c1c0d11ba7f",
+              "examples/framework-multiple": "fc965f2e12fc3319209076a07b8f3cfc8aecfc23f750486f281f2f990585a84e",
+              "examples/framework-preact": "8de5f4395d3dcb2a430eadfe00050954e60498755a213473935216d9d6d78c23",
+              "examples/framework-react": "bb03496c16d8a32f68be93bff6bfa5532b12b2094d7bbb44e175cfdb588a1200",
+              "examples/framework-solid": "7d10e0297b780eea2a1ab8c5f45b8029630053e8e9be89197acbe51b37a1377e",
+              "examples/framework-svelte": "b3c6ceea9ff69cb95d0f21f3fc880bcb033a300eba1ff0204a721fd81867232d",
+              "examples/framework-vue": "7bdc6b9a8dff571e74243a1e63c3cf3acb297cd676d84dc2ff9c175f3e8b1115",
+              "examples/hackernews": "e261cbf07a8f9e04878c9465d63886170edef6af59eb23af6da83a572123a8b0",
+              "examples/integration": "54fe3c1613c9cb70ee78eb13874229dfbeccc6eb77b15b4ca13d2f98cbf1814e",
+              "examples/minimal": "d8358327093acd8ed534830fc556024e2024910575630634d6b69aa405d57928",
+              "examples/portfolio": "f1ab8ab04ed99f851fc6b261e20df0bf91291252d44318940017009987546a8c",
+              "examples/ssr": "031e71877e6f7a5b723997d6b1ac285a6d581eeeaac123bb2716d1fbb0d0726d",
+              "examples/starlog": "e0c93ca42bc1b17d3656b129443832b6ee2ef49bdebf37071552bd889434fc4d",
+              "examples/toolbar-app": "70b92e7bf14fe93e700ab8ef32a3c7049e0747aff39478942a9be4af2f171bb1",
+              "examples/with-markdoc": "13b1212993c78d6b4ef8f07702c87435bf7c3e3e913d3223e60269911d77ea45",
+              "examples/with-mdx": "0cad2c4d88af56489fb0e0f52b4a741c3ef0fcf92ea4c5f07339f9eeeff1823a",
+              "examples/with-nanostores": "832dc30cd8e58045ecfb95a86072b5d1241a6541c427c00febd3f707779d1910",
+              "examples/with-tailwindcss": "5a879a43f1216a3215a38a67a1337ae548f6b90fa0d031c8ab28af8217ed20a7",
+              "examples/with-vitest": "cce81d00a676ff6836145905e7ca90ec8de2d1ca648d8df6d7296d55f1bf347b",
+              "packages/astro": "e4e045e5832efbf3ce0d5916c25959468664e8007bc09a5593c2b0c6e39f0dde",
+              "packages/astro-prism": "75dedbc9316faa305fe23ae028f0e3b64fe5be4b24cd43607a9a4369a54c944f",
+              "packages/astro-rss": "5487ddff6e859f894b1cc1a19d0ce3201058d653c38a69d09fea12683f4435c8",
+              "packages/astro/e2e/fixtures/_deps/astro-linked-lib": "fd4fbf517ec524be9d0d33d4d70034562ff057a73ccc829c61388a095f0070ef",
+              "packages/astro/e2e/fixtures/actions-blog": "5aaad93cca122c0609a564c07b071a9e6fe911ea211468cbc806be880defb0ce",
+              "packages/astro/e2e/fixtures/actions-react-19": "90bb1b5905b1d9ab0ece431c7f56ea3bf96b5cc5194af59d7d37a1bbeeb19f3f",
+              "packages/astro/e2e/fixtures/astro-component": "8cc2ef9830a85ca42671420f9f89b92e153ff8547f8b15003c678803a3494c02",
+              "packages/astro/e2e/fixtures/astro-envs": "3a6f256a25e72c36f08b7a40fc4480169d6b6b169d8f21645c3ead55fa30913e",
+              "packages/astro/e2e/fixtures/client-idle-timeout": "8237c88aff5905c3a804685e946232323498b4b2ebdea9484e4b58274c801d9c",
+              "packages/astro/e2e/fixtures/client-only": "de0c3e1494d1fbd15b8fef6801bf890701a970d9b0b8bef711d06e869740b11e",
+              "packages/astro/e2e/fixtures/cloudflare": "c8d82c08ee2ba204f0b7027c685d80073500bad737e056eb20f50a758ce810bb",
+              "packages/astro/e2e/fixtures/cloudflare-node-prerender-hmr": "099dda519dd9f0e943ea0dca70a16d29904fc65e4f2592cd513fce7564db4989",
+              "packages/astro/e2e/fixtures/cloudflare/packages/my-lib": "4e2b0241a47e78b19bef5a7bb039485b5b7457b1a2376d0895e9e9ed623386cd",
+              "packages/astro/e2e/fixtures/content-collections": "418cd518b60cbd8d624f395593bf85ed8889aae85884e0ceb37c530d55a915fe",
+              "packages/astro/e2e/fixtures/csp-server-islands": "4f0fc68493d8fb2aafb9d1df6881b61c0765d8d361cafa52b140bddb45f372f8",
+              "packages/astro/e2e/fixtures/css": "f0667c9ed339b57023a249cce3397d09fc30fce31aacd9b7e3c60e56fb4ad7ce",
+              "packages/astro/e2e/fixtures/custom-client-directives": "23bc68e03dd5813809b7b6572f8ac04306d1161735da33c9be993d99ab370251",
+              "packages/astro/e2e/fixtures/dev-toolbar": "50283dec9d6e0b838c9f224964434f464e30336ec1f19b0181ebd830f57b7ea8",
+              "packages/astro/e2e/fixtures/error-cyclic": "5599f7516474f0765c9f23a90e588868275e2e9c5137b6fcf136082c3b4d7896",
+              "packages/astro/e2e/fixtures/error-sass": "1b0636ceabed2285eb38839bf17329149199eea5d5c9567a3063b584979fcbd2",
+              "packages/astro/e2e/fixtures/errors": "b2c65c467822b1c391e630ee316912f196c61bdc50617efbb02e6912a07836ab",
+              "packages/astro/e2e/fixtures/hmr": "ab046f8195700297d309870ea4abef0cb29810ba1b25907eb5f937cd12815148",
+              "packages/astro/e2e/fixtures/hydration-race": "30b6cc8854041e88a4655630f8ea04fe98c24b3c8569fb304b02ab8b8d87a80f",
+              "packages/astro/e2e/fixtures/i18n": "dcdc6eca22ab766b0ce3c4d18d34e7270e42fe5ec2da8089214185c69677061e",
+              "packages/astro/e2e/fixtures/multiple-frameworks": "22cd6a08773631e62dec71034bc6f39cfdabc4e05851180f9e32b444c141aee1",
+              "packages/astro/e2e/fixtures/namespaced-component": "b3a4029f13b28de5b3f44372cf23592e2378bbf29c82c833d88b2cf04f10f46b",
+              "packages/astro/e2e/fixtures/nested-in-preact": "bfbf270c5d80b9c63c7d9aa841b35a56f9249abec8ad0d8051aa7bce6cd91722",
+              "packages/astro/e2e/fixtures/nested-in-react": "6f1fa853186372b58528830cb6f2fdddc8b0c09ef8becf1636c623d4d37d63c4",
+              "packages/astro/e2e/fixtures/nested-in-solid": "f874fb8bb8181b031370b78008061dd4c6273ffa5cd335abe21941ccd431ee1f",
+              "packages/astro/e2e/fixtures/nested-in-svelte": "31c8d17e54e49c32feb56c55563ae43a6bbb12a31c277dbbd41eb4ba0a183410",
+              "packages/astro/e2e/fixtures/nested-in-vue": "b764b43a157424b329b1342f0bb9d3cc79d61b10ed579b1c431296d4f420f967",
+              "packages/astro/e2e/fixtures/nested-recursive": "028d1d8c4bad0e5770b6593f3ea77d94b7860e845e804b92f8287f10953f6655",
+              "packages/astro/e2e/fixtures/nested-styles": "9626c885c8bff8ac71e65a904625c223fbc0c22cd72f164bc989a83d02baf11d",
+              "packages/astro/e2e/fixtures/pass-js": "f8f5e250bca758c359b690d9b660e76cf65622105ada1766c19969f945717119",
+              "packages/astro/e2e/fixtures/preact-compat-component": "a6176668d46e5fb5200a7b3518a5698a6610935421137e19f2e3b4667a5edeb9",
+              "packages/astro/e2e/fixtures/preact-component": "461cf5a5486555de127c4b58e00db040b24f16050c90d27ea08e6a9a3aa15c28",
+              "packages/astro/e2e/fixtures/preact-lazy-component": "0c24518225a4b81ad85bcbfc9e56111e219b08e41e1211757908894c85883165",
+              "packages/astro/e2e/fixtures/prefetch": "14b52e5092509c820793a6ad613209fb8707d49da6f9bdc2ce06a10e6e51c978",
+              "packages/astro/e2e/fixtures/react-component": "269556d9829370d0b121160b15bd9fbd28de81ab3bbb6e40fc441840387c8653",
+              "packages/astro/e2e/fixtures/react19-preact-hook-error": "85ce9534d1d2c37f132be6188f5e2d0b3aefdd354a06b042398d73e770509188",
+              "packages/astro/e2e/fixtures/server-islands": "9d351144947e2ea501ab4b0a83f5693faed37b97248503c3e4067da37c5b00b9",
+              "packages/astro/e2e/fixtures/server-islands-key": "e605b4326790f0e0b05e62dc2cf6f22a87be3eaa5681517d48c6d6953f0a48e9",
+              "packages/astro/e2e/fixtures/solid-circular": "464d54bfd6c5dd094c9b96720e3c668d40755a7fd3869932e8cbb4590fe88f24",
+              "packages/astro/e2e/fixtures/solid-component": "b842ccdad29d310c8c7d6a6b5fb3fe79d42cdb5e8158291aa97456cf46a312e5",
+              "packages/astro/e2e/fixtures/solid-recurse": "9b2086f0b75bbed37c6fcefdf998023d4390290e2cb92e9505c0cb6c1917dae5",
+              "packages/astro/e2e/fixtures/svelte-component": "47d1a285dd7bf3e3d16fd75cd1a106ff4ece0b45155295e2467be2f1fca52bdc",
+              "packages/astro/e2e/fixtures/tailwindcss": "8b1295258606396fccfdda60a6ed8fd10a6f7411962672dfa871d4ed4163a33a",
+              "packages/astro/e2e/fixtures/ts-resolution": "e9234428863d3639023f8b307c0db3a8792da785adaf76a4f8d93938e1eb9581",
+              "packages/astro/e2e/fixtures/view-transitions": "e7d8ccb8e5c885bce942dcb49cb783e521ea7226f70da36feecb2fcc68436d38",
+              "packages/astro/e2e/fixtures/vite-virtual-modules": "9479866539241fbad376a8fb2cdf19358c7d3357e8c5123670066deb8e5248a5",
+              "packages/astro/e2e/fixtures/vue-component": "d50d62677c3f9ea582a05fea5782de6722ff12ee8d4d72aee14ca92f01956586",
+              "packages/astro/performance": "cf4a4d4ea2a60b6728a20ac4bb11c0e7c203143229a17fa03543cfc3953bb7d1",
+              "packages/astro/performance/fixtures/md": "1af30faf0b1726ca28dcc26316bd048ccefdf0e1309987bd97f847c7be0fab1f",
+              "packages/astro/performance/fixtures/mdoc": "b3006b84c3180d493ba664428a7eda77ac752088ca4daa7a00b03f6e545a4de0",
+              "packages/astro/performance/fixtures/mdx": "3c9514fbaee3f2d1e019f8d92dcbc8cdaa7e0ffe22756791c66c6991795d9cb0",
+              "packages/astro/performance/fixtures/utils": "0c12c06bf0137983f743c3ba856ea2088b2879bd67424291f1c52043f064842a",
+              "packages/astro/test/fixtures/_underscore in folder name/node_modules/fake-astro-library": "c2a6e695169f2194972449d5098830f602a33ee7607c8d03f04dad891aee594c",
+              "packages/astro/test/fixtures/0-css": "e5fbf571b716f1e8396fb353fa2d193bc52a01f2d65ffe94d0b6fd3d8b008633",
+              "packages/astro/test/fixtures/actions": "34d1f7f3554f3f76a449c27924375523c36e2c3e9f42a9a9182177442c96a41b",
+              "packages/astro/test/fixtures/alias": "3209fa3a63458d6639cb325387ece0da47eca6a19efe7e224496e1ef6f47984c",
+              "packages/astro/test/fixtures/alias-tsconfig": "447691be53860c6171d744bed6aba366419d51104eacc304db6bd0572406ff1b",
+              "packages/astro/test/fixtures/alias-tsconfig-no-baseurl": "203e700f4e89e1e78eb14a59245bcf1ad36c55c65f9cc9f6bd2b8674281ea5ef",
+              "packages/astro/test/fixtures/alias-tsconfig/deps/namespace-package": "589225ee769d2662923e4f4140697ece1c9c406f7bd69237ae4ca9ed5ef6b5e7",
+              "packages/astro/test/fixtures/api-routes": "fd21453c91d17f75cb8249220ce4cffa38db58f1c4e6b8fc97ec688719305a31",
+              "packages/astro/test/fixtures/asset-query-params-chunks": "b21cef9a9e2717e6c70ce4877144e25ce11279f327a33fddce967dd387d14205",
+              "packages/astro/test/fixtures/asset-url-base": "0aa7f959898ebb94d6ee4edf7b8bb0b478b4ca284c5d2fea978f2b212582d020",
+              "packages/astro/test/fixtures/astro pages": "ffa8411b35a4438ec2669c1eccd158e310e349d853f0e02d6ea054e9a05ccc21",
+              "packages/astro/test/fixtures/astro-assets": "b4ebc112a100d03e701d6a0d414cb6561f909992bb226b99bc919356e7a790d1",
+              "packages/astro/test/fixtures/astro-assets-dir": "ae706fa3764e4fb200a669b5ac775868dda0f3e1ee945672c5ca13006c1bdf16",
+              "packages/astro/test/fixtures/astro-assets-prefix": "739965453c0b965cd76672b4924ec88522009e30c3db566db8214a43e5b84546",
+              "packages/astro/test/fixtures/astro-basic": "8b167720cccd947619ff5df68ec20064b2e91f62a6fd57437f267dd7be3f74be",
+              "packages/astro/test/fixtures/astro-check-errors": "1a92bc40af5b954210234b3c1fb9bd378825194974d0b39fd6a6afe36982f6c8",
+              "packages/astro/test/fixtures/astro-check-no-errors": "f4aa223e1fa027fe1823f17c16b7a6a6e751d76ac0f368e90be33b6431f7017b",
+              "packages/astro/test/fixtures/astro-check-watch": "2e166f5eefd97f01992039e93681702203d205b38d08e32c62d33e4b9b1dc4c1",
+              "packages/astro/test/fixtures/astro-children": "14a151dafe25b61e053589a5862da31d59a9b38e87db500c6154c09f4474a35f",
+              "packages/astro/test/fixtures/astro-client-only": "7b8b904711aaf4d28ecdce3e3f40090bd3f44311e5ff35ce33f1d067dd571f83",
+              "packages/astro/test/fixtures/astro-client-only/pkg": "70e629e001b950a03c806623a283efe1c89049ea2f97490ade75ca69428a3a85",
+              "packages/astro/test/fixtures/astro-component-bundling": "545c70c0c4fcaf8441c4cc99247779954ee41a54f3f60dc392e21e310a594980",
+              "packages/astro/test/fixtures/astro-component-code": "32feae6f0e302da020b607e705ca2c2fad99471ce7d7c44a9b7ecde9c7273f2f",
+              "packages/astro/test/fixtures/astro-cookies": "71cc148e9d8f3c3c212a6f103eee11d7af604d37daeabfc51d3259579ebbcbda",
+              "packages/astro/test/fixtures/astro-css-bundling": "a26a9c0de1d045a475db3e4a885647d0877be0ea4833df33329a2dc3b322b77e",
+              "packages/astro/test/fixtures/astro-dev-headers": "52c72c7191898d747567bdfd42f12f4bd93f92735b869afdce01f6553bf02c30",
+              "packages/astro/test/fixtures/astro-dev-http2": "366290666861d63240e71cfa08f2bfa34dc0ff1be7b378e74e5683f915779837",
+              "packages/astro/test/fixtures/astro-directives": "e6522b314c42d9456a5a054507b195fff5f3601709169c2876867aa3a70e3af0",
+              "packages/astro/test/fixtures/astro-doctype": "d5582284dfe0f940d965086ed71e62243922a1439c019ada18dab4879b01fbf7",
+              "packages/astro/test/fixtures/astro-dynamic": "919571d22dfff880bfb344db7a88bfb35aa4f0b1cda62ae8bb1669ba17f737bf",
+              "packages/astro/test/fixtures/astro-env": "1562364a49818cde9f4a2e2c6f37e6f70dfa5049513574368925c4b32028fd2e",
+              "packages/astro/test/fixtures/astro-env-content-collections": "f805381bef6c483d7d2a7172e95104b38750fe54a2584c6ea79a141540290ef0",
+              "packages/astro/test/fixtures/astro-env-required-public": "f753e7b327e543bb06c857e018e566d2722cb537f7ded23b32432391bc5086ef",
+              "packages/astro/test/fixtures/astro-env-server-fail": "acd526938a1ad691160905926082691989bcdecb865866fa0cd40a068d041351",
+              "packages/astro/test/fixtures/astro-env-server-secret": "8d3655034737395ed916b4195cbb38bc5002dcc76c0dab64b7a3062faae3f533",
+              "packages/astro/test/fixtures/astro-envs": "a6dabbea9ca660a3d77119111e6947885e9d294215530413577e793a130a3a05",
+              "packages/astro/test/fixtures/astro-expr": "54e4c7220fe73422db201c5963932ed01855d0152e062d120ce0000ce201dc2d",
+              "packages/astro/test/fixtures/astro-external-files": "a3825fe0d44bbc4fdb5e59fdeee4dd966caa9b90ce33d69a81868f90a8ea5a8f",
+              "packages/astro/test/fixtures/astro-fallback": "a85854bbc4a0238dc7a2113bbb0355061cec7c6fb42e88f15d26279bc58afffc",
+              "packages/astro/test/fixtures/astro-generator": "894cfad01b7925d3ebbcb0b79fd190838d32030d38991f6e5a8318df538d1462",
+              "packages/astro/test/fixtures/astro-get-static-paths": "18b42f19b0b6e79586f621baffea445aa5158a5313a471bae9019e46af396e70",
+              "packages/astro/test/fixtures/astro-global": "78d27541e0062940cca20c4ac421a2889711ea9bcef3a7322e52f097fa8039f7",
+              "packages/astro/test/fixtures/astro-head": "f9e6c936781663a53ec4b7ee8fa3898b9108494c782e4740b5250ff576ac4e4e",
+              "packages/astro/test/fixtures/astro-jsx": "dad99b4ef253f5357ced61290ddc2b3670a7c3f4254f83d2d572dba8338cb4f4",
+              "packages/astro/test/fixtures/astro-manifest": "71fb493ab15ecdb01801015f6c3b9f8dcee285de28784fa43a69f8754d9678bb",
+              "packages/astro/test/fixtures/astro-manifest-client-script": "5239dac99fbe2a4fcf0f5d4efc6bc6c38abab9f7db301494e83c3b5b261de840",
+              "packages/astro/test/fixtures/astro-manifest-invalid": "7cfa62a01ed145d27d8c3d7e173cdc6b98b99082d29c21d75ed3afd983176243",
+              "packages/astro/test/fixtures/astro-markdown": "e590d931529aee97bdb3bc740f58eb98b6ac6b3edcc614c7e0e1ddf3c7f22fa2",
+              "packages/astro/test/fixtures/astro-markdown-frontmatter-injection": "5d27659e194ccfc3448db63996681888f2cae31cd15cf50dc6ffd269d518c642",
+              "packages/astro/test/fixtures/astro-markdown-plugins": "e6cd5cbdb4e9a40cea4a3e6723fa8fb808b288f6ef934f701c61d8750f6d213b",
+              "packages/astro/test/fixtures/astro-markdown-remarkRehype": "dc441762a6757e6db7aee461b07028d1ee4b2ebb60129df496a9e06534d33c9c",
+              "packages/astro/test/fixtures/astro-markdown-shiki/default-color": "e7cf6d5588bdb645445b719d6cf33f71486ef5cd3d1b224bcc6ce1c6ed17211e",
+              "packages/astro/test/fixtures/astro-markdown-shiki/langs": "85f228d6d8eb7cf9581eec267a683885b27830f526cf4fb4fb3a8248e9c5cd41",
+              "packages/astro/test/fixtures/astro-markdown-shiki/themes-custom": "012ed9dedbe6e29835b8fca5d86837bf95c370d1996ed8f5154d89821ee610ff",
+              "packages/astro/test/fixtures/astro-markdown-shiki/themes-integrated": "373b690f4d4dbaed3534489d02a48def37f292143f24348df1c997ff3b92ff2d",
+              "packages/astro/test/fixtures/astro-markdown-shiki/wrap-false": "07c263d5861691275faaffd763ec6f484f69f74c0db6d85b8b2451f2306f6d2b",
+              "packages/astro/test/fixtures/astro-markdown-shiki/wrap-null": "1d7d4892f1d650751062079f8c03cec5c7d40a3dfa69a35297863e06f22a6339",
+              "packages/astro/test/fixtures/astro-markdown-shiki/wrap-true": "b738907769ccd846f6886e4f1f9360e5245fdf3bcd18964417349fff22daa06b",
+              "packages/astro/test/fixtures/astro-markdown-url": "1eb201eb4abaa853fe2065702794979a158e8ee3adaf19890d6cf3f500a84b5d",
+              "packages/astro/test/fixtures/astro-mode": "0f160bcf20a044078545baca811cfd9c4bdca0be2a57a1b992c7691f0ccdbe56",
+              "packages/astro/test/fixtures/astro-not-response": "bc2da6a3603aa518d015fd69a38bc3ef0495984a0802282725c7dfe1f23ec84f",
+              "packages/astro/test/fixtures/astro-page-directory-url": "4e7087122aef3c1cfc603f321ff4723c5a4a8669b73a0b42425fbcc48545b677",
+              "packages/astro/test/fixtures/astro-partial-html": "f68c8e4af11917937dd95acc551768422d6851e5dc07cd6327894ac7e3c1d3b7",
+              "packages/astro/test/fixtures/astro-preview-allowed-hosts": "3c5495ccd9bf3afa0056f52511bf5f97c10788d594ca0b1e8195d5532f6161f2",
+              "packages/astro/test/fixtures/astro-preview-headers": "7577872644d66c74072864a41b41747032ab7bcf5f8b0836a41afddadc44ca27",
+              "packages/astro/test/fixtures/astro-public": "04f0622e19472a8054fbcc2b4c9cfb11f1305a2085c9c5b18f0ada959ebd963c",
+              "packages/astro/test/fixtures/astro-scripts": "169cd3b1c9f45138b82e730f62c34957a99c6ea95ff3150a0637bff64b3ef139",
+              "packages/astro/test/fixtures/astro-slot-with-client": "c2a8a502a2101f36ccfda8693cc6a05452d9d092ed04f7e5c0cf7f4bd7b1d45f",
+              "packages/astro/test/fixtures/astro-slots": "1b2e20ebde5702e2eb5d62c5f058ff76ef84011d16d5445cc9f27532d0891ad4",
+              "packages/astro/test/fixtures/astro-slots-nested": "a2026ecbaeb11d9cbd45b68131d51240de4bebf7faeb7e2cc76c27f4bd3a5369",
+              "packages/astro/test/fixtures/before-hydration": "e3f8b0c42346279d6aad98a101f72cc81a0036b484520596e7c45d38692b4d43",
+              "packages/astro/test/fixtures/build-assets": "fd8ba2ec1e48ecd990c89b19c0ea9a863d1e2c52b0cf065ec66e3e0636a0cc66",
+              "packages/astro/test/fixtures/build-concurrency": "dc96c27b50b3474946df191db02a29e074dacc088c31e7057c938e105daae31a",
+              "packages/astro/test/fixtures/build-readonly-file": "52aa324eabefe79a320bbef97ae579dd16ed81b87994df08f8909bc324bf0523",
+              "packages/astro/test/fixtures/cache-memory": "b49387cf65f06804a5ca8b329032a53999405e359ca42c4b217372c1db109256",
+              "packages/astro/test/fixtures/cache-memory-query": "45700266bb72f75d865dbb12db3c682352db972cd98be6f9ac7199e5b75f586d",
+              "packages/astro/test/fixtures/cache-memory-query-include": "a31b392f596a7c823bab42b5217311584ebf9316c12d4a624cec9bcf0f5704ab",
+              "packages/astro/test/fixtures/cache-route": "a93dbf272d29449655fd776fcfb0489fd3859c347860651f2aab01dcbac5c7cc",
+              "packages/astro/test/fixtures/client-address": "5f7ef881e9d463c8c014f377c32e975f092214f5e1158551c9a41d6bc9f2c9cb",
+              "packages/astro/test/fixtures/client-address-node": "2a2643f6048eec438b9d0a0d515a5d7c7882ead3daf998aee9ea5c5d71cf849b",
+              "packages/astro/test/fixtures/code-component": "0d5ff1a2f1ec1cc7e3e0657051bbaf5327692f70eb9741d7df10dbdd4d8bd74c",
+              "packages/astro/test/fixtures/component-library": "165598010a1b9950c2cb14162de039dff90a5992a153d2a93749d52199d87af3",
+              "packages/astro/test/fixtures/component-library-shared": "2fcabc9a201593382fcd4b21bd83eae29aa7a9df26d0cc3a5404b7cbb56c9efb",
+              "packages/astro/test/fixtures/config-vite": "526cdf9b1b6c5133de11355794dee55d2559bc28ea5ec7eb1b2828b2089b1836",
+              "packages/astro/test/fixtures/config-vite-css-target": "a9c6bee8c1b14380b1f09520f658a6d0e8b598d82615b0fc75e5937db8e31062",
+              "packages/astro/test/fixtures/container-custom-renderers": "d8679ffdef23e913bac5de5e0a8f768b402c82e67cebb26ad18a96053c64b577",
+              "packages/astro/test/fixtures/content": "0e610e4f0d181237669656f0e8929dd1214e96cc15f909b9dcf38bc6934ece77",
+              "packages/astro/test/fixtures/content with spaces in folder name": "8ec192b365c2ef1f59fb771bfa3a9bd53ea21894390e9566aee5858e3d56aaca",
+              "packages/astro/test/fixtures/content-collection-picture-render": "01a7b5abd0dbd53abe62f9514e959a39655f1f5ead56b5b6d47c8d763bd129e8",
+              "packages/astro/test/fixtures/content-collection-references": "41b9ba4727c6eaa9363d17ebe0e9c977ab97b62ef226fc58f894ff5b34932cf3",
+              "packages/astro/test/fixtures/content-collection-tla-svg": "1b3040796c86e4dc83c96e24b58ae9c266d5bb6a4e658506f84802bc32c8d340",
+              "packages/astro/test/fixtures/content-collections": "f3c57532eabe46295a2696e16af30c4e771686f24a61fad66dd0cfdd707649eb",
+              "packages/astro/test/fixtures/content-collections-base": "97b5f777185a42a503ae34b5bb0d5ab1f75fd77631595cba99b520018df073b4",
+              "packages/astro/test/fixtures/content-collections-empty-dir": "071a1fbfc1153bf12b552370927f4e53e660183c10d29415bc0e3b52572bed8a",
+              "packages/astro/test/fixtures/content-collections-empty-md-file": "2bf78683f56da136d5d6734a28de44f49bc69231b22f67be2e5ac4e9fefc6dd3",
+              "packages/astro/test/fixtures/content-collections-mutation": "711d0386a0a2bec6d0556c08f796df21d9af8ab7e8733ea46d68c14f1a975e51",
+              "packages/astro/test/fixtures/content-collections-number-id": "c3f4799dc766cdb2e85f76ce929196457ddcefe68a2e8841158c4a94403b4838",
+              "packages/astro/test/fixtures/content-collections-type-inference": "b83ede771b9e609d9f97ada79018340fc10f30cdfe73f1d2af9d319336fcf6ef",
+              "packages/astro/test/fixtures/content-collections-with-config-mjs": "ae0d7bc23e92b676762f830925ec2004658feb905586c1544bbdacee73141535",
+              "packages/astro/test/fixtures/content-frontmatter": "a26138ac767ee6f3890a5e20d812cd5602ec5e884c1091c2c61d58d53efa9d3a",
+              "packages/astro/test/fixtures/content-intellisense": "2079ebaaad1c5cea37873f8bed79d32b929e634757e3a4b4e476a0e83757691c",
+              "packages/astro/test/fixtures/content-layer": "10efe15993bdcbe81b73c0a4e2d0bbb9800784cfe5e0db68b7be1a3a5f48a626",
+              "packages/astro/test/fixtures/content-layer-loader-schema-function": "6b83ba920c3b2a3f03fc9fd63106cfe5756817ae60854771893a32644d082a3b",
+              "packages/astro/test/fixtures/content-layer-remark-plugins": "d484abeef81816feee3523e9064256d5ed791260a34eac3e71d9796d539c4a2f",
+              "packages/astro/test/fixtures/content-ssr-integration": "e0ff3eca5c2289fc610de724b161dbb1237baf4d50b39f127cd7156175eab427",
+              "packages/astro/test/fixtures/content-static-paths-integration": "129718aa116af6cac5763d0fa2030ab3ea3c8805a3d3d0ce421a1830f4dbbeef",
+              "packages/astro/test/fixtures/core-image": "7ebee6ff23120f91781cffd32e8eadbb7561cbff908d9a3de7d0ff85187c1827",
+              "packages/astro/test/fixtures/core-image-base": "438ff94975f07c9cf9628be4ff36d3afe08d3cf3a6b774a670cccc1bf7a1a7de",
+              "packages/astro/test/fixtures/core-image-data-url": "b13d37055aed314a16bb380e9b3a658c62643e8476e851ae04fff20624fe6aa6",
+              "packages/astro/test/fixtures/core-image-deletion": "559e2c6356f774ec2749bc56320b562774365ae7cd2d64f1e0f95a3a3cb8e7fc",
+              "packages/astro/test/fixtures/core-image-deletion-ssr": "9579ac74e5818668e4b2f526a6901eafd1ba1d221c3c01bb13718a8f764c0114",
+              "packages/astro/test/fixtures/core-image-errors": "82041b51b1172f79eaac0894c2da5ef2633621e51825028c29a29ec9e5d0ccd0",
+              "packages/astro/test/fixtures/core-image-fs-config": "4d09d1d0a8bdc537719ca4056a505a4f7633d5a629b3e322412cc06a8d25f479",
+              "packages/astro/test/fixtures/core-image-infersize": "73f3a1eaa4c6eba98c7cb7c50155eb085c00ae7835093c5014366a9156cf2232",
+              "packages/astro/test/fixtures/core-image-layout": "e32b33cbf8e929e3954b61f3746f1d59c49012a5800856433b4eaf275e63c259",
+              "packages/astro/test/fixtures/core-image-picture-emit-file": "30f33b357c6cc0531153202e98c78948ab6acd92a02cd12be73a34ec3f6ad86b",
+              "packages/astro/test/fixtures/core-image-remark-imgattr": "2e6ae0f07a44949e7a13475820943878304b0e364fe273dc4fa14f3e6b9d7b23",
+              "packages/astro/test/fixtures/core-image-ssg": "f4e20aec9f9ee2385f3bc9b7af564328e1ceb93ab032e1fef3057eff486a9341",
+              "packages/astro/test/fixtures/core-image-ssr": "81978e6e77ae1598ec59c684354eb3ecda9992db099097c8a4edecb93d3c93d9",
+              "packages/astro/test/fixtures/core-image-svg": "74fe4dbcf5ffa08ad92c5052ec2d622a7929fd016696499a858a945718badb49",
+              "packages/astro/test/fixtures/core-image-svg-in-island": "b75d2106334de54978fd89f1c797d80e7b179d9607e8807ac72830cc813be00c",
+              "packages/astro/test/fixtures/core-image-svg-optimized": "7a5d87906479ba0e5af431be12753f5702c7c88d627ea611c87550d5650a21fe",
+              "packages/astro/test/fixtures/core-image-unconventional-settings": "36b22d5ff36d4e8414acd1d97aa44a88ec0e6ccfb11138e4c13470af296c75a8",
+              "packages/astro/test/fixtures/csp": "6ba67f9bd26daa20cbbcc0f82bccac4ec6ae8046f450cf99efe2f389d457812f",
+              "packages/astro/test/fixtures/csp-adapter": "457700e12e1b2ab4c56ae7d9c1ab659d7986e02abcf233b8c699af9121ede479",
+              "packages/astro/test/fixtures/csp-fonts": "0c3a3e7b29054427f4049cc9e661e4670196736c681e5bc71e0d9663c7902e6a",
+              "packages/astro/test/fixtures/css-assets": "106e57e794d7169c67340256bd5b22ef79eb682fcda7d12fdfd0144490a29f2b",
+              "packages/astro/test/fixtures/css-assets/packages/font-awesome": "67245cc0a624a929b13b40ab76705e5fbe768b504df1ac330de32b60f62e4fd1",
+              "packages/astro/test/fixtures/css-dangling-references": "a27081eccececd2b8fcdab084077e2e1e90f7b0ded24c66208d0c58f86d1004f",
+              "packages/astro/test/fixtures/css-deduplication": "c0c496fef3a5f0b5181c38e631e4819c4111087840552c08ebb4fa813ff7f5b9",
+              "packages/astro/test/fixtures/css-double-bundle": "11fd2276511b873f81a891f375fc7c40b514d31f0cf8db978019a23653cf7f3e",
+              "packages/astro/test/fixtures/css-dynamic-import-dev": "a397f5e89d4f03dd54e9e5db679a7c7b91f5d4d9751aa2b7bfd71a0eaf1ea15c",
+              "packages/astro/test/fixtures/css-import-as-inline": "f7e0fc1d7d1f81ebb6111c26b106abbebf56a4440467f92cb4ee7ff1203b0b63",
+              "packages/astro/test/fixtures/css-inline-stylesheets": "3932225349dba5ebe883c1da1c6244ed3d6fff159b259d1e685def5617d2c3ae",
+              "packages/astro/test/fixtures/css-no-code-split": "5e55d9c31250968512bfe82186552bf7df70d29b0b7972a12732cb36c4836ce0",
+              "packages/astro/test/fixtures/css-order": "a49ec8d0e45c445bbeda9774c766b33ffe183b227c8849da405c17c9c3eed300",
+              "packages/astro/test/fixtures/css-order-dynamic-import": "0831e0d7505f30168fbbeba2516a31c43935e393c443253e11e38ffa4e3ed18e",
+              "packages/astro/test/fixtures/css-order-import": "fab36bd70a4f473503946d3ccc0443afd3d2e16a6a20ee49162a24ca27309fd5",
+              "packages/astro/test/fixtures/css-order-layout": "78dc0b8ce5d1c2bfb6752c778cb0e983e91a649991b705fefc55164294b379ee",
+              "packages/astro/test/fixtures/css-order-transparent": "e085c5162452d8bc77c18a74f2e2e8022517f62d23483320430778e2207d266c",
+              "packages/astro/test/fixtures/custom-404-html": "f786ce7d6bb8e584071bba0d8d0e25c56e72dcb62059dbeb49740e4070799358",
+              "packages/astro/test/fixtures/custom-404-injected": "3ddafa30d1b8069e6ac17b3f6b43f648b7c0525e78c7b12a454c62515df120be",
+              "packages/astro/test/fixtures/custom-404-injected-from-dep": "c5214a9cb1611cec8303a5a9030f11d34486fc1f33bd88e72ebc46e1e4374fce",
+              "packages/astro/test/fixtures/custom-404-locals": "f4dbb94792aa133b7bfb77da93bce7a24666d9aeca423b8a58e86b017377ee84",
+              "packages/astro/test/fixtures/custom-404-loop-case-1": "3fd6250626b4bd5414b9962760aca13c2079ac1e8e453bf7736647841748c3ed",
+              "packages/astro/test/fixtures/custom-404-loop-case-2": "f31fd7be930abf7a319ab71cabdeac5acd4913d37daa8787e47c5f4e6ea1f04d",
+              "packages/astro/test/fixtures/custom-404-loop-case-3": "acd5897d51a42c4badec8f539b2559aec54725363ff861981b1fa512f763bd0e",
+              "packages/astro/test/fixtures/custom-404-loop-case-4": "68ab601157c301a64df48b52bf3a76d7241653979943d878d6f30716bc0ab766",
+              "packages/astro/test/fixtures/custom-404-loop-case-5": "5610dcb3e4f5441b310bea31406c8e975ac24a6a2f6ecc082ae0d4e4245fbe9c",
+              "packages/astro/test/fixtures/custom-404-md": "a652bca7f19695d4b5ff789eba4989317c704b02bf7580365715c677500bd422",
+              "packages/astro/test/fixtures/custom-404-pkg": "928a2355a045afb672e43fdc76ec0cab46b66891fc5850c70a13db4ac15e64ae",
+              "packages/astro/test/fixtures/custom-404-static": "d053e32bf69f8b8e08605ebb4fad068ce56364fcc06c7bc83952ef77451771e4",
+              "packages/astro/test/fixtures/custom-500": "29f03dcba88ab9fc024a2f573b0704ca73fae97a9521e2c4774a1ced0538ee7a",
+              "packages/astro/test/fixtures/custom-500-failing": "aef5516b486cef1ae45d329ef1f6416d6ffac89f34cff58a3706e9a1dd8abd3f",
+              "packages/astro/test/fixtures/custom-assets-name": "631c5a45ad91a2bbcfcda2c52afd032aba13b7f67fcbf580c77c5385c55fcce9",
+              "packages/astro/test/fixtures/custom-fetch-error-pages": "02a6ebea6c8a826c5f55dc930a34f0fe98de5ff31f9b56b4f5d5dfa734374250",
+              "packages/astro/test/fixtures/custom-renderer": "1fd41dba66426fa4688c644b58fd32c6399973dcbb6734e27a3ae7ced052389c",
+              "packages/astro/test/fixtures/data-collections": "5e863f1bc12c71283379a157c363a0ac78a335bd4b2bf4c3aabc201c9182f874",
+              "packages/astro/test/fixtures/data-collections-schema": "3ca58451c91051fa6784a16c619f070fbff90c81c27ca0abc6240c8e638d7ce9",
+              "packages/astro/test/fixtures/debug-component": "68a751ab9b7b757024151e9fbaf812a7392fb0ac49ea2a9afe8be977feb324e2",
+              "packages/astro/test/fixtures/dev-container": "652170907683148952ea84ee09489d339611374b384ecf2101edbb3643d6597d",
+              "packages/astro/test/fixtures/dev-error-pages": "424b303ae28a00eef1d890ee1bf82a756b6f6d8a039296984c6984349cad61cb",
+              "packages/astro/test/fixtures/dev-render": "1dfcd967b4fccd9e324e213e5bf7c50143a4581c75e06b1b6d80119ad34a32cf",
+              "packages/astro/test/fixtures/dev-request-url": "bdbbbfb60e9a1a5148f5236fc3588d3b508ecf0d4a9aa4c93d8971d695bf3037",
+              "packages/astro/test/fixtures/dont-delete-me": "ed6b62641313445fa3903cfa9ac502fe9589f8d443641924badb4a557b372e10",
+              "packages/astro/test/fixtures/dynamic-endpoint-collision": "3b87ffa3585ea5f0ec07f2ff3ca17d34c318faff9374beb82b7f91254eeee08e",
+              "packages/astro/test/fixtures/dynamic-route-build-file": "956bc7d02a696caf285132d5b9f967f44885d3a0e75ab245237df8447ae3e32f",
+              "packages/astro/test/fixtures/endpoint-routing": "807ba48ba8ce4fc2aaafd71b2536cadbc09adbd6b448d2088c13c1e08dc9178d",
+              "packages/astro/test/fixtures/entry-file-names": "ff5f8626de8e4e5c9f0faefcd65fe34e67d87a35b613e163155caf8c2b9e19f7",
+              "packages/astro/test/fixtures/error-bad-js": "37a1543e7d0f8bc0d82a7653ef601c44caa76365d379717eabe7fb3bf1dbc332",
+              "packages/astro/test/fixtures/error-build-location": "8ab17b179fa0d7e2a7583df3cf0f53c0053cb9c60c6b46c3a83e40e8c9c225e5",
+              "packages/astro/test/fixtures/error-non-error": "8e7a42701a1a8ae6063b536bf6d0b9d3b0d791f6253410166ca6c54795bbefbd",
+              "packages/astro/test/fixtures/extension-matching": "623829861c2cd52264c9b81047c0806e438e08d085d8e9753193d550120f24af",
+              "packages/astro/test/fixtures/fetch": "d3186b09ed6e3ae68d8b345f380cc3a6fe9a68b04c60e6f856bb365545a9c7c2",
+              "packages/astro/test/fixtures/fonts": "410d9a56250430b95bf1df67d79e8529ef8ae4e72f2477e1506b7ef003662245",
+              "packages/astro/test/fixtures/fontsource-package": "52b3292d14aac48f25aa223657f4b164dc35e14e3ab23d9c308b4be4c4d7e79a",
+              "packages/astro/test/fixtures/get-static-paths-pages": "55e7f65a99a02c5ea93f728c6a25b5bdeb01363de04a8ad53c64a7c8e2259a09",
+              "packages/astro/test/fixtures/glob-pages-css": "9dcbf836e52de9af94d04bd3ff930aa0ee70626f3565560ba9827fba04796bff",
+              "packages/astro/test/fixtures/hmr-markdown": "eeb0485d153cf835bd5aa08e9da55df843a1c2b71660fd7e7e63b31a4a55e8fa",
+              "packages/astro/test/fixtures/hmr-new-page": "e907b500fd95536c5155f0102702635f00ec5d7240917a8b20e41a9f89588601",
+              "packages/astro/test/fixtures/hmr-slots-render": "293af687fba9173440c159c6bcc86b90e6a145494f3e91f0e0ebac6f32d5f6fd",
+              "packages/astro/test/fixtures/hoisted-imports": "79c8fb91a928fbef912b0b38ab3080301f5d6d2c4bbbfa32051a0d14c7a65305",
+              "packages/astro/test/fixtures/html-component": "a31d8e10288f4fb055ed229fc651e5e1029670593060c6cf07962961945d0160",
+              "packages/astro/test/fixtures/html-escape": "d3af187d3359a59ace9ebdb12587e8bb43423d2a886b9da8132e20696aa8c968",
+              "packages/astro/test/fixtures/html-page": "c13dabe121b4d0ceeb5d85a2232828cf0beba106e5cfffe3a23648b506878106",
+              "packages/astro/test/fixtures/html-slots": "ab0ff9fd8cfb5509f9f3ee2e7620f16d6804ba381f9483208e304a48b6e55ccb",
+              "packages/astro/test/fixtures/hydration-race": "8e82a381dd0e42f2a74cafc050b0a3adebc375a8573ff83ff0aeff82e6e15b33",
+              "packages/astro/test/fixtures/i18n-css-leak-basic": "7e9cd06533da3b414a9d2c29019125617909d82c4e7da4dec4a069ca5f3d4e8b",
+              "packages/astro/test/fixtures/import-ts-with-js": "16207c685b3484619a12b06018be02a75342acc41af55c12bb39bc2585c83760",
+              "packages/astro/test/fixtures/impostor-mdx-file": "d927c410656d42b325c9548f5c818d3cf41f5938bfa93a36b901a0e2ad37d2d4",
+              "packages/astro/test/fixtures/integration-add-page-extension": "a70db4272608fdb7486134fa83aecce412ab838cabee753919027f4f7bf9e21e",
+              "packages/astro/test/fixtures/integration-server-setup": "c0574dcf7722ccda2e800db927a0232144f382590391484de87e4b937b91f192",
+              "packages/astro/test/fixtures/jsx": "1b93504511b8a8b4ff58115047887640eff18d16814bb24d4b5fadac9368f978",
+              "packages/astro/test/fixtures/jsx-queue-rendering": "500fd9b5e57cef0922189babe5417c473eec2fdd9eb0e6f165d3bcf197acf6bf",
+              "packages/astro/test/fixtures/large-array": "1689d25221f07dbc74715515665d19023be68571a8e90cd4e032deaf24564e11",
+              "packages/astro/test/fixtures/lazy-layout": "99d4802f49cec71c2882608e26978d66060b14417060b83ce62b9bdb6ba3f521",
+              "packages/astro/test/fixtures/legacy-collections-backwards-compat": "706f5b29a54d4991091fab37281de5184efbc5f070f0ed867091c211135755af",
+              "packages/astro/test/fixtures/live-loaders": "e2575c5b9d87e0c667a18946f1c0011252249d5c6e30548adf70a14d87beb84f",
+              "packages/astro/test/fixtures/markdown": "981386b1dc0beff6796baa4f4d2f11e95c66281c0172e2e2ac3080d3ba7ede78",
+              "packages/astro/test/fixtures/middleware space": "55340a0ed57ee6b7266eca56dda274ddc21fdf0f1c317812dfd85685009dcef8",
+              "packages/astro/test/fixtures/middleware-full-ssr": "71246509920ef91ae72b075adb0568e83ce92e619e5cebfd02f298abcd344b1f",
+              "packages/astro/test/fixtures/middleware-no-user-middleware": "ee9d9394fc1e314ad25303a143307544e4cd38dc89492417e4c8e1b941c0cda7",
+              "packages/astro/test/fixtures/middleware-sequence-rewrite": "e34b4fd723fc5542b0e80d7fab8b014108d12e10d9bdc65a10169471676e3407",
+              "packages/astro/test/fixtures/middleware-tailwind": "0145063ba00b1431155d1221f0b50a64850aa60c87c38f4b89db3c4b63d5b38b",
+              "packages/astro/test/fixtures/minification-html": "c96e1ff7d4202a5b53c7f2a631cee4469fccc8ef99b07c80240b7c22a667df01",
+              "packages/astro/test/fixtures/multiple-jsx-renderers": "533327b12c4cebf037c016d2b276bc7c565612172504bd3dfd6beeee176e9664",
+              "packages/astro/test/fixtures/multiple-renderers": "82fadd52ef6edb6ba5a356824d0584ecbf1fa2cb1ebf305ad870f536556fa02b",
+              "packages/astro/test/fixtures/multiple-renderers/renderers/one": "531e5bd6b31a25c8621af53794817dc6719cccbb2b7b1176210f359afd8951f1",
+              "packages/astro/test/fixtures/multiple-renderers/renderers/two": "50324f0139db5e4e7937bc5f9cd931176326fd2dfab0efe0f7148cededcf67af",
+              "packages/astro/test/fixtures/non-ascii-path/测试": "56faed6708da9e166b188226dde5c2b0e9497a34bde7b1cc71efd3bba0c083cd",
+              "packages/astro/test/fixtures/non-html-pages": "017cad13a421a77c44f4356e6d2a5eb93c11b88309745840e710aad713062c9c",
+              "packages/astro/test/fixtures/page-format": "470effc0000ca231488db80dd0deb64295c1fe3912c4fa132b0a16870a6228c2",
+              "packages/astro/test/fixtures/page-level-styles": "d64146783c8db349c531ef76dee96450a19af1eb3bc3c5187526dcf621d3e393",
+              "packages/astro/test/fixtures/parallel": "a9dc6b0b4e31a1fc15d2048ddd0cb453fcca9a3812286b1a7d3d08cdc1d49a16",
+              "packages/astro/test/fixtures/partials": "5994b4c21bc009c5e5d27586dc2dd6f5f49d4204fee61a9c03756083abfab0c0",
+              "packages/astro/test/fixtures/passthrough-image-service": "18082ec79b13ab675606597447680d6ce42bd61b174709cc2b4cf18494bc1503",
+              "packages/astro/test/fixtures/postcss": "723edb88d7edfafb4531dc56280aa1feed351f1396f8f9814bdbb1ff196979b2",
+              "packages/astro/test/fixtures/preact-compat-component": "b8c579475bff803455a0f9629b5e1641fb782dea4c162663a7c7a27104c2d8f1",
+              "packages/astro/test/fixtures/preact-compat-component/packages/react-lib": "36b5cd80b4faa8de654876b8772ac34e115174a57921c6824d93131084e789b6",
+              "packages/astro/test/fixtures/preact-component": "b2a1e874ae0a8febe0cfec833dbdded2f7c61f2684a7cec2f40ceebc5d118a12",
+              "packages/astro/test/fixtures/prerender-conflict-dynamic-dynamic": "d08deb3598a2a783d98f4ac53b93647d901921b0d3f9cf327d2844478223b870",
+              "packages/astro/test/fixtures/prerender-conflict-static-dynamic": "995b6c66d3b5fd65c79a5f43d8add4137e0df35beb636c00c2c52772ad3f6d62",
+              "packages/astro/test/fixtures/public-base-404": "15f01e63ff8bd63a46cca3a35e3f0392025b6130a2f0add382cf44174e916114",
+              "packages/astro/test/fixtures/queue-rendering": "8b91b4ac638b453ba3fc18dea680006590c5947521196c21084e13dbbaeedb90",
+              "packages/astro/test/fixtures/react-and-solid": "2cf7c2a7c792fd616c54dfa8b8f66f4377f7a965450ea008a4661c3f3196c5bd",
+              "packages/astro/test/fixtures/react-jsx-export": "3cb98e9321f4636b0863c4c13a7802c0a46f711272e6daf58f5930392ed830dc",
+              "packages/astro/test/fixtures/redirects": "700174847699a89a8b739c7d36ba67cc54cf5ab932c31613321e8737ee5a56b6",
+              "packages/astro/test/fixtures/reexport-astro-containing-client-component": "b12435d195bf8390962765c53d63f3c48901d46612df8d9bdbbfe50309e1561f",
+              "packages/astro/test/fixtures/remote-css": "679f2df427cfc9c0df249fb2408c80a579451345f036e829a31adb2c60216bbe",
+              "packages/astro/test/fixtures/request-signal": "1ea5a79e098a6305311a05b7758845b89fba5ae0bd8cb239be1f184573b6d185",
+              "packages/astro/test/fixtures/reuse-injected-entrypoint": "a2517a79275ae2702fcc1bd9ebeee32dc656178fadc36c395c33bf0cb8f59f43",
+              "packages/astro/test/fixtures/rewrite-runtime-error": "bbe28ae4ae20482d937ed276db4cdbdf6771eace35d2dcf61b5a2246c797cdec",
+              "packages/astro/test/fixtures/rewrite-runtime-error-custom500": "1c9cb41aa2505edb379d5df0efda593429237de906372b3f8c0e4e9b1e80d696",
+              "packages/astro/test/fixtures/rewrite-server": "5a820fe32aad1a9c9df618e6247b337ebb7a7f25e3d0c9299a8f75953930534c",
+              "packages/astro/test/fixtures/rewrite-trailing-slash-never": "cdcb69e21f25546371a3b0c47e2d40245661bec94a90d879b0561c05b1689afd",
+              "packages/astro/test/fixtures/rewrite-with-base": "26c9c72699db5b8c3a43418ecc36b8797b07e92161404f92eb6f02cf95a0e395",
+              "packages/astro/test/fixtures/root-srcdir-css": "02059035714557667df00e94116194288bd24d06c8ce23f4f356cb10268ffb10",
+              "packages/astro/test/fixtures/route-guard": "2e21c89b0d31634c89c5fb8ef6919cfa2119d7f1d7bde6e1c4bf0d3fe6cee91b",
+              "packages/astro/test/fixtures/scoped-style-strategy": "30781d64b1b32fbd485f7f686a7623c7bec11699c8b4afb51fbf1af309edb3ac",
+              "packages/astro/test/fixtures/server-entry": "36717576582f324a193011cbda367f6cc32b9b173c2973853d66c9461583f4b3",
+              "packages/astro/test/fixtures/server-entry/fake-adapter": "9ab0abc0f7283ba4623b983a82dbb2b6f9cd0b04619cce4d0ea6d4493e2bdd69",
+              "packages/astro/test/fixtures/server-islands/hybrid": "a6d185144f8b54c1d6ec9fa28bd83c469c27dff6da51e4ef661624a91592b509",
+              "packages/astro/test/fixtures/server-islands/ssr": "630161f74cf84af083f34646ad6e562097a4f23140cebfd2939ef87170abd260",
+              "packages/astro/test/fixtures/sessions": "8d63160afefa85f6dd74e4c968d3a1f321efee947dd4c461dfe98a8b1d7c964a",
+              "packages/astro/test/fixtures/set-html": "b98750fd54e58f55d3095463dd517e59e9b64b8204cbdd8112db92c1e692963f",
+              "packages/astro/test/fixtures/slots-preact": "272da538b269534ea68e901509d3a15beca08e0e05dd0264e317f8ae2f1cab88",
+              "packages/astro/test/fixtures/slots-react": "a2a7f7dc3b7f733ccad5a8926202cd6d556dc5e7a93e01d826cc73aa50ad54dc",
+              "packages/astro/test/fixtures/slots-solid": "f9d810a397bb2b8c97485f337697418129ab51e1f3631f28f03902572ef65b2a",
+              "packages/astro/test/fixtures/slots-svelte": "87ba256a822c7db5af9bf86a57b870ad927b0db3b2ce3b2815e7cfe0faaecd68",
+              "packages/astro/test/fixtures/slots-vue": "c46da39510673209ba3ad60e85a0e2c12b73668ed66aa21ecdbbc21a0f1c7bd2",
+              "packages/astro/test/fixtures/solid-component": "599a6bf0d8e92143f5deaea037ed23e020c43e3f9f13378bf65c13092cbe1176",
+              "packages/astro/test/fixtures/solid-component/deps/solid-jsx-component": "41595da3e0fcd1d462aba8ea46a3868e564db72a2df7682c15f7ee9dacf5713b",
+              "packages/astro/test/fixtures/sourcemap": "cfa831de48d36c71a2f97a62ce91fb2c9e01022339112ce3cf8ceb795e109135",
+              "packages/astro/test/fixtures/space in folder name/app": "e05e6e60c6848e5f0b4a35b3b4f5863e7c76460440866c7c332ea88e094ffa6a",
+              "packages/astro/test/fixtures/special-chars-in-component-imports": "72d6acbfe857f7667bbd695d356d3186d451fccd2e798b48e45841b1d67b91d5",
+              "packages/astro/test/fixtures/ssr-api-route": "59465107dc225ef17371039abdfa01d432de0e76f638c90f6cee8b6c4d143eb0",
+              "packages/astro/test/fixtures/ssr-assets": "0651a08518b1054ca47050619cdaf388fa29a2ed7d76632d60339e3cc622b35c",
+              "packages/astro/test/fixtures/ssr-dynamic": "ac97996463bafaab31f725c342977fb06b574b147f660a7896fbce35b0d47442",
+              "packages/astro/test/fixtures/ssr-env": "e8f519490702d75233a0f33d1460752e64adbe74a972cfe284dac47922e3ebdb",
+              "packages/astro/test/fixtures/ssr-markdown": "779fa4fad5bdacd56a942211e9fdd391fdf429c695d73a7b890844c50cd7fbb0",
+              "packages/astro/test/fixtures/ssr-partytown": "b29584e257f6d6e2c48ffce2e2dda39dc1a7d5b08f96d28d8e59293d2581c9df",
+              "packages/astro/test/fixtures/ssr-prerender": "b9cf1731771783e986acee806f9418dc6eb2c96bc114b6589ce2c8c7a5df67d5",
+              "packages/astro/test/fixtures/ssr-prerender-get-static-paths": "8fbf893614b8f34e809eab1612a505e6ab69e49549bbb073d1cd6f3ce2683adf",
+              "packages/astro/test/fixtures/ssr-preview": "b1c658736ac19a48d6b01fd2410533ceb320611714cc5779b132ef0401590d53",
+              "packages/astro/test/fixtures/ssr-renderers-static-vue": "36b13e2d3a13be1ea1d88299edbe32e51f0e49c96620ce17ae633398df6fa607",
+              "packages/astro/test/fixtures/ssr-request": "15fd04f900fef01b5b4c7ec70648efe2a0a22ad857349e41daa7be5562547d8d",
+              "packages/astro/test/fixtures/ssr-script": "54b1fc1b58ce5d9ae2bce04dbe1b192231e28c9fa4a2480fdbb528d977daaf56",
+              "packages/astro/test/fixtures/ssr-scripts": "1a8bbee15e1efa05bd781cbb8b33660e51f4edad8ca95be155134f242c50bf1c",
+              "packages/astro/test/fixtures/static-build": "b6ef2342044e7df12782c86d11d129064b54c9395fc0fc2370d61aa2d1c7d1b4",
+              "packages/astro/test/fixtures/static-build-code-component": "92030f1afab11c1bdf83f478e6c66df3cf326505a556508b1dd39248701b3b7b",
+              "packages/astro/test/fixtures/static-build-dir": "93388daee9dec15215836f294f95923b931c3ff90d86cb0c6de418a6866cfad7",
+              "packages/astro/test/fixtures/static-build-frameworks": "52e3773342ae7427fcf6fed1d62a5997d4040227edd0c51e27f9feae874889c8",
+              "packages/astro/test/fixtures/static-build-page-url-format": "14b6294f815d2d051176f379cabf32fbd614fb01dd4272e558a4c43332f557a7",
+              "packages/astro/test/fixtures/static-build-ssr": "5f5c5b71bbe79afee7b039d3f013d6fa729e040caa0d4b3320d3a9eefc8d483a",
+              "packages/astro/test/fixtures/static-build/pkg": "a641fa0a40a0fdfe82a2c3f722a6f58b8489aa0217b39095ca4cdd78f677e5f7",
+              "packages/astro/test/fixtures/static-redirect": "be8572b076b774513dbeb5ecbcb662482c12e3e7823256343f1b2c56cae22b12",
+              "packages/astro/test/fixtures/streaming": "d1453393b04a7b2b8dbcf0bbdf2e17700d1dc2322941027048246d117cb07922",
+              "packages/astro/test/fixtures/svelte-component": "4b4d7fc13c5c0fe048c35bf8ce9b5c291aadf276ae365c60cc8c27ce8cae5ea9",
+              "packages/astro/test/fixtures/svg-deduplication": "efd796c854071d92fad2c4f600e738946265bb610e7d65fc0e98c3fb2fd61213",
+              "packages/astro/test/fixtures/tailwindcss": "262534ba91f16e690eba5378f5a79f4b303aeee400dda2aaf223c4118d882ead",
+              "packages/astro/test/fixtures/third-party-astro": "0b638f2218a6b6766058356094818d6bc9a4e1bac4a945430dfbc24006b947d9",
+              "packages/astro/test/fixtures/unused-slot": "b896f8906759a846fbb08c59420e12f7f1b62393dc5800759c9bec7432e722f4",
+              "packages/astro/test/fixtures/url-import-suffix": "4b5025fa5dc0d7c2f40673a8700ec778c1d5eb1b00a5eba10282f35803e86e38",
+              "packages/astro/test/fixtures/view-transitions": "8d5a0d70a2d9a15151623bd35250a5bfd5f37a22abbd6c46e081aae9bbcc0918",
+              "packages/astro/test/fixtures/virtual-astro-file": "f7aa7ca54dbb40aa70e8c0b3ad197a9e2f006ead30933e8dd5f8d0652d5af8ce",
+              "packages/astro/test/fixtures/vitest": "ec54ac2737a791cc582b2e83aba58bbfc78d4fba29985df0393c09f9d84094ea",
+              "packages/astro/test/fixtures/vue-component": "ed24ee060ec05db0995efd5322bd44cf3fe33279473ba08dcde53ef8ff371c82",
+              "packages/astro/test/fixtures/vue-with-multi-renderer": "37a86c35e087961154040b8018d208d202e62fe5663c409cef457cb0d1143e19",
+              "packages/create-astro": "74a06b61146b6994725fafc3437017f62feb81688c2450037d995be8bd184923",
+              "packages/create-astro/test/fixtures/not-empty": "da06a0d4f6455e93142d9b47606ac594351d73346831baa91e7a66fd273c45a8",
+              "packages/db": "66c4aae56e7d6bb6335ff80469f6a95f2a9da9afff68d0c7d62a7d10407b9818",
+              "packages/db/test/fixtures/basics": "7094ac86dc41c0f0834ddce769d697ef83afe4dabff752aab9a4a6203c80a09b",
+              "packages/db/test/fixtures/db-in-src": "f400e05e18307917c594cc43bd42968f7f2fdf8d89e5cba737cdb5ed595c347c",
+              "packages/db/test/fixtures/error-handling": "25aef30bce589b9fd8df82a8c03c51466baf57f62977c0b4ced6128218c0b6be",
+              "packages/db/test/fixtures/integration-only": "d5023b1f64128b474a5fa9fdd0d0028702f8fc6efa70c22a03330f7972ff895b",
+              "packages/db/test/fixtures/integrations": "edd727c42a37ad7f43dde6c706c1d89e2199018c7cbee1ffe918586200f285d6",
+              "packages/db/test/fixtures/libsql-remote": "bb8d52826900317e377f8b2fd68d021f20115bc78dc1172498164cdfabfea617",
+              "packages/db/test/fixtures/local-prod": "d4c4f26a4c6b58a2efa4ff5f8cc2e170e08fd6c0718e9eeb6a3be2553afb9bab",
+              "packages/db/test/fixtures/no-apptoken": "fb00cb1d9cb115a964a06aa9c48947889db85c2a7631fffd467bd59d63cd820a",
+              "packages/db/test/fixtures/no-seed": "1b6efb3b9a7734c85fc3d8d950f3c022465ee122846b6392c3b128ec57548058",
+              "packages/db/test/fixtures/recipes": "ae540cf5710bc055bf0f72e9fbf288fe4f88355cfafd1f070aa3b47a4bcde110",
+              "packages/db/test/fixtures/static-remote": "87abfc438e4dc2f661c882a1bbc20f139e13e5ab34d9e0f672b4c2d90b862fb3",
+              "packages/db/test/fixtures/ticketing-example": "163e67700dc27f1d7185000e06fcb0ce95b9acd8fc9673c8f3597cbe2a3288ea",
+              "packages/integrations/alpinejs": "2e69fefabc48652b35d884a4abebada4017477d6de1cf0d78cf4f2308b1bc79d",
+              "packages/integrations/alpinejs/test/fixtures/basics": "6589dba11a55b96f8fa507d26bddc97a5157a2a20bbe61be3fddac31f812dbd9",
+              "packages/integrations/alpinejs/test/fixtures/directive": "e6235ba9bf654fd056d0e278b89b355537aafda6440d28fcfbc9586865b7ac93",
+              "packages/integrations/alpinejs/test/fixtures/plugin-script-import": "1c9b5b67228b4f10b7a21ecaeb3035e1b5926aa163baf62ddd2ee4ca6607d952",
+              "packages/integrations/cloudflare": "5f4247de05068bf86411a45dd133998c1ddf54024c90582926be23d2f3ac5598",
+              "packages/integrations/cloudflare/test/fixtures/astro-dev-platform": "1e773d63bef6411eb2f8a88188f54d7b3c9645e336915efeba9d9605137d6aff",
+              "packages/integrations/cloudflare/test/fixtures/astro-env": "80e5e6f27d55b5aac72cb657f1d5f1791f50d4342a82a9c219bcf7d171ebd59a",
+              "packages/integrations/cloudflare/test/fixtures/binding-image-service": "52db6047600d46294e38d2b7f4dd89633bdadac1266705f33dec92fbec40cc70",
+              "packages/integrations/cloudflare/test/fixtures/client-address": "2a8b231141ad595d493b23b50ac58a41f6d4034c620cc08efec94aa062459230",
+              "packages/integrations/cloudflare/test/fixtures/compile-image-service": "a12a978eea7f0e69508c8267fef3c7b9d83f9594ca4d810b7c3cabe36cf9c44f",
+              "packages/integrations/cloudflare/test/fixtures/custom-entryfile": "47ed16b996322e99384b0430dd6e38effdaf231c19087b4b40d31f4140d1933b",
+              "packages/integrations/cloudflare/test/fixtures/dev-image-endpoint": "7f384d0e8cf013eefe218e21863b600034d3d7e2ac249cac13c08ec26fbec28d",
+              "packages/integrations/cloudflare/test/fixtures/external-image-service": "f5f4711be65e18ba35225768c156e2a828b755579d5190ef116bd3fef68f7fa8",
+              "packages/integrations/cloudflare/test/fixtures/external-redirects": "a1bcf0018c09b6bef423d1036af167132d79646dc86b99e291b1454e12255674",
+              "packages/integrations/cloudflare/test/fixtures/internal-redirects": "b738c08fa36361349e4c4046a63966abe2a2814495140208b90aac51eca86501",
+              "packages/integrations/cloudflare/test/fixtures/no-output": "43b4ee7bf60ef1563ccce7999adb1d6fa91af92c35d175274aaa05faa748e62d",
+              "packages/integrations/cloudflare/test/fixtures/prerender-node-env": "26113648cb7c22625cd76c9bcbac03011f4734c61dc385d926078bf8b5dfef97",
+              "packages/integrations/cloudflare/test/fixtures/prerender-node-env/fake-svelte-pkg": "9f9bba51a11b4491f8917065c761eb0a61eb55ea8e8398f04637bc9c6abf267d",
+              "packages/integrations/cloudflare/test/fixtures/prerender-queue-consumers": "e951c5d00c2b22e8ecce80989605d0bceb1a4a3595a635240a826d3352fbcdbc",
+              "packages/integrations/cloudflare/test/fixtures/prerender-styles": "8ec6e842f3d6a63acfd95a1cc6e0594f2eda478f6c23088d4466dcb8959d2553",
+              "packages/integrations/cloudflare/test/fixtures/prerenderer-errors": "0ed50898941be3b950e529c338b93ce2b1f2c4a1b17f39bc39cbec3d22e5db73",
+              "packages/integrations/cloudflare/test/fixtures/routing-priority": "c5ac3b91481ef704f64022803f4ed8dfc5276f0f0006bf1fcd1b7b50e17fd72a",
+              "packages/integrations/cloudflare/test/fixtures/server-entry": "4616c933e827f7286b45aa8562a1bb79475f2700579a48fc08a8b494f8107b70",
+              "packages/integrations/cloudflare/test/fixtures/server-island-prerender-framework": "d38036701836657311c9678b4725b02009208032d6e27df46fd9b5a09567e770",
+              "packages/integrations/cloudflare/test/fixtures/sessions": "ebcc1f19a70f4da930da33fa729623051827ca319c15e420be2866d9d1cb8cc1",
+              "packages/integrations/cloudflare/test/fixtures/sql-import": "3344c75e3211da125b971824e2b8baed50082316f3b70b667c9e7874b5da2bd1",
+              "packages/integrations/cloudflare/test/fixtures/ssr-deps": "4044654c15e3daeba43edf9127df1f786f12fb8d5dfb6e5d9167c48afb8df25c",
+              "packages/integrations/cloudflare/test/fixtures/static": "652861eae89c61be152892341cca89b2fa4d56a391728cac169b3a42d2fcc3bf",
+              "packages/integrations/cloudflare/test/fixtures/svelte-rune-deps": "77d4d7add7db4ccb851da04cbc937a6e76c3f67a97ea8e9129bd8d0d435864be",
+              "packages/integrations/cloudflare/test/fixtures/top-level-return": "8d700ad243eb1f67cf2f34331e7124edb9b0c2ccc25a1ba077e3def381bfb2a1",
+              "packages/integrations/cloudflare/test/fixtures/vite-plugin": "3c634ffae1812322cb11f42befce976e64747d2049eb06cf399a55907ace7a0e",
+              "packages/integrations/cloudflare/test/fixtures/with-base": "aab22798e4ab1fed453f4444e91adac5a71e4c7ef000257512abb2e34955d58c",
+              "packages/integrations/cloudflare/test/fixtures/with-react": "0a2c2ed0b73caa88b554db0f6e7ac91a09ad4b22cbae76220dcbca11b100f94f",
+              "packages/integrations/cloudflare/test/fixtures/with-solid-js": "dcb12795eb7106d596280e24fa7ba3c752219d16a7ced78cd9b62411286237fe",
+              "packages/integrations/cloudflare/test/fixtures/with-svelte": "f0008b39ea93f78404c802ab18ccc39a04d56603825b3821013669cfc3ed8abb",
+              "packages/integrations/cloudflare/test/fixtures/with-vue": "57d026a7c2c4f02afab179b301aef9ac0b9f9ce4e1b3081964e0dd8a2837f418",
+              "packages/integrations/cloudflare/test/fixtures/wrangler-preview-platform": "7fa3cf1c04d4f2d05bab5e6204988a3a0204d04d67f40361d3d26a91a4f84e7b",
+              "packages/integrations/markdoc": "1a7864a0ba104560b8cd1e13e21cdb9b641ec736de2664a94dd1c0b040bd96df",
+              "packages/integrations/markdoc/test/fixtures/content-collections": "e78b1c2a14267f1320758c0ea40a9cae2b6d7c0096b14b5044bab57afd01a5e7",
+              "packages/integrations/markdoc/test/fixtures/content-layer": "bc0ebc45968002cfb82a3cb5619645ef7f91b03f50f09a5ff9ce6d52cfdfa7dd",
+              "packages/integrations/markdoc/test/fixtures/headings": "db5b7793cd2f40b6c08c1c4e2172558e87cb2c6366fae3c3bfe1d03b74641573",
+              "packages/integrations/markdoc/test/fixtures/headings-custom": "0a001cefe6849477f318034877023aedec4946d0343aca4686a50b1b3edd830e",
+              "packages/integrations/markdoc/test/fixtures/image-assets": "9301dd0d0ea697c6f8427f85630e1af0b9ba41b1247e752f31ebc9aee0b86555",
+              "packages/integrations/markdoc/test/fixtures/image-assets-custom": "184645a62244cb751f59656874cdd5710f9f9a057a5cc03285d474b6fc8760d1",
+              "packages/integrations/markdoc/test/fixtures/propagated-assets": "419766fb283f339a94941f108dae381446db84676163a06f20cf746b7b179fc2",
+              "packages/integrations/markdoc/test/fixtures/render with-space": "0b7ef3179d7b2e8202806c6ec82785d2f509730e72623252415e8dd08c650c0c",
+              "packages/integrations/markdoc/test/fixtures/render-html": "62ab6b22513c6c862d5e72c67e77e35991c1691533cb9dbfc316ba3357a12911",
+              "packages/integrations/markdoc/test/fixtures/render-null": "398ee8a5ad4229be6ff58d3d30bd23b2955ba94ca98668d7a31e80f4aa713dd7",
+              "packages/integrations/markdoc/test/fixtures/render-partials": "307b2c16d85d6ec713d125d072e11617e4354926387ec4d623e7135d1ad4725b",
+              "packages/integrations/markdoc/test/fixtures/render-simple": "8780cc00d24c983c1c6d5ec4244db799d45232a7239eef5c1d16d70186a74e02",
+              "packages/integrations/markdoc/test/fixtures/render-table-attrs": "30eb066aaf947124e2dd37671e05f7a175b4374ccd49017e4a44e7840d3a6b45",
+              "packages/integrations/markdoc/test/fixtures/render-typographer": "222d201e23fe7f82176f68b66b6188713106417802fb428f96131e63f3a5aedf",
+              "packages/integrations/markdoc/test/fixtures/render-with-components": "c27a0ccb449ff6d7a4b75292cc63321cd606ef5c12a77417fb19cd8d896f8e95",
+              "packages/integrations/markdoc/test/fixtures/render-with-config": "2de53563f767b62389ae1b4e38a7ed1622d66fb088896b9968ac77f54e8b0fb7",
+              "packages/integrations/markdoc/test/fixtures/render-with-extends-components": "2e48df823184f30f5e70e88efec7ad6b2e32fb185b52dd906b826551c38fc387",
+              "packages/integrations/markdoc/test/fixtures/render-with-indented-components": "d5ec3a7fc74145a32ee75c55de5f62b9d091b870fd739ec763979e02052c5c35",
+              "packages/integrations/markdoc/test/fixtures/render-with-transform": "9e1e50a0b47bff526d7fcde207c5b7e759ebd2eddfe010e5fc3171bfcff47b84",
+              "packages/integrations/markdoc/test/fixtures/variables": "5d089bf3d25374245bc75b5cbfdbe4536c963c1bb621787cda123c747b9df5e4",
+              "packages/integrations/mdx": "842acbb7fa2ca61044ae3f00cc72f0824b11c4c8380afd4aa96389c3618b19d3",
+              "packages/integrations/mdx/test/fixtures/content-layer": "7fdb8f687f2dd887c4d1305fe7fd9e58b6e767e0d1fe3873935d39bc8e78057b",
+              "packages/integrations/mdx/test/fixtures/css-head-mdx": "74f18c3a360f1cb65ddfffe94a99a31d6fa2600cf14c1b534df1a387348d1b12",
+              "packages/integrations/mdx/test/fixtures/image-remark-imgattr": "50bc13d41f50acc8c0edc1be5d90d63328e5acdc8e8d86e194a4ff372ba5e0dd",
+              "packages/integrations/mdx/test/fixtures/mdx-astro-container-escape": "be153c223587e4c03d96c63e66eb47e066b4cb098df6bd7e3e5b146dc2089ddb",
+              "packages/integrations/mdx/test/fixtures/mdx-frontmatter-injection": "caa80fe03b8760dd924f8e0ab3528041d6b203ec34bd839e0fcfe5df5df2e415",
+              "packages/integrations/mdx/test/fixtures/mdx-images": "c1641f61bc8ddbaba261ddf61ed224aca11eee3646be106fe942b571dfe8f52e",
+              "packages/integrations/mdx/test/fixtures/mdx-infinite-loop": "a42d8adbe1bc677c9a71a04e2d62278ada7f58e5ab712a40ad54cebc75335405",
+              "packages/integrations/mdx/test/fixtures/mdx-namespace": "e7191c38eaa9c138fe810e1d74bcd878375d0ba839cf766e2a80fa9a7333a9df",
+              "packages/integrations/mdx/test/fixtures/mdx-optimize": "974dee4e203796373e0eb4fedf92ec093a693c97893ef8fe59c8fd096dc821d5",
+              "packages/integrations/mdx/test/fixtures/mdx-page": "46ae79cf739faa77ca798261d5697f91e2b75d5e5cec25a71f00196259f779c3",
+              "packages/integrations/mdx/test/fixtures/mdx-plus-react": "391487718eafdc4d41eb070d41d6292d98bcdc3e962d6fd26f04e7e517b0bdc3",
+              "packages/integrations/mdx/test/fixtures/mdx-plus-react-errors": "56fceb235bbb570147b514a53db6acffdfcf83731dc75c3dd031ee09dc808a58",
+              "packages/integrations/mdx/test/fixtures/mdx-vite-env-vars": "c10d13016bcbab1f9b016ec8fec50fa5e3cd6e3ae19f6957109af59d540b47a3",
+              "packages/integrations/netlify": "f89608ff2395d202025d786ad0bcf198f865a28ad9b243cfbd7d95608eb847a5",
+              "packages/integrations/netlify/test/development/fixtures/primitives": "67b6ab32487d4943d2a7c250f81309da1e70aec85619d204bb4e2e52e7106d50",
+              "packages/integrations/netlify/test/functions/fixtures/cookies": "dead57facf6d4e1fa168cd12a8f2e859a7f9902e7ebcc45f2d37064e0bf551ad",
+              "packages/integrations/netlify/test/functions/fixtures/includes": "ace77f6fa9068591acd977f35fbdebf3e23b0a03c14532a12644d93eeb7c1b68",
+              "packages/integrations/netlify/test/functions/fixtures/middleware": "17c18aeab9b4ea31af6ef4cefef0c8eb2a7b16c816f1011c50a44f8257b89ce2",
+              "packages/integrations/netlify/test/functions/fixtures/redirects": "03d137ee88683afa58c509a023793c29b8dc9871188f90412f145bafed96c34d",
+              "packages/integrations/netlify/test/functions/fixtures/sessions": "d2cfef2b8df2d619145d8cf1a28dbe0466204f315cc55e1737a15014eb34ca84",
+              "packages/integrations/netlify/test/functions/fixtures/skew-protection": "6b206255498fce0d629dd308aec57bb5101ac6e71f81c6e0fd5015eb94ceff2c",
+              "packages/integrations/netlify/test/hosted/hosted-astro-project": "1772a46c6eb5dea6705c90915388466b5522629344b6ba0b408d8ddb61ce4c80",
+              "packages/integrations/netlify/test/static/fixtures/image-missing-dimension": "bda00f79e56b1139e026b465b599965f96f51bd4c814c7edfb2d92f1342c179c",
+              "packages/integrations/netlify/test/static/fixtures/redirects": "eca8fb3fff482023efe1364986c2434fe68a9b9f94f5400a5461493b660dd3e7",
+              "packages/integrations/netlify/test/static/fixtures/static-headers": "e313a6b27da6768301b8378b8029e49b31b4b0e9a5af1ce19e1ab8f58454871a",
+              "packages/integrations/node": "fdc09f63c9b4dd0b1ffd15d96f1de408f166f17d536e127aa55f6c49e31159f3",
+              "packages/integrations/node/test/fixtures/api-route": "7587d6e1856ebe4b22bc524dde6d3722091ea5b0ad3c75c923349951da03a964",
+              "packages/integrations/node/test/fixtures/bad-urls": "a4d110d87dcdd3b0811ba11d8cb353d9083e8a3f62f1854d568d156178515b46",
+              "packages/integrations/node/test/fixtures/encoded": "74a0f38d17f06cf30490693b59ab10ec3a6d5b504043fe784e3c459c5f19e0b7",
+              "packages/integrations/node/test/fixtures/errors": "689d8064e62636bb84ef78f187552542ef21a429e124eccd6986b3e94eb69870",
+              "packages/integrations/node/test/fixtures/headers": "149373a795b0ec3d8b8f2ab0fa8b3b44f42a74c7e6e1f051cebd3a6731d0ccdf",
+              "packages/integrations/node/test/fixtures/image": "9e3feab9d1bdedc55ba787f00ea548b4383b6c4a1ea041cae0de4973b7cfaf2b",
+              "packages/integrations/node/test/fixtures/locals": "e63bc9b3c088efab3c1685dc50a9f67d70892d1ccab6fcbbd71483df4800e268",
+              "packages/integrations/node/test/fixtures/node-middleware": "c673b1726a0cb0a73e11b6e17d90ce958e07b9c1ba4d1c2f278eb23ae1f0d478",
+              "packages/integrations/node/test/fixtures/prerender": "b7870df6b90d5e649fa8ad183c4f18b7e3860b0c31f9bbd808d5bbfb4b75fef2",
+              "packages/integrations/node/test/fixtures/prerender-404-500": "2f2bfba5a60991c6f57a3106c3a2344c9575447b8674112d4856101636c7c1f4",
+              "packages/integrations/node/test/fixtures/prerendered-error-page-fetch": "4cd17e79b244e7776005cf1a0750be149690fb361c2af6ab7abc62e3850ce9fc",
+              "packages/integrations/node/test/fixtures/preview-headers": "b898655d9a7dd5845cc95389dff69f6237cd5d0196c76d62a5b838d7f39e0681",
+              "packages/integrations/node/test/fixtures/redirects": "c90961d1c2b4e4852ca6950041507f2a9bb0e6cad4137fe760a92e10787241fd",
+              "packages/integrations/node/test/fixtures/sessions": "063beed579b9ec8c8c100a817411e703c521b110770ffd992c5eb5e3c0a61e1b",
+              "packages/integrations/node/test/fixtures/ssr-assets-middleware": "61c46394ee1c2723a9e52ed8c9f82757e3f13fd179b6be5d83c9e5f6ddad0e4a",
+              "packages/integrations/node/test/fixtures/static-headers": "781a7e08a2f238f59f172d2a2422abf447fc95af20d7aa2c9f0c815a91c3c3e7",
+              "packages/integrations/node/test/fixtures/trailing-slash": "f5fe42cfc4be2b5cda4d9582747984cf0d60f44d7b8bb2eaff7b3e1a3ac87ec6",
+              "packages/integrations/node/test/fixtures/url": "049888ca32714b2e15421de3bc5793beb4f754f8c2d886d97d2186bc958ad99b",
+              "packages/integrations/node/test/fixtures/well-known-locations": "7aa6a54d1f0db4fa57f230654a4df9ab270f560f3c41fb0cf4c7e299a92b9553",
+              "packages/integrations/partytown": "ba009f0a3890d8c62d8ee79d2783f94c4a3eb77717166ad8750172384b20af9f",
+              "packages/integrations/preact": "5df9cbc2fc325ec07c2e75437e24b00746d50078f96efe0c1ba67bbcd7ce027c",
+              "packages/integrations/react": "f0ccc9e2d517c47b8631d9da2a7bbe71d09847f349f5c268e8df4096afd65998",
+              "packages/integrations/react/test/fixtures/react-19-preloads": "7b1ec12a858b43946c41f77c7b2bf4ffd39eb7a241d0e9ac5882a859a0d6ea11",
+              "packages/integrations/react/test/fixtures/react-component": "d017b974aa76cb079df9604b3e7e77aaa3c0e003ff3495f3b68345f7690c4ed1",
+              "packages/integrations/sitemap": "16836553f4082843a35cc894638cc5196b33ab33fc49b0750339b28cdf5f054e",
+              "packages/integrations/sitemap/test/fixtures/chunks": "888c58124d6b0ee4f4680c0a04739ac91aac850a471d999854d288f808fce070",
+              "packages/integrations/sitemap/test/fixtures/dynamic": "86512eb6b1ea13242b1a02553381389144a6b83f396ed418b42180d05cfd8a32",
+              "packages/integrations/sitemap/test/fixtures/i18n-fallback": "fcb7a4c569b2047473de31cf9c5176e237243f3bd6edd27ed8c8b2445704d75f",
+              "packages/integrations/sitemap/test/fixtures/ssr": "dce4a7602705869aa37618fd2d0a19b652a24e2a1dc0c64a70696271d129f391",
+              "packages/integrations/sitemap/test/fixtures/static": "76ab77d23fa00fb70f20eae6bad65e088cf5515ed72e97b3e9829c248f9d8ffe",
+              "packages/integrations/sitemap/test/fixtures/trailing-slash": "75f07e0fcac21a2af88d7d31f4541c61b6626a6a0f88ebfe2059cd59216fe44c",
+              "packages/integrations/solid": "a283b3e4d0764e354cd80b31b384b7eb419170d41fdd78caf62195656a0a8aeb",
+              "packages/integrations/svelte": "932ad41060aa32a3f853e6bc5af591413890857607ffaea753b468d1eb5b9740",
+              "packages/integrations/svelte/test/fixtures/async-rendering": "69e49771195ee9538e2950b33a4b5adbbe01119df830c1622e24e4872277448e",
+              "packages/integrations/svelte/test/fixtures/conditional-rendering": "f11bd8f00b043f4f21113cd278cd65a6a1c320156517e5af2edd327e57179ed0",
+              "packages/integrations/svelte/test/fixtures/empty-class": "1441100bce4cc4c98e90272aa6e5597da2245567a7515a7698566959e35b6ccc",
+              "packages/integrations/svelte/test/fixtures/prop-types": "d0e6c8703da12347ed70ef9a361f24922198109a54ef8c771cd0df46ddae633c",
+              "packages/integrations/vercel": "b31a78efd45c0bff57192f43e64464a0a295c707fef3d3eb143eb223b7742c6d",
+              "packages/integrations/vercel/test/fixtures/basic": "15b895d091f34c24ce8442c5a8e141405789b2f46ef1a7c7d7c12a7beddf2a6b",
+              "packages/integrations/vercel/test/fixtures/image": "2a6d530419262531c4ea6ae7b13deedace2f83213752b8b0d9e1b23de24e4e3f",
+              "packages/integrations/vercel/test/fixtures/integration-assets": "75048a5c27fc0c9f5390de5a4bf5472f67eca06f5c669834bf35c753adb03816",
+              "packages/integrations/vercel/test/fixtures/isr": "fd742c23ab3b6d182dc143d1d2c7a7c449805c660bfff642404afe0348e23e56",
+              "packages/integrations/vercel/test/fixtures/max-duration": "26a2cc8219b673d249b0ef8d2d15b70cf73f5bf58452691305a3c9f2c72af545",
+              "packages/integrations/vercel/test/fixtures/middleware-with-edge-file": "c0d433f884d641d4c59d50a2067f76a3221789dd8234fb5daeb0d59a77ed21ef",
+              "packages/integrations/vercel/test/fixtures/middleware-without-edge-file": "c83f03648600beb336b5473efe79c416f2634ebfa0077a4aa0a583bf43883b2e",
+              "packages/integrations/vercel/test/fixtures/no-output": "496a2fa48b91c343a1e0164f07460a0316ea8380799deed9ef45946750d74d20",
+              "packages/integrations/vercel/test/fixtures/prerendered-error-pages": "a73643ba9eb4ffbf1224ef4ef1607f865fe1ccf8ac6f2d42035db5a9e1a92e70",
+              "packages/integrations/vercel/test/fixtures/redirects": "2c7375c48f285d5fa1d9df0751802e810930b06705525e70fb99d05cd0261519",
+              "packages/integrations/vercel/test/fixtures/redirects-serverless": "2fe06a66da7a06ca68a1e238c34f9997cb5f1879b02514ffc3edefb82f2a085e",
+              "packages/integrations/vercel/test/fixtures/server-islands": "0c8dd4cc4a72f5c536f033245ddd0c3b775982f0a70315b0676146a47be69a7f",
+              "packages/integrations/vercel/test/fixtures/serverless-prerender": "136b40288c46b659026d88fae4f50e931c943bf4d22cb73ba860a8866ba887c1",
+              "packages/integrations/vercel/test/fixtures/serverless-with-dynamic-routes": "b332fc1455ac9972eff58028f35a1a8b36b98887268aa985a57eb32188c1dd5b",
+              "packages/integrations/vercel/test/fixtures/static": "9c56bcdcfa665da1eb5c743012b5ecba783d715e0e2758dd32f48f977b7eea71",
+              "packages/integrations/vercel/test/fixtures/static-assets": "30b536d97c414c15712044cbd44f902e6c586736af16eb646e5987d71f6150cd",
+              "packages/integrations/vercel/test/fixtures/static-headers": "6d91e26a85d90e77f45cced5122823d5e17389b9b2a9ddddd6cbd95cdfaa0ece",
+              "packages/integrations/vercel/test/fixtures/streaming": "f25c5e939c45c787660136b36105ad537840abadf608076f2d2b2fe2133d0fe8",
+              "packages/integrations/vercel/test/fixtures/with-web-analytics-enabled/output-as-static": "389b15e6775f335d0dd9cefa04e5b83781bc247b65cfed7e6c616ea6d36c57a0",
+              "packages/integrations/vercel/test/hosted/hosted-astro-project": "73064c7bcc2fb6f8877f56083ae7d45c71c7ad5c911469051d5704f0f27d40b0",
+              "packages/integrations/vue": "724f65497383718c8c322390b9c96165e218b8ffe99ba7bbf93007a7d6a4ea3d",
+              "packages/integrations/vue/test/fixtures/app-entrypoint": "d27fdbc2ea7b4561ace43aff48594f43a818927a03f1b3189d9f05e7adcdde57",
+              "packages/integrations/vue/test/fixtures/app-entrypoint-async": "462bc0c583c4d33264ea3c47b7b31584bed5eb2d706e6a6418e6192019ffc717",
+              "packages/integrations/vue/test/fixtures/app-entrypoint-css": "e631ed6f675d7bd87052b7d4d3f19dbe485edf6f7b8058f31315f647e20c8f22",
+              "packages/integrations/vue/test/fixtures/app-entrypoint-no-export-default": "7d57b672ff0915466e75209e32dcbe522a2c7d6c03f95eb275dc38cd84835e6d",
+              "packages/integrations/vue/test/fixtures/app-entrypoint-relative": "92c31158c08b5d0746354a1b1c8774df9baec65021496f78499e996138784a90",
+              "packages/integrations/vue/test/fixtures/app-entrypoint-src-absolute": "d24914eb8ef4a59f459031f6c27b319e2b60c49279f0ff7f57e89a958c0bf87c",
+              "packages/integrations/vue/test/fixtures/basics": "7cfa0706e69dfdf42808dca66e675a0d977facb9fe43c34ead9a9f1a1de0ec29",
+              "packages/integrations/vue/test/fixtures/prop-types": "947821131c22fe6f31c9893976c988c6ca66dd61930d1bc1d23c8c111f928e9b",
+              "packages/internal-helpers": "aa526fea917604b7439c048aee738eeb0b9bcbf9110fb111b929b5e0ecc47469",
+              "packages/language-tools/astro-check": "5053df60925243649bd247b83e1b733ed916080916b58ee0e0779e05006ae2a6",
+              "packages/language-tools/language-server": "9a08c6fee63f0ec0024b49ee74cc77638de92fbac3550029b325d2a15b1a8c87",
+              "packages/language-tools/language-server/test": "794360021cb689ca130cbbca0c59ce5ac46298bf10aba31f5578e065e26277be",
+              "packages/language-tools/language-server/test/fixture": "72eb7bd2643516a568a49b7ef6967bee28ac2ab08bf4a8e508d4f07690b8298c",
+              "packages/language-tools/ts-plugin": "8d6d19a75109ec2211a635a411032d2145349d350aea6ec7bcbcbde1ca665a9d",
+              "packages/language-tools/vscode": "1d0fff1d10156a892d804d8d5279096760b70645499c742d35b34ccde199c335",
+              "packages/language-tools/yaml2ts": "5d94b066c379aa22fdca0603d8b13b373394e30769780cb9dd0ee2b9bc09c8e3",
+              "packages/markdown/remark": "a5d70cd4aa37628678b5ce86f85dea4736b095b2acaa1f0d0e756808d24b65de",
+              "packages/telemetry": "0d5780cdcfdb3fde10a0b5f35cb8a9e511af254939688883b8e59cead151c4dc",
+              "packages/underscore-redirects": "df2c5051ca6be67e59051ae1fb43d1d71facbbcbfc429c51babaf8e113d5c8cd",
+              "packages/upgrade": "1553a2b39aa8bbf033b1d823d4f66aced2a680436093ced3ece0575e0c08ebd3",
+              "scripts": "158a94a2cdc83ea41a685460352b9039aa326dfb2fd3d1b4e22e34f3dbf17ccf"
+            }
+          },
+          {
+            "name": "nextjs",
+            "url": "https://github.com/vercel/next.js.git",
+            "commit": "7873aeaa51cb445bc345986941934c295c63e6f1",
+            "expectedHash": {
+              "apps/bundle-analyzer": "58c47ea4b1a2b9f02bf20f1f46abe6e0aea2fafcab803f95a3427acb3c87b327",
+              "apps/docs": "ca9065e811f6b1e39e02bd29d068db3e79b2a1015e89fa0ddd40559517f3d33d",
+              "bench/app-router-server": "5a517bcfff1dc8f7bae49a692897bf41e5eac470ddcbcbd38761e3ba2c78a06a",
+              "bench/fuzzponent": "cead6f24243208087e26345041087fac4fbec8c75913c1c1f8e22509eacceca8",
+              "bench/heavy-npm-deps": "8bffdf6cd4eec2e1e42f8e5c1ad88f8f93ad0b46cc9db0ebf1665664e79a0c5d",
+              "bench/module-cost": "ffdb34e1102feca8da785238c24fd719e25f06ffaf7427c9dc20a6ff3e289959",
+              "bench/nested-deps": "10a6da76847c2e6d7305ba3856fc7cf11090f0fef4821bf07a436b888616aaaf",
+              "bench/nested-deps-app-router": "e6dc164bfdf01b1d8ca8fdb924970d511b85f605ee4c64bb8209b3924cbc0cd8",
+              "bench/nested-deps-app-router-many-pages": "0ad06298fb9e4c83dd98aeed5363eed787020c0a0f8429a62600b391c53f45a5",
+              "bench/next-minimal-server": "c9c93529004e2c3f47f7473ce0b686994719b3aa8ba7521e5619cd12374cc28c",
+              "bench/recursive-delete": "b9dbd574d589176f92daf458bc500bdcf23c1a82341b9ce4362ea78cac7c39b2",
+              "bench/rendering": "2c3ab2d28b70c358f00a24207a6fec66dcd39fa287714609c80ca6e7f3a22db0",
+              "bench/vercel": "0d5fb3dae0a52172055cb81f031b19261030ac86f46992e9fc2cee6399161881",
+              "crates/next-core/js": "7f690781f73826cbdc82306c4d0f47c7cb70bdd1ad6e183a889d0fe17c96a9bf",
+              "packages/create-next-app": "739b14c857899ace8fb6ecc75870484db5c97c89c43da80e7d5aed218a7bcab0",
+              "packages/eslint-config-next": "675925a102cfeee8b79971739e3c0b8f940de64db051f32f21dcadab35107ea3",
+              "packages/eslint-plugin-internal": "644793cbceb591477e959e24bcffa525753719305e061fccf84a99aa84409d06",
+              "packages/eslint-plugin-next": "e83d68f4998f427d2436934b605ce20df839d1dbdac023df464a9b76b5f0c55d",
+              "packages/font": "e9a62725b0163c007cea8c8206c6729f27d96c2df62da761d8e9bb0204fd2526",
+              "packages/next": "3860330654c37ffa28e9f469828ee588d0081244f9ade0f00ae90fff4e2bed9a",
+              "packages/next-bundle-analyzer": "0b4d2ad486d4475f8f41d0bbf4be28166338f8251351ef972950bf4361eccdb2",
+              "packages/next-codemod": "7a72672d429fb794c86395787783a60866def710e2c5f06e4473ed1a361055ce",
+              "packages/next-env": "67f17f01c99fef0cef8a03966b0a3c9cb6a2903290ccb8207b897efc901872f8",
+              "packages/next-mdx": "3e13b39693d212a47766be12afa1a7b0e3ff760c9047ad7519472a975d5c1af3",
+              "packages/next-playwright": "fa98aad8ac9ece3a5671e2774be0c0605bdeab9cf6124e9cb74587a0cc167891",
+              "packages/next-plugin-storybook": "c856cf0deb42ff5b3cc2217e1e932f623b9da32927ff8ea36dcc01a56ac1b42e",
+              "packages/next-polyfill-module": "e1831978c3e74116fd145fda286cc50e8a28a5a8c357e82fdeb79a0c515059cb",
+              "packages/next-polyfill-nomodule": "9d15e7c67834a42d9f728f5f0c71c77459508e5ca15ef1a540af88d1803cc811",
+              "packages/next-routing": "7deda2753843a28bbefc20087a5f5032f8d8f8d8683b3fdfecde818b2c94ab1d",
+              "packages/next-rspack": "1649d1e51d2348bccaf202b74cef9b353fde2b6f4084c6a2cea00eec7c9bf4eb",
+              "packages/next-swc": "13c8810eb6c6bd5e1b70ab4629251e99e4ab7e8a2b34efd85fd34dd4e174da23",
+              "packages/react-refresh-utils": "712c672e2920415f7994e8f7402565b1c74f67e12e80d369af77e056228099e8",
+              "packages/third-parties": "abb6efb038634e982d18327ce151cbe51ef075ca7ae0e2a204791288e89feb06",
+              "turbopack/crates/turbopack-cli/js": "241c2425363589a0c790099819d53b47f18796da64b1a3b5fe95f4fccaf53434",
+              "turbopack/crates/turbopack-ecmascript-runtime/js": "af4e523c6afe1743052c1453cc57c05da052e3a9795adc59898802878f035dc8",
+              "turbopack/crates/turbopack-node/js": "e9efbbf34fe27771d69f1ab356d07af402f424308d76c4bd165c6e7ed7cb2d58",
+              "turbopack/crates/turbopack-tests/tests/execution": "15e8c2ade38dac3e1cd51278a43d952f990ce2c245047c92e5ca532ef4ef8f29",
+              "turbopack/packages/devlow-bench": "b22066bb844408736f91b94d76b737b920176fa841947ee13466e48d42517b66",
+              "turbopack/packages/node-module-trace": "4852f07c8f58addcd932536719153c83b92c8a238d49858a114c7a7918ce57c7",
+              "turbopack/packages/turbo-tracing-next-plugin": "83ba90d3bf68539535c9e720c72db91b5d88a57a83f8c66f91aacecaff393641",
+              "turbopack/packages/webpack-nmt": "4a27dc691c307338566805ffe5aa13d1fa2d56386affda896a2bb304babb6ce9"
+            }
+          },
+          {
+            "name": "turborepo",
+            "url": "https://github.com/vercel/turborepo.git",
+            "commit": "99f27c49b02f65019c019536c61250eb419728e1",
+            "expectedHash": {
+              "apps/docs": "bedeab16b925e2fd3055e4c34c138289e97d8548c3b80978649c2043e3192c5f",
+              "cli": "7689ea70138adf36b9e5594ed43edbd42721ca3a9f229e4435ffe49fc6c8bf17",
+              "docs/link-checker": "18d9cff8fef2d0687c13ff9be1850ca36c4aa4dfa04c17fbc22460289179d64d",
+              "examples": "4769fa1b4448a8f08325356690121a203ca8babf38e3c5370c88892acaf691ff",
+              "lockfile-tests": "5a3611e9948578e0423924efa5275a1470fce8dc40c7eeaadb6dee4d05ba3554",
+              "packages/create-turbo": "313f01299b24cc0a9e16b73b0602fe25de28fd10c4c9a6810104f28349a45b2e",
+              "packages/eslint-config-turbo": "0e7b1d760f0111326b165a7f6c2bb3c8b2d68977f756c5f0a2ff4a82f796dc69",
+              "packages/eslint-plugin-turbo": "653526f371e5396b39fba7ae76fd07242742260ff1a620a295806a1033f089c2",
+              "packages/tsconfig": "5a1be3cdfbe61dfbb1f0d95c6a421c1ff54edb120c66306f987b167d76f42efb",
+              "packages/turbo-codemod": "c03944d2433b694b67349bffef3626be9b71058519b7d4b1e26747506561952a",
+              "packages/turbo-gen": "4702bd00e37dd8ddf7c8f827d427ebcb09265328c0ac7dc3749fae7cde049e74",
+              "packages/turbo-ignore": "13c2b09abfa384d020846b96e4523085b370e99c9d129ba6714b086c2c711777",
+              "packages/turbo-releaser": "245a52829480d099b463b84c5655d06844f3ef6e3a4d185a9e8a4e81e36c09e2",
+              "packages/turbo-repository": "8c1ec01e2f1f64e2f3c7d20de140281933e53f112619052f0392756d27d6deda",
+              "packages/turbo-telemetry": "5425e0891fac21b1f20f8c6c5fc4994e5acda468f3384b46e6a2aa126c43ecde",
+              "packages/turbo-test-utils": "af3e9e710c83f932a9e45ec54644249fb4658af57c649cb1ad1ad15dc37575a5",
+              "packages/turbo-types": "bdfabe35d799e9927e8c96c6eb67fadc459a88e4c34d77e1dca0338f49e40a28",
+              "packages/turbo-utils": "7bd10a26fa22d3f7ef8ded5c2656c2fbce2210bd4c876e0a54f62412d8f5833b",
+              "packages/turbo-vsc": "bea42056528fb853a85b3f76c257a4c084c1348bc4eadbea0d934d2dce6ad642",
+              "packages/turbo-workspaces": "cc6e6c54ad159f8288bdc0130792304ebaa4493902740ece558fad86a48d7fab",
+              "turborepo-tests/helpers": "6b9d456b776fa165f4eeada38726c8d7217b343d5236fc354941d7a749ebbbd3"
+            }
+          }
+        ]
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v6
+
+      - name: "Install PNPM"
+        uses: pnpm/action-setup@v5
+
+      - name: "Bump Node to v25"
+        uses: actions/setup-node@v6
+        with:
+          check-latest: true
+          cache: "pnpm"
+          node-version: 25
+
+      - name: "Install Bun"
+        uses: oven-sh/setup-bun@v2
+
+      - name: "Install Go"
+        uses: actions/setup-go@v6
+        with:
+          cache-dependency-path: "./src/go/go.sum"
+          check-latest: true
+          go-version: "stable"
+
+      - name: "Install Rust"
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          components: clippy, rustfmt
+          rust-src-dir: ./src/rust
+          toolchain: stable
+
+      - name: "Install dependencies"
+        run: |
+          pnpm i --frozen-lockfile
+          cd src/go && go mod download
+          cd ../rust && cargo fetch --locked
+
+      - name: "Build runtimes and check ecosystem repositories"
+        shell: bash
+        run: |
+          mkdir -p "$ECOSYSTEM_WORKDIR"
+
+          node --input-type=module <<'NODE'
+          import { spawnSync } from "node:child_process"
+          import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+          import { join, resolve } from "node:path"
+
+          const workspaceRoot = process.cwd()
+          const ecosystemWorkdir = resolve(process.env["ECOSYSTEM_WORKDIR"] ?? ".github/tmp/ecosystem")
+          const summaryPath = join(ecosystemWorkdir, "ecosystem-summary.md")
+          const summaryOutputPath = process.env["GITHUB_STEP_SUMMARY"]
+
+          mkdirSync(ecosystemWorkdir, { recursive: true })
+
+          function quoteForDisplay(command) {
+            return `\`${command}\``
+          }
+
+          function run(command, args, options = {}) {
+            const result = spawnSync(command, args, {
+              cwd: options.cwd ?? workspaceRoot,
+              encoding: "utf8",
+              maxBuffer: 10 * 1024 * 1024,
+            })
+
+            return {
+              command: [ command, ...args ].join(" "),
+              status: result.status ?? 1,
+              stdout: result.stdout ?? "",
+              stderr: result.stderr ?? "",
+              error: result.error
+                ? String(result.error)
+                : "",
+            }
+          }
+
+          function shorten(text, maxLength = 1200) {
+            if (!text) { return "" }
+
+            if (text.length <= maxLength) { return text }
+
+            return `${text.slice(0, maxLength)}\n...[truncated]`
+          }
+
+          function safeCodeBlock(value, language = "") {
+            const text = value && value.trim()
+              ? value.trim()
+              : "(empty)"
+
+            return `\n\n\`\`\`${language}\n${text}\n\`\`\``
+          }
+
+          function sortJsonValue(value) {
+            if (Array.isArray(value)) {
+              return value.map(sortJsonValue)
+            }
+
+            if (value && typeof value === "object") {
+              return Object.fromEntries(Object.entries(value)
+                .toSorted(([left], [right]) => left.localeCompare(right))
+                .map(([ key, nestedValue ]) => [ key, sortJsonValue(nestedValue) ]))
+            }
+
+            return value
+          }
+
+          function prettyJson(value) {
+            const parsed = typeof value === "string"
+              ? JSON.parse(value)
+              : value
+
+            return JSON.stringify(sortJsonValue(parsed), null, 2)
+          }
+
+          function sanitizeName(value) {
+            return value.toLowerCase()
+              .replace(/[^a-z0-9._-]+/g, "-")
+              .replace(/^-+|-+$/g, "") || "repo"
+          }
+
+          function formatExitStatus(status) {
+            return typeof status === "number"
+              ? String(status)
+              : "unknown"
+          }
+
+          function loadRepos() {
+            const raw = process.env["ECOSYSTEM_REPOS"] ?? "[]"
+
+            try {
+              const parsed = JSON.parse(raw)
+
+              if (!Array.isArray(parsed)) {
+                throw new TypeError("ECOSYSTEM_REPOS must be a JSON array")
+              }
+
+              return {
+                repos: parsed, error: null,
+              }
+            } catch (error) {
+              return {
+                repos: [],
+                error: error instanceof Error
+                  ? error.message
+                  : String(error),
+              }
+            }
+          }
+
+          function detectNodeEntrypoint() {
+            const candidates = [
+              resolve(workspaceRoot, "dist/monorepo-hash.mjs"),
+              resolve(workspaceRoot, "dist/monorepo-hash.js"),
+            ]
+
+            return candidates.find((candidate) => existsSync(candidate)) ?? null
+          }
+
+          const buildPlan = [
+            {
+              key: "node",
+              label: "Node",
+              build: [ "pnpm", ["build:node"]],
+              resolveCommand: () => {
+                const entrypoint = detectNodeEntrypoint()
+
+                return entrypoint
+                  ? [ "node", [entrypoint]]
+                  : null
+              },
+            },
+            {
+              key: "bun",
+              label: "Bun",
+              build: [ "pnpm", [ "cli:build-bin", "-r", "bun", "-p", "linux-x64" ]],
+              resolveCommand: () => {
+                const binary = resolve(workspaceRoot, "bun-build/monorepo-hash-linux-x64")
+
+                return existsSync(binary)
+                  ? [ binary, []]
+                  : null
+              },
+            },
+            {
+              key: "go",
+              label: "Go",
+              build: [ "pnpm", [ "cli:build-bin", "-r", "go", "-p", "linux-x64" ]],
+              resolveCommand: () => {
+                const binary = resolve(workspaceRoot, "go-build/monorepo-hash-linux-x64")
+
+                return existsSync(binary)
+                  ? [ binary, []]
+                  : null
+              },
+            },
+            {
+              key: "rust",
+              label: "Rust",
+              build: [ "pnpm", [ "cli:build-bin", "-r", "rust", "-p", "linux-x64" ]],
+              resolveCommand: () => {
+                const binary = resolve(workspaceRoot, "rust-build/monorepo-hash-linux-x64")
+
+                return existsSync(binary)
+                  ? [ binary, []]
+                  : null
+              },
+            },
+          ]
+
+          const buildResults = []
+
+          for (const runtime of buildPlan) {
+            const [ buildCommand, buildArgs ] = runtime.build
+            const buildResult = run(buildCommand, buildArgs)
+
+            let finalStatus = buildResult.status
+            let combinedStdout = buildResult.stdout
+            let combinedStderr = buildResult.stderr
+
+            if (finalStatus === 0 && runtime.key !== "node") {
+              const chmodResult = run("pnpm", ["cli:chmod"])
+
+              combinedStdout += chmodResult.stdout
+              combinedStderr += chmodResult.stderr
+
+              if (chmodResult.status !== 0) {
+                finalStatus = chmodResult.status
+              }
+            }
+
+            const commandSpec = runtime.resolveCommand()
+            const available = finalStatus === 0 && commandSpec !== null
+
+            buildResults.push({
+              key: runtime.key,
+              label: runtime.label,
+              available,
+              status: finalStatus,
+              command: commandSpec,
+              buildCommand: [ buildCommand, ...buildArgs ].join(" "),
+              stdout: combinedStdout,
+              stderr: combinedStderr,
+            })
+          }
+
+          function cloneRepository(repo, repoDir) {
+            rmSync(repoDir, {
+              recursive: true, force: true,
+            })
+            mkdirSync(repoDir, { recursive: true })
+
+            const steps = [
+              run("git", [ "init", "--quiet" ], { cwd: repoDir }),
+              run("git", [ "remote", "add", "origin", repo.url ], { cwd: repoDir }),
+              run("git", [ "fetch", "--depth", "1", "origin", repo.commit ], { cwd: repoDir }),
+              run("git", [ "-c", "advice.detachedHead=false", "checkout", "--detach", "FETCH_HEAD" ], { cwd: repoDir }),
+            ]
+
+            const failedStep = steps.find((step) => step.status !== 0)
+
+            return {
+              ok: !failedStep,
+              steps,
+              failedStep,
+            }
+          }
+
+          function getGeneratedHash(repoDir) {
+            const hashPath = join(repoDir, ".hash")
+
+            if (!existsSync(hashPath)) {
+              return {
+                exists: false,
+                raw: "",
+                formatted: "",
+                parseError: null,
+              }
+            }
+
+            const raw = readFileSync(hashPath, "utf8")
+
+            try {
+              return {
+                exists: true,
+                raw,
+                formatted: prettyJson(raw),
+                parseError: null,
+              }
+            } catch (error) {
+              return {
+                exists: true,
+                raw,
+                formatted: raw,
+                parseError: error instanceof Error
+                  ? error.message
+                  : String(error),
+              }
+            }
+          }
+
+          function getExpectedHash(repo) {
+            try {
+              return {
+                ok: true,
+                formatted: prettyJson(repo.expectedHash),
+                error: null,
+              }
+            } catch (error) {
+              return {
+                ok: false,
+                formatted: "",
+                error: error instanceof Error
+                  ? error.message
+                  : String(error),
+              }
+            }
+          }
+
+          function runRuntime(runtime, repo, repoDir, expectedHash) {
+            if (!runtime.available || runtime.command === null) {
+              return {
+                runtime: runtime.label,
+                ok: false,
+                status: runtime.status,
+                reason: `Build failed before execution (${formatExitStatus(runtime.status)})`,
+                generatedHash: "",
+                stdout: runtime.stdout,
+                stderr: runtime.stderr,
+              }
+            }
+
+            const [ command, baseArgs ] = runtime.command
+
+            rmSync(join(repoDir, ".hash"), { force: true })
+            rmSync(join(repoDir, ".debug-hash"), { force: true })
+            const result = run(command, [ ...baseArgs, "-g" ], { cwd: repoDir })
+            const generatedHash = getGeneratedHash(repoDir)
+
+            if (!expectedHash.ok) {
+              return {
+                runtime: runtime.label,
+                ok: false,
+                status: result.status,
+                reason: `Expected hash JSON is invalid (${expectedHash.error})`,
+                generatedHash: generatedHash.formatted || generatedHash.raw,
+                stdout: result.stdout,
+                stderr: result.stderr,
+              }
+            }
+
+            if (result.status !== 0) {
+              return {
+                runtime: runtime.label,
+                ok: false,
+                status: result.status,
+                reason: `Exited with code ${formatExitStatus(result.status)}`,
+                generatedHash: generatedHash.formatted || generatedHash.raw,
+                stdout: result.stdout,
+                stderr: result.stderr,
+              }
+            }
+
+            if (!generatedHash.exists) {
+              return {
+                runtime: runtime.label,
+                ok: false,
+                status: result.status,
+                reason: "Did not generate a root .hash file",
+                generatedHash: "",
+                stdout: result.stdout,
+                stderr: result.stderr,
+              }
+            }
+
+            if (generatedHash.parseError) {
+              return {
+                runtime: runtime.label,
+                ok: false,
+                status: result.status,
+                reason: `Generated .hash is not valid JSON (${generatedHash.parseError})`,
+                generatedHash: generatedHash.raw,
+                stdout: result.stdout,
+                stderr: result.stderr,
+              }
+            }
+
+            if (generatedHash.formatted !== expectedHash.formatted) {
+              return {
+                runtime: runtime.label,
+                ok: false,
+                status: result.status,
+                reason: "Generated .hash does not match the expected JSON",
+                generatedHash: generatedHash.formatted,
+                stdout: result.stdout,
+                stderr: result.stderr,
+              }
+            }
+
+            return {
+              runtime: runtime.label,
+              ok: true,
+              status: result.status,
+              reason: "Matched expected .hash",
+              generatedHash: generatedHash.formatted,
+              stdout: result.stdout,
+              stderr: result.stderr,
+            }
+          }
+
+          const repoList = loadRepos()
+          const repoResults = []
+
+          if (repoList.error) {
+            repoResults.push({
+              name: "ECOSYSTEM_REPOS",
+              url: "",
+              commit: "",
+              cloneOk: false,
+              cloneError: `Invalid ECOSYSTEM_REPOS JSON : ${repoList.error}`,
+              runtimes: [],
+            })
+          } else {
+            for (const [ index, repo ] of repoList.repos.entries()) {
+              const repoName = typeof repo.name === "string" && repo.name.trim()
+                ? repo.name.trim()
+                : `repo-${index + 1}`
+              const repoDir = join(ecosystemWorkdir, `${String(index + 1)
+                .padStart(2, "0")}-${sanitizeName(repoName)}`)
+              const expectedHash = getExpectedHash(repo)
+              const hasValidUrl = typeof repo.url === "string" && repo.url.trim().length > 0
+              const hasValidCommit = typeof repo.commit === "string" && repo.commit.trim().length > 0
+              const cloneResult = hasValidUrl && hasValidCommit
+                ? cloneRepository(repo, repoDir)
+                : {
+                    ok: false,
+                    failedStep: {
+                      command: "validate ecosystem repository definition",
+                      status: 1,
+                    },
+                  }
+
+              const repoResult = {
+                name: repoName,
+                url: typeof repo.url === "string"
+                  ? repo.url
+                  : "",
+                commit: typeof repo.commit === "string"
+                  ? repo.commit
+                  : "",
+                cloneOk: cloneResult.ok,
+                cloneError: cloneResult.failedStep
+                  ? `${cloneResult.failedStep.command} (exit ${formatExitStatus(cloneResult.failedStep.status)})`
+                  : "",
+                runtimes: [],
+              }
+
+              if (cloneResult.ok) {
+                for (const runtime of buildResults) {
+                  repoResult.runtimes.push(runRuntime(runtime, repo, repoDir, expectedHash))
+                }
+              }
+
+              repoResults.push(repoResult)
+            }
+          }
+
+          const summaryLines = []
+
+          summaryLines.push("# Ecosystem verification summary")
+          summaryLines.push("")
+          summaryLines.push("## Runtime build status")
+          summaryLines.push("")
+
+          for (const runtime of buildResults) {
+            summaryLines.push(`- ${runtime.available
+              ? "✅"
+              : "❌"} ${runtime.label} : exit ${formatExitStatus(runtime.status)} via ${quoteForDisplay(runtime.buildCommand)}`)
+
+            if (!runtime.available) {
+              if (runtime.stdout.trim()) {
+                summaryLines.push(`  - stdout :${safeCodeBlock(shorten(runtime.stdout), "text")}`)
+              }
+
+              if (runtime.stderr.trim()) {
+                summaryLines.push(`  - stderr :${safeCodeBlock(shorten(runtime.stderr), "text")}`)
+              }
+            }
+          }
+
+          summaryLines.push("")
+          summaryLines.push("## Repository results")
+          summaryLines.push("")
+
+          for (const repo of repoResults) {
+            const shortCommit = repo.commit
+              ? repo.commit.slice(0, 12)
+              : "unknown"
+            const allRuntimeChecksPassed = repo.cloneOk && repo.runtimes.length > 0 && repo.runtimes.every((runtime) => runtime.ok)
+
+            summaryLines.push(`### ${allRuntimeChecksPassed
+              ? "✅"
+              : "❌"} ${repo.name} (${shortCommit})`)
+            summaryLines.push("")
+
+            if (repo.url) {
+              summaryLines.push(`- URL : ${quoteForDisplay(repo.url)}`)
+            }
+
+            if (repo.commit) {
+              summaryLines.push(`- Commit : ${quoteForDisplay(repo.commit)}`)
+            }
+
+            if (!repo.cloneOk) {
+              summaryLines.push(`- Clone : ❌ ${repo.cloneError}`)
+              summaryLines.push("")
+
+              continue
+            }
+
+            if (repo.runtimes.every((runtime) => runtime.ok)) {
+              summaryLines.push("- Result : ✅ All 4 runtimes exited with 0 and matched the expected `.hash`")
+              summaryLines.push("")
+
+              continue
+            }
+
+            summaryLines.push("- Result : ❌ Failures detected")
+            summaryLines.push("")
+
+            for (const runtime of repo.runtimes.filter((rt) => !rt.ok)) {
+              summaryLines.push(`- ${runtime.runtime} : exit ${formatExitStatus(runtime.status)} — ${runtime.reason}`)
+
+              if (runtime.generatedHash) {
+                summaryLines.push(`  - Generated ${quoteForDisplay(".hash")} :${safeCodeBlock(runtime.generatedHash, "json")}`)
+              }
+
+              if (runtime.stdout.trim()) {
+                summaryLines.push(`  - stdout :${safeCodeBlock(shorten(runtime.stdout), "text")}`)
+              }
+
+              if (runtime.stderr.trim()) {
+                summaryLines.push(`  - stderr :${safeCodeBlock(shorten(runtime.stderr), "text")}`)
+              }
+            }
+
+            summaryLines.push("")
+          }
+
+          const summary = `${summaryLines.join("\n")
+            .trimEnd()}\n`
+
+          writeFileSync(summaryPath, summary, "utf8")
+
+          if (summaryOutputPath) {
+            appendFileSync(summaryOutputPath, summary)
+          }
+
+          process.stdout.write(summary)
+          NODE
