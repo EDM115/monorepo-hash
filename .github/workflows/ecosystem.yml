@@ -1,4 +1,4 @@
-name: Checks ecosystem repositories against expected .hash outputs
+name: Checks ecosystem repositories
 
 on:
   workflow_dispatch:
@@ -137,7 +137,7 @@ jobs:
             "name": "tamagui-starter",
             "url": "https://github.com/tamagui/starter-free.git",
             "commit": "7ccaf93527d89f301db13968aaeef0f1febd1e4b",
-            "expectedHash": {{
+            "expectedHash": {
               "apps/expo": "196cccf2c3223856446796a2fa0bfbec3ceb38d5735a478f218d268985150376",
               "apps/next": "10d8a7c8b0946aef84f49233d82c0de93c66070795982bb30b8ac7d6a41b0d30",
               "packages/app": "b90c467c25a6d381f6e849c867b335275171f5048169117e8b620ecbb2799779",
