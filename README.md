@@ -55,7 +55,7 @@ winget install EDM115.monorepo-hash
 > Since `v2.0.0`, the `monorepo-hash` cli command is a direct binary that cut the Node overhead and allows for faster I/O. To enable this, the postinstall script needs to be run, which is disabled by default in PNPM/Bun/Deno for security reasons.  
 > You can totally refuse to use it (whether it is for security reasons or size constraints). In such case, either run the older Node + plain JS version (`monorepo-hash-js`) or use the [programmatic API](#usage-outside-of-the-cli).  
 > If you added `monorepo-hash` without allowing the postinstall script to run, you can do it later at anytime with `pnpm approve-scripts`, `bun pm trust monorepo-hash` or `deno approve-scripts`.  
-> From `v1.8.0` up to `v2.2.0` the binary have been made with Bun. Starting with `v2.3.0` onwards, it is made with `^(?:Go|Rust) \?$`.  
+> From `v1.8.0` up to `v2.2.0` the binary have been made with Bun. Starting with `v2.3.0` onwards, it is made with `^(?:Go|Rust) \?$`  
 > Version `2.2.0` exposes the `monorepo-hash-go` & `monorepo-hash-rust` binaries to gather feedback on speed execution and consistency across environments before taking a decision on the default binary for `v2.3.0`.
 
 > [!TIP]  
@@ -83,7 +83,8 @@ pnpm monorepo-hash --generate
 
 ### Generate hashes for specific workspaces
 Specify them in quotes, separated by commas, no spaces, and with no leading or trailing slashes.  
-The target name is the path to the workspace relative to the root of your monorepo, and uses forward slashes no matter your platform.
+The target name is the path to the workspace relative to the root of your monorepo, and uses forward slashes no matter your platform.  
+We use the paths here to not have to compute the entire dependency graph only for few of them to be processed.
 ```bash
 pnpm monorepo-hash --generate --target="packages/example,services/ui"
 ```
@@ -150,6 +151,7 @@ async function checkHashes() {
 The debug mode will :
 - in generate mode, output a root `.debug-hash` file which will contain the hashes of each individual file in the workspace as a JSON object (or per-workspace files when using `--workspaces`)
 - in compare mode, read those `.debug-hash` file(s) and tell you *exactly* which files have changed in each workspace, and what their hashes are
+
 This can be useful to check why the hashes appear to be different, or to debug issues with the hashes generation.
 ```bash
 pnpm monorepo-hash --generate --debug
@@ -337,13 +339,25 @@ $ pnpm monorepo-hash --compare --target="services/backend"
 
 </details>
 
+### Usage as a pre-commit hook
+This is a recommended way to use `monorepo-hash`, as with this you won't need to generate and add the files manually everytime you make a change.  
+This works with any git hooks manager since we have guards in place to not overwrite output in non-TTY environments (ex VS Code's Source Control tab). You can use [`simple-git-hooks`](https://github.com/toplenboren/simple-git-hooks), [`prek`](https://github.com/j178/prek), [`husky`](https://github.com/typicode/husky), [`lefthook`](https://github.com/evilmartians/lefthook) or even the native [`githooks`](https://git-scm.com/docs/githooks). Here's an example with `simple-git-hooks` :
+1. `pnpm add -D simple-git-hooks --allow-build=simple-git-hooks`
+2. Add this in your root `package.json` :
+   ```json
+   "simple-git-hooks": {
+     "pre-commit": "pnpm monorepo-hash --generate && git add **/*.hash"
+   }
+   ```
+3. Run once `pnpm simple-git-hooks` to install the hooks
+
 ### Usage in CI
-This was the main reason I created this tool, and whether it's in GitHub Actions or locally through [act](https://github.com/nektos/act), it can help you to reduce drastically CI times.  
+This was the main reason I created this tool, and whether it's in GitHub Actions or locally through [act](https://github.com/nektos/act), it can help you to reduce drastically CI times.
 
 <details><summary><h4>Here's an example workflow that only builds the workspaces that have changed :</h4></summary>
 
 ```yaml
-# The boring stuff
+name: Build and test
 
 jobs:
   build-and-test:
@@ -557,17 +571,21 @@ Here's a quick guide for contributing to `monorepo-hash` :
 # bump the version in package.json, src/rust/Cargo.toml, add changelog entry in CHANGELOG.md, & update for all `const CLI_VERSION`
 git add -A && git status
 pnpm typecheck
+pnpm format
 pnpm test
 git commit -m "the message" && git push
-pnpm build
+pnpm build:node
 # run the actions that build the binaries and download the artifacts
 # create a draft release on GitHub with the artifacts
 # run the benchmarks action and download the results, put in `bench-history-new`
 pnpm cli:get-bench-times
-# include them as a zip release artifact & in the README
+pnpm cli:get-bench-graphs
+# include them in the README
 git commit -m "the message" && git push
 # un-draft and publish the release on GitHub as latest
 pnpm release
+# create the new version's manifest, check the latest wingetcreate & manifest's versions (https://github.com/microsoft/winget-pkgs/tree/master/doc/manifest/schema)
+wingetcreate submit --prtitle "New version: EDM115.monorepo-hash version x.x.x" .\manifests\e\EDM115\monorepo-hash\x.x.x\
 ```
 
 ### Update process
