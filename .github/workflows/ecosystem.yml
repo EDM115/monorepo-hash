@@ -785,20 +785,17 @@ jobs:
 
     steps:
       - name: "Checkout"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: "Install PNPM"
-        uses: pnpm/action-setup@v5
+        uses: pnpm/action-setup@v6
 
-      - name: "Bump Node to v25"
+      - name: "Bump Node to v26"
         uses: actions/setup-node@v6
         with:
           check-latest: true
           cache: "pnpm"
-          node-version: 25
-
-      - name: "Install Bun"
-        uses: oven-sh/setup-bun@v2
+          node-version: 26
 
       - name: "Install Go"
         uses: actions/setup-go@v6
@@ -951,18 +948,6 @@ jobs:
 
                 return entrypoint
                   ? [ "node", [entrypoint]]
-                  : null
-              },
-            },
-            {
-              key: "bun",
-              label: "Bun",
-              build: [ "pnpm", [ "cli:build-bin", "-r", "bun", "-p", "linux-x64" ]],
-              resolveCommand: () => {
-                const binary = resolve(workspaceRoot, "bun-build/monorepo-hash-linux-x64")
-
-                return existsSync(binary)
-                  ? [ binary, []]
                   : null
               },
             },
@@ -1303,7 +1288,7 @@ jobs:
             }
 
             if (repo.runtimes.every((runtime) => runtime.ok)) {
-              summaryLines.push("- Result : ✅ All 4 runtimes exited with 0 and matched the expected `.hash`")
+              summaryLines.push("- Result : ✅ All 3 runtimes exited with 0 and matched the expected `.hash`")
               summaryLines.push("")
 
               continue

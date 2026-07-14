@@ -17,10 +17,9 @@ import {
   exists,
 } from "./src/node/platform"
 
-const RUNTIMES = [ "bun", "rust", "go" ] as const
+const RUNTIMES = [ "rust", "go" ] as const
 const PLATFORMS = [ "darwin-arm64", "darwin-x64", "linux-arm64", "linux-arm64-musl", "linux-x64", "linux-x64-musl", "windows-arm64", "windows-x64" ] as const
 const packageVersion = process.env["npm_package_version"] || packageJson.version
-const normalizedPackageVersion = normalizeVersion(packageVersion)
 
 type Runtime = (typeof RUNTIMES)[number]
 
@@ -32,7 +31,7 @@ type GoTarget = {
 }
 
 type RustTarget = {
-  triple: string;
+  triple: `${"aarch64" | "x86_64"}${"-unknown" | "-pc" | ""}-${"linux" | "windows" | "apple"}-${"darwin" | "gnu" | "musl" | "msvc"}`;
 }
 
 function isValidRuntime(runtime: string): runtime is Runtime {
@@ -45,19 +44,6 @@ function isValidPlatform(platform: string): platform is Platform {
 
 async function chmodBinaries() {
   const filesToChmod: string[] = []
-
-  const bunBuildPath = "./bun-build"
-  const bunPathExists = await exists(bunBuildPath)
-
-  if (bunPathExists) {
-    const bunBuildFiles = await readdir(bunBuildPath, { withFileTypes: true })
-
-    for (const file of bunBuildFiles) {
-      if (file.isFile() && !file.name.includes(".")) {
-        filesToChmod.push(join(bunBuildPath, file.name))
-      }
-    }
-  }
 
   const goBuildPath = "./go-build"
   const goPathExists = await exists(goBuildPath)
@@ -320,11 +306,11 @@ async function generateWindowsSyso(goarch: GoTarget["goarch"]): Promise<void> {
  * Helps to build the binary in whatever runtime for whatever platform.  
  * Usage :
  * ```bash
- * jiti ./build.script.ts --runtime=bun --platform=linux-x64-musl
+ * jiti ./build.script.ts --runtime=go --platform=linux-x64-musl
  * ```
- * Available runtimes : `bun`, `rust`, `go`.  
+ * Available runtimes : `rust`, `go`.  
  * Available platforms : `darwin-arm64`, `darwin-x64`, `linux-arm64`, `linux-arm64-musl`, `linux-x64`, `linux-x64-musl`, `windows-arm64`, `windows-x64`.  
- * Shorthands : `-r bun`, `-p linux-x64-musl`.  
+ * Shorthands : `-r go`, `-p linux-x64-musl`.  
  * Exits with code 1 when not both params are provided or when an invalid param is provided.  
  * Ability to use `all` as platform to build for all platforms.  
  * Ability to use `current` as platform to build for the current platform.  
@@ -406,41 +392,7 @@ async function main(options?: {
   const platform: Platform = argPlatform
 
   switch (runtime) {
-    case "bun": {
-      await mkdir("./bun-build", { recursive: true })
-
-      const bin = "bun"
-      const isWindows = platform.startsWith("windows")
-      const baseCommand = "build --compile --minify --bytecode --format=esm"
-      const windowsSpecific = `--windows-icon=logo.ico --windows-title=monorepo-hash --windows-description=monorepo-hash --windows-publisher=EDM115 --windows-version=${normalizedPackageVersion} --windows-copyright=https://github.com/EDM115/monorepo-hash/blob/master/LICENSE`
-      const buildCommand = `--target=bun-${platform} ./src/bun/monorepo-hash.ts --outfile ./bun-build/monorepo-hash-${platform}${isWindows
-        ? ".exe"
-        : ""}`
-
-      const fullCommand = `${baseCommand} ${isWindows
-        ? windowsSpecific
-        : ""} ${buildCommand}`
-      const arrayCommand = fullCommand.split(" ")
-        .filter((part) => part !== "")
-
-      console.log(`🏁 ${bin} ${arrayCommand.join(" ")}\n`)
-      const {
-        stdout, stderr, exitCode,
-      } = await x(bin, arrayCommand, { nodeOptions: { stdio: "inherit" } })
-
-      console.log(stdout)
-
-      if (stderr) {
-        console.error(stderr)
-      }
-
-      if (exitCode !== 0) {
-        console.error(`❌ Build failed with exit code ${exitCode}`)
-        process.exit(exitCode)
-      }
-
-      break
-    } case "go": {
+    case "go": {
       await mkdir("./go-build", { recursive: true })
 
       const target = getGoTarget(platform)

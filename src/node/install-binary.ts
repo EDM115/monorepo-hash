@@ -317,7 +317,9 @@ export async function main(): Promise<void> {
 
 // Only run when invoked directly (postinstall), not when imported
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
-  await main()
+  if (!await exists(join(__dirname, "..", "src"))) {
+    await main()
+  }
 }
 
 // re-export platform utilities

@@ -1,6 +1,5 @@
 node_modules
 dist
-bun-build
 go-build
 rust-build
 src/rust/target

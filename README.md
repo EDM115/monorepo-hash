@@ -8,7 +8,7 @@
 ![NPM Version](https://img.shields.io/npm/v/monorepo-hash) ![NPM Downloads](https://img.shields.io/npm/dt/monorepo-hash) ![Total binaries downloads](https://img.shields.io/github/downloads/EDM115/monorepo-hash/total?label=Total%20binaries%20downloads) [![More info](https://img.shields.io/badge/npmx-More_info-orange?logo=npm)](https://npmx.dev/monorepo-hash)
 
 ## :memo: Features
-:runner: **Fast** : Runs in huge monorepos [in no time](#rocket-benchmarks), processes workspaces in parallel, powered by Go/Rust  
+:runner: **Fast** : Runs in huge monorepos [in no time](#rocket-benchmarks), processes workspaces in parallel, powered by Go  
 :dart: **Accurate** : Generates hashes based on every tracked file  
 :left_right_arrow: **Complete** : Supports transitive workspace dependencies  
 :ok_hand: **No config** : Drop-in and instantly usable  
@@ -55,8 +55,9 @@ winget install EDM115.monorepo-hash
 > Since `v2.0.0`, the `monorepo-hash` cli command is a direct binary that cut the Node overhead and allows for faster I/O. To enable this, the postinstall script needs to be run, which is disabled by default in PNPM/Bun/Deno for security reasons.  
 > You can totally refuse to use it (whether it is for security reasons or size constraints). In such case, either run the older Node + plain JS version (`monorepo-hash-js`) or use the [programmatic API](#usage-outside-of-the-cli).  
 > If you added `monorepo-hash` without allowing the postinstall script to run, you can do it later at anytime with `pnpm approve-scripts`, `bun pm trust monorepo-hash` or `deno approve-scripts`.  
-> From `v1.8.0` up to `v2.2.0` the binary have been made with Bun. Starting with `v2.3.0` onwards, it is made with `^(?:Go|Rust) \?$`  
-> Version `2.2.0` exposes the `monorepo-hash-go` & `monorepo-hash-rust` binaries to gather feedback on speed execution and consistency across environments before taking a decision on the default binary for `v2.3.0`.
+> From `v1.8.0` up to `v2.2.0` the binary have been made with Bun.  
+> Version `2.2.0` exposes temporarily the `monorepo-hash-go` & `monorepo-hash-rust` binaries to gather feedback on speed execution and consistency across environments before taking a decision on the default binary for `v3.0.0`.
+> Starting with `v3.0.0`, the default binary is now the Go one.
 
 > [!TIP]  
 > Make sure that your workspace configuration is set up correctly (`pnpm-workspace.yaml`, `package.json` workspaces or `deno.json(c)` workspace) as `monorepo-hash` will use it to find your workspaces. Globs are supported.  
@@ -374,13 +375,13 @@ jobs:
 
     steps:
       - name: "Checkout code"
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: "Set up Docker Buildx"
         uses: docker/setup-buildx-action@v4
 
       - name: "Setup PNPM"
-        uses: pnpm/action-setup@v5
+        uses: pnpm/action-setup@v6
 
       - name: "Use Node ${{ matrix.node-version }}"
         uses: actions/setup-node@v6
@@ -393,7 +394,7 @@ jobs:
 
       - name: "Restore .hash cache"
         id: restore-hash-cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: |
             **/.hash
@@ -437,7 +438,7 @@ jobs:
           pnpm monorepo-hash --generate
 
       - name: "Save .hash cache"
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: |
             **/.hash
@@ -467,8 +468,8 @@ The specs as I'm writing this are an AMD EPYC 7763 64-Core (4) @ 3.25 GHz CPU, 1
 They have been reproduced 10 times with a cold and warm disk cache thanks to [hyperfine](https://github.com/sharkdp/hyperfine).  
 Cold cache results are more representative of a first run in CI or on a fresh boot. The script run speed doesn't really change, the only performance overhead on a cold cache is the time it takes to run Node/Bun/Go/Rust (and reading files from the disk). You can expect warm cache runs to be at least 1/3 faster than cold cache ones.  
 The versions denoted with `(bun)` are using the Bun binary build of `monorepo-hash`, which removes the Node overhead, uses Bun internal replacements and is generally faster. This build is the default one since `v2.0.0`.  
-The versions denoted with `(go)` are using the Go binary build of `monorepo-hash`, which is even faster than the Bun version and 95% smaller. This build might be the default one since `v2.3.0`.  
-The versions denoted with `(rust)` are using the Rust binary build of `monorepo-hash`, which is on-par with the Go version in terms of performance and is twice as small. This build might be the default one since `v2.3.0`.  
+The versions denoted with `(go)` are using the Go binary build of `monorepo-hash`, which is even faster than the Bun version and 95% smaller. This build is the default one since `v3.0.0`.  
+The versions denoted with `(rust)` are using the Rust binary build of `monorepo-hash`, which is on-par with the Go version in terms of performance and is twice as small.  
 Starting with `v2.0.0`, the benchmark methodology has changed : we re-runned them for all versions in *the same runner and script* to avoid noisy neighbor effects and massive drifts in perf for no reason, and we also started to measure warm cache runs, noted in parenthesis. As a consequence, previous results that you could find in the releases aren't comparable with these new ones. More info here : [[INFO] 📣 A change in the benchmarks methodology (#20)](https://github.com/EDM115/monorepo-hash/issues/20)
 > [!NOTE]  
 > Here are the details of each demo monorepo used for the benchmarks :
@@ -531,11 +532,10 @@ If you wish to read more about the comparison between `monorepo-hash` and other 
 ## :hammer_and_wrench: Contributing
 Here's a quick guide for contributing to `monorepo-hash` :
 0. Requirements :
-  - Node v25+
-  - PNPM v10+
-  - Bun v1.3+
+  - Node v26+
+  - PNPM v11+
   - Go 1.26+
-  - Rust 1.94+
+  - Rust 1.96+
 1. Fork the repository (and star it :wink:)
 2. Clone your fork
   ```bash
@@ -543,8 +543,8 @@ Here's a quick guide for contributing to `monorepo-hash` :
   cd monorepo-hash
   pnpm i --frozen-lockfile
   cd src/go && go mod download && cd ../..
-  rustup toolchain install 1.94.1
-  rustup component add clippy --toolchain 1.94.1
+  rustup toolchain install 1.96.0
+  rustup component add clippy --toolchain 1.96.0
   rustup toolchain install nightly
   rustup component add rustfmt --toolchain nightly
   cargo install cargo-binstall --locked
@@ -590,7 +590,7 @@ wingetcreate submit --prtitle "New version: EDM115.monorepo-hash version x.x.x" 
 
 ### Update process
 - Check : `pnpm outdated`/`cd src/go && go list -u -m all`/`cd src/rust && cargo outdated` (requires `cargo binstall cargo-outdated`)
-- PNPM (Node/Bun) : `pnpm up && pnpm dedupe`
+- PNPM : `pnpm up && pnpm dedupe`
 - Go : `cd src/go && go get -u && go get -u tool && go mod tidy && cd ../..`
 - Rust : `cd src/rust && cargo update && cd ../..`
 

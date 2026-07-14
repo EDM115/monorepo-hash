@@ -15,7 +15,7 @@ use std::{
 };
 
 const PACKAGE_MANAGERS: &[&str] = &["pnpm", "npm", "deno", "bun", "yarn"];
-const CLI_VERSION: &str = "2.2.0";
+const CLI_VERSION: &str = "3.0.0";
 static USE_PATH_CACHE: AtomicBool = AtomicBool::new(false);
 type DigestBytes = [u8; 32];
 

@@ -3,7 +3,7 @@
     "editor.defaultFormatter": "vscode.json-language-features"
   },
   "[typescript]": {
-    "editor.defaultFormatter": "TypeScriptTeam.native-preview"
+    "editor.defaultFormatter": "vscode.typescript-language-features"
   },
   "editor.tabSize": 2,
   "explorer.fileNesting.enabled": true,
@@ -25,7 +25,6 @@
   "importCost.mediumPackageLightColor": "#50FA7B",
   "importCost.smallPackageDarkColor": "#50FA7B",
   "importCost.smallPackageLightColor": "#50FA7B",
-  "js/ts.experimental.useTsgo": true,
   "js/ts.inlayHints.enumMemberValues.enabled": true,
   "js/ts.inlayHints.functionLikeReturnTypes.enabled": true,
   "js/ts.inlayHints.parameterNames.enabled": "all",

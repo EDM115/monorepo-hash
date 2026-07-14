@@ -25,14 +25,6 @@ export default defineConfig({ test: {
     {
       test: {
         ...shared,
-        name: "bun",
-        include: ["tests/bun/**/*.test.ts"],
-        setupFiles: ["tests/bun/setup.ts"],
-      },
-    },
-    {
-      test: {
-        ...shared,
         name: "go",
         include: ["tests/go/**/*.test.ts"],
         setupFiles: ["tests/go/setup.ts"],

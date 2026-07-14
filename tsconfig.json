@@ -33,15 +33,11 @@
     "skipLibCheck": true,
     "strict": true,
     "target": "ESNext",
-    "types": [
-      "bun",
-      "node"
-    ],
+    "types": ["node"],
     "verbatimModuleSyntax": true
   },
   "exclude": [
     "node_modules",
-    "bun-build",
     "dist",
     "tests/demo",
     "bench-history",

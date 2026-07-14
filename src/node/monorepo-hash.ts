@@ -90,7 +90,7 @@ export type Meta = {
 
 
 // #region CLI state
-const CLI_VERSION = "2.2.0"
+const CLI_VERSION = "3.0.0"
 let mode: "generate" | "compare" | null = null
 let targets: string[] | null = null
 let silent = false
@@ -508,8 +508,8 @@ export async function detectPkgJson(): Promise<{
 
   if (Array.isArray(pkg.workspaces)) {
     globs = pkg.workspaces
-  } else if (pkg.workspaces && Array.isArray((pkg.workspaces as { packages?: string[] }).packages)) {
-    globs = (pkg.workspaces as { packages?: string[] }).packages ?? []
+  } else if (pkg.workspaces && Array.isArray((pkg.workspaces).packages)) {
+    globs = (pkg.workspaces).packages ?? []
   }
 
   if (globs.length === 0) {

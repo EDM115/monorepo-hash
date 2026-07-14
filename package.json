@@ -2,9 +2,7 @@
   "author": "EDM115 <npmjs@edm115.dev> (https://edm115.dev)",
   "bin": {
     "monorepo-hash": "./dist/monorepo-hash.exe",
-    "monorepo-hash-go": "./dist/monorepo-hash-go.exe",
-    "monorepo-hash-js": "./dist/monorepo-hash.mjs",
-    "monorepo-hash-rust": "./dist/monorepo-hash-rust.exe"
+    "monorepo-hash-js": "./dist/monorepo-hash.mjs"
   },
   "bugs": {
     "email": "npmjs@edm115.dev",
@@ -13,24 +11,24 @@
   "description": "A CLI tool to generate hashes for the workspaces of your monorepo",
   "devDependencies": {
     "@stylistic/eslint-plugin": "~5.10.0",
-    "@types/bun": "~1.3.12",
     "@types/node": "latest",
-    "@typescript-eslint/parser": "~8.58.2",
-    "@typescript/native-preview": "latest",
+    "@typescript-eslint/parser": "~8.64.0",
+    "@typescript/native": "npm:typescript@^7.0.2",
     "edm115-lint": "~0.2.1",
-    "empathic": "~2.0.0",
-    "eslint": "~10.2.0",
-    "globals": "~17.5.0",
-    "ignore": "~7.0.5",
-    "jiti": "~2.6.1",
-    "oxlint": "~1.60.0",
-    "oxlint-tsgolint": "~0.21.1",
-    "tinyexec": "~1.1.1",
-    "tinyglobby": "~0.2.16",
-    "tsdown": "~0.21.9",
+    "empathic": "~2.0.1",
+    "eslint": "~10.7.0",
+    "globals": "~17.7.0",
+    "ignore": "~7.0.6",
+    "jiti": "~2.7.0",
+    "oxlint": "~1.73.0",
+    "oxlint-tsgolint": "~0.24.0",
+    "tinyexec": "~1.2.4",
+    "tinyglobby": "~0.2.17",
+    "tsdown": "~0.22.7",
+    "typescript": "npm:@typescript/typescript6@~6.0.2",
     "unplugin-unused": "~0.5.7",
-    "vitest": "~4.1.4",
-    "yaml": "~2.8.3"
+    "vitest": "~4.1.10",
+    "yaml": "~2.9.0"
   },
   "exports": {
     ".": {
@@ -66,12 +64,12 @@
   ],
   "homepage": "https://github.com/EDM115/monorepo-hash#readme",
   "inlinedDependencies": {
-    "empathic": "2.0.0",
+    "empathic": "2.0.1",
     "fdir": "6.5.0",
-    "ignore": "7.0.5",
-    "picomatch": "4.0.3",
-    "tinyglobby": "0.2.15",
-    "yaml": "2.8.3"
+    "ignore": "7.0.6",
+    "picomatch": "4.0.5",
+    "tinyglobby": "0.2.17",
+    "yaml": "2.9.0"
   },
   "keywords": [
     "monorepo",
@@ -84,7 +82,7 @@
   ],
   "license": "MIT",
   "name": "monorepo-hash",
-  "packageManager": "pnpm@10.33.0",
+  "packageManager": "pnpm@11.13.0",
   "publishConfig": {
     "access": "public"
   },
@@ -93,9 +91,8 @@
     "url": "git+https://github.com/EDM115/monorepo-hash.git"
   },
   "scripts": {
-    "build": "pnpm build:node && pnpm build:bun && pnpm build:go && pnpm build:rust",
-    "build:bun": "pnpm cli:build-bin -r bun -p all && pnpm cli:chmod",
-    "build:decoy": "node -e \"const fs = require('fs'); fs.writeFileSync('./dist/monorepo-hash.exe', '', 'utf8'); fs.writeFileSync('./dist/monorepo-hash-go.exe', '', 'utf8'); fs.writeFileSync('./dist/monorepo-hash-rust.exe', '', 'utf8');\"",
+    "build": "pnpm build:node && pnpm build:go && pnpm build:rust",
+    "build:decoy": "node -e \"const fs = require('fs'); fs.writeFileSync('./dist/monorepo-hash.exe', '', 'utf8');\"",
     "build:go": "pnpm cli:build-bin -r go -p all && pnpm cli:chmod",
     "build:node": "tsdown && pnpm build:decoy",
     "build:rust": "pnpm cli:build-bin -r rust -p all && pnpm cli:chmod",
@@ -111,17 +108,16 @@
     "lint:ts": "oxlint",
     "lint:go": "cd src/go && GOEXPERIMENT=jsonv2 go vet ./... && GOEXPERIMENT=jsonv2 go tool staticcheck ./...",
     "lint:rust": "cd src/rust && cargo clippy --all-targets --all-features -- -D warnings",
-    "postinstall": "node -e \"const fs = require('fs'); const path = require('path'); const installBinaryPath = path.join(__dirname, 'dist', 'install-binary.mjs'); const srcPath = path.join(__dirname, 'src'); if (fs.existsSync(installBinaryPath) && !fs.existsSync(srcPath)) { const child_process = require('child_process'); child_process.execFileSync(process.execPath, [installBinaryPath], { stdio: 'inherit' }); }\"",
+    "postinstall": "node './dist/install-binary.mjs'",
     "release": "pnpm publish",
-    "test": "pnpm test:node && pnpm test:bun && pnpm test:go && pnpm test:rust",
-    "test:bun": "pnpm cli:build-bin -r bun -p current && pnpm cli:chmod && vitest --project bun",
+    "test": "pnpm test:node && pnpm test:go && pnpm test:rust",
     "test:go": "pnpm cli:build-bin -r go -p current && pnpm cli:chmod && vitest --project go",
     "test:node": "pnpm build:node && vitest --project node",
     "test:rust": "pnpm cli:build-bin -r rust -p current && pnpm cli:chmod && vitest --project rust",
     "typecheck": "pnpm typecheck:ts && pnpm typecheck:rust",
-    "typecheck:ts": "tsgo --noEmit",
+    "typecheck:ts": "tsc --noEmit",
     "typecheck:rust": "cd src/rust && cargo check --all-targets --all-features"
   },
   "type": "module",
-  "version": "2.2.0"
+  "version": "3.0.0"
 }

@@ -3,12 +3,12 @@
 ## v2.2.0
 > [!IMPORTANT]  
 > This version will mainly serve as a transition to a better and faster implementation of the bundled binary.  
-> If you don't plan on testing them, there's no need to upgrade to this version yet. `v2.3.0` will be the one to look forward to for the general public.  
+> If you don't plan on testing them, there's no need to upgrade to this version yet. `v3.0.0` will be the one to look forward to for the general public.  
 > Please give some feedback on [[FEEDBACK] 📣 Which new binary implementation to choose ? (Go vs Rust)](https://github.com/EDM115/monorepo-hash/issues/32) to help us picking the best one :\)
 
 ### Breaking changes
 💥✨ feat : the `--nopathcache`/`-npc` flag have been removed. path normalization cache is now disabled by default to avoid spiking memory usage and negligible speed gains, plus the next implementations will be fast enough for it to not matter anymore. you can force the cache behavior using the new `--pathcache`/`-pc` flag  
-💥✨⚡️ feat/perf : expose 2 new (temporary) commands (`monorepo-hash-go` & `monorepo-hash-rust`) to test the new binaries. those commands will be removed on `v2.3.0` and are only here to gather feedback. install size will be around 6-7% larger  
+💥✨⚡️ feat/perf : expose 2 new (temporary) commands (`monorepo-hash-go` & `monorepo-hash-rust`) to test the new binaries. those commands will be removed on `v3.0.0` and are only here to gather feedback. install size will be around 6-7% larger  
 🍱 assets : the `benchmarks-results-{ver}.zip` file will no longer be a Release asset. check [`bench-history/`](https://github.com/EDM115/monorepo-hash/tree/master/bench-history) instead
 
 ⚡️ perf : early exit when an error occurred in the worker pool  
@@ -17,7 +17,7 @@
 ⚡️ perf : early exit when the hashes haven't been computed properly  
 ⚡️ perf : early exit when no `package.json` files are found in a workspace  
 ✨ feat : always sort entries in the output files/stdout  
-🐛 fix : no-cache installs should be much faster instead of taking 30s minimum by closing early the stream, disabling keepalive and creating the file resource only when we have a 200 code; regardless of your package manager. this will especially be noticeable on `v2.3.0` where the `postinstall` script will be near-instant (provided GitHub doesn't mess up)  
+🐛 fix : no-cache installs should be much faster instead of taking 30s minimum by closing early the stream, disabling keepalive and creating the file resource only when we have a 200 code; regardless of your package manager. this will especially be noticeable on `v3.0.0` where the `postinstall` script will be near-instant (provided GitHub doesn't mess up)  
 🐛 fix : properly exit with a readable message when parsing a corrupt JSON file  
 🐛 fix : don't swallow defined errors as unknown ones (99)  
 📝 docs : refresh the README with Go/Rust mentions, new versions, benchmarks disclaimer, add graphs, comparison with other tools, Go & Rust contribution commands, ...  

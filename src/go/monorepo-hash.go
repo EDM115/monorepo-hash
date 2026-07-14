@@ -28,7 +28,7 @@ import (
 
 var packageManagers = []string{"pnpm", "npm", "deno", "bun", "yarn"}
 
-const CLI_VERSION = "2.2.0"
+const CLI_VERSION = "3.0.0"
 
 var usePathCache = false
 var needsPathConversion = filepath.Separator != '/'

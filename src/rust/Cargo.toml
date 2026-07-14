@@ -2,8 +2,8 @@
 edition = "2024"
 name = "monorepo-hash"
 publish = false
-rust-version = "1.95.0"
-version = "2.2.0"
+rust-version = "1.96.0"
+version = "3.0.0"
 
 [[bin]]
 name = "monorepo-hash"
@@ -32,10 +32,10 @@ strip = true
 
 [dependencies]
 glob-match = "~0.2.1"
-ignore = "~0.4.25"
+ignore = "~0.4.28"
 jwalk = "~0.8.1"
 rayon = "~1.12.0"
 serde = { version = "~1.0.228", features = ["derive"] }
-serde-saphyr = "~0.0.23"
-serde_json = "~1.0.149"
+serde-saphyr = "~0.0.29"
+serde_json = "~1.0.150"
 sha2 = "~0.11.0"
