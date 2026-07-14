@@ -107,7 +107,7 @@ export function defineParityScriptProbeSuite(runCli: RunCli): void {
         name: "version",
         args: ["--version"],
         exitCode: 0,
-        stdoutRegex: /^monorepo-hash v2\.2\.0\n$/,
+        stdoutRegex: /^monorepo-hash v3\.0\.0\n$/,
       },
       {
         name: "unknown",
@@ -169,7 +169,7 @@ export function defineParityScriptProbeSuite(runCli: RunCli): void {
         name: "version-generate",
         args: [ "--version", "--generate" ],
         exitCode: 0,
-        stdoutRegex: /^monorepo-hash v2\.2\.0\n$/,
+        stdoutRegex: /^monorepo-hash v3\.0\.0\n$/,
       },
     ]
 
