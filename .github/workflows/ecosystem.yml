@@ -126,14 +126,6 @@ jobs:
             }
           },
           {
-            "name": "tradefolio",
-            "url": "https://github.com/RaalnanUno/TradeFolio.git",
-            "commit": "d92cd632e36da84504d991ccdcfdfb4bc405e3e4",
-            "expectedHash": {
-              "electron": "0293db17aee176a9d827cd311de0415b5d63e44b5c4d6a91d87ddb62b8fb8b75"
-            }
-          },
-          {
             "name": "tamagui-starter",
             "url": "https://github.com/tamagui/starter-free.git",
             "commit": "7ccaf93527d89f301db13968aaeef0f1febd1e4b",
@@ -857,14 +849,6 @@ jobs:
             }
           }
 
-          function shorten(text, maxLength = 1200) {
-            if (!text) { return "" }
-
-            if (text.length <= maxLength) { return text }
-
-            return `${text.slice(0, maxLength)}\n...[truncated]`
-          }
-
           function safeCodeBlock(value, language = "") {
             const text = value && value.trim()
               ? value.trim()
@@ -1249,11 +1233,11 @@ jobs:
 
             if (!runtime.available) {
               if (runtime.stdout.trim()) {
-                summaryLines.push(`  - stdout :${safeCodeBlock(shorten(runtime.stdout), "text")}`)
+                summaryLines.push(`  - stdout :${safeCodeBlock(runtime.stdout, "text")}`)
               }
 
               if (runtime.stderr.trim()) {
-                summaryLines.push(`  - stderr :${safeCodeBlock(shorten(runtime.stderr), "text")}`)
+                summaryLines.push(`  - stderr :${safeCodeBlock(runtime.stderr, "text")}`)
               }
             }
           }
@@ -1306,19 +1290,18 @@ jobs:
               }
 
               if (runtime.stdout.trim()) {
-                summaryLines.push(`  - stdout :${safeCodeBlock(shorten(runtime.stdout), "text")}`)
+                summaryLines.push(`  - stdout :${safeCodeBlock(runtime.stdout, "text")}`)
               }
 
               if (runtime.stderr.trim()) {
-                summaryLines.push(`  - stderr :${safeCodeBlock(shorten(runtime.stderr), "text")}`)
+                summaryLines.push(`  - stderr :${safeCodeBlock(runtime.stderr, "text")}`)
               }
             }
 
             summaryLines.push("")
           }
 
-          const summary = `${summaryLines.join("\n")
-            .trimEnd()}\n`
+          const summary = `${summaryLines.join("\n").trimEnd()}\n`
 
           writeFileSync(summaryPath, summary, "utf8")
 
