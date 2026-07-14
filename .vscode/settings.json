@@ -8,6 +8,8 @@
   "editor.tabSize": 2,
   "explorer.fileNesting.enabled": true,
   "explorer.fileNesting.patterns": {
+    "Cargo.toml": "Cargo.lock",
+    "go.mod": "go.sum",
     "oxlint.config.ts": "eslint.*",
     "package.json": ".node-version, pnpm*, *.script.ts, *.py",
     "README.md": "LICENSE, .gitignore, AGENTS.md, CHANGELOG.md, logo.*",

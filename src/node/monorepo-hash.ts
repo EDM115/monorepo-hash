@@ -781,6 +781,8 @@ export async function packageManagerFromRoot(root: string, manifest: WorkspacePa
     hasDenoLock,
     hasPnpmFile,
     hasLegacyPnpmFile,
+    hasNewPnpmFile,
+    hasLegacyNewPnpmFile,
     hasBunfig,
     hasYarnConfig,
   ] = await Promise.all([
@@ -794,6 +796,8 @@ export async function packageManagerFromRoot(root: string, manifest: WorkspacePa
     exists(join(root, "deno.lock")),
     exists(join(root, ".pnpmfile.cjs")),
     exists(join(root, "pnpmfile.cjs")),
+    exists(join(root, ".pnpmfile.mjs")),
+    exists(join(root, "pnpmfile.mjs")),
     exists(join(root, "bunfig.toml")),
     exists(join(root, "yarn.config.cjs")),
   ])
@@ -818,7 +822,7 @@ export async function packageManagerFromRoot(root: string, manifest: WorkspacePa
     return "deno"
   }
 
-  if (hasPnpmFile || hasLegacyPnpmFile) {
+  if (hasPnpmFile || hasLegacyPnpmFile || hasNewPnpmFile || hasLegacyNewPnpmFile) {
     return "pnpm"
   }
 
@@ -1116,7 +1120,6 @@ async function computeWorkspaceHashes(
 }> {
   const entries = await computeRawFileDigests(dir, fileList)
 
-  // oxlint-disable-next-line no-array-sort
   entries.sort((a, b) => (a[0] === b[0]
     ? 0
     : a[0] < b[0]

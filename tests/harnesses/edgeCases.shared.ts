@@ -523,6 +523,18 @@ export function defineEdgeCasesSuite(runCli: RunCli): void {
         source: "pnpmfile.cjs",
       },
       {
+        expected: "pnpm",
+        files: { ".pnpmfile.mjs": "" },
+        slug: "new-pnpmfile",
+        source: ".pnpmfile.mjs",
+      },
+      {
+        expected: "pnpm",
+        files: { "pnpmfile.mjs": "" },
+        slug: "legacy-new-pnpmfile",
+        source: "pnpmfile.mjs",
+      },
+      {
         expected: "bun",
         files: { "bunfig.toml": "" },
         slug: "bunfig",
@@ -623,7 +635,7 @@ export function defineEdgeCasesSuite(runCli: RunCli): void {
       {
         expected: "bun",
         files: {
-          ".pnpmfile.cjs": "",
+          ".pnpmfile.mjs": "",
           "bun.lock": "",
         },
         precedence: "Bun locks over pnpm config files",
@@ -632,7 +644,7 @@ export function defineEdgeCasesSuite(runCli: RunCli): void {
       {
         expected: "pnpm",
         files: {
-          ".pnpmfile.cjs": "",
+          ".pnpmfile.mjs": "",
           "bunfig.toml": "",
         },
         precedence: "pnpm config files over bunfig.toml",

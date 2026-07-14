@@ -12,6 +12,7 @@ import (
 	"hash"
 	"io"
 	"io/fs"
+	"maps"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -647,7 +648,7 @@ func packageManagerFromRoot(workspace *packageJSONWorkspace) string {
 	if fileExists(filepath.Join(root, "deno.lock")) {
 		return "deno"
 	}
-	if fileExists(filepath.Join(root, ".pnpmfile.cjs")) || fileExists(filepath.Join(root, "pnpmfile.cjs")) {
+	if fileExists(filepath.Join(root, ".pnpmfile.cjs")) || fileExists(filepath.Join(root, "pnpmfile.cjs")) || fileExists(filepath.Join(root, ".pnpmfile.mjs")) || fileExists(filepath.Join(root, "pnpmfile.mjs")) {
 		return "pnpm"
 	}
 	if fileExists(filepath.Join(root, "bunfig.toml")) {
@@ -1718,9 +1719,7 @@ func execute(args []string, stdout, stderr io.Writer) int {
 				return 99
 			}
 			if existingDebug != nil {
-				for relDir, perFile := range debugRootOutput {
-					existingDebug[relDir] = perFile
-				}
+				maps.Copy(existingDebug, debugRootOutput)
 				debugRootOutput = existingDebug
 			}
 		}

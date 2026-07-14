@@ -806,7 +806,11 @@ fn package_manager_from_root(workspace: &PackageJsonWorkspace) -> &str {
   if root.join("deno.lock").exists() {
     return "deno";
   }
-  if root.join(".pnpmfile.cjs").exists() || root.join("pnpmfile.cjs").exists() {
+  if root.join(".pnpmfile.cjs").exists()
+    || root.join("pnpmfile.cjs").exists()
+    || root.join(".pnpmfile.mjs").exists()
+    || root.join("pnpmfile.mjs").exists()
+  {
     return "pnpm";
   }
   if root.join("bunfig.toml").exists() {
