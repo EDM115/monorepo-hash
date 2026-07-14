@@ -69,6 +69,7 @@ jobs:
 
       - name: "Install dependencies"
         run: |
+          mkdir -p dist && echo "console.info('dev')" >> dist/install-binary.mjs
           pnpm i --frozen-lockfile
           cd src/rust && cargo fetch --locked
 
@@ -115,6 +116,7 @@ jobs:
               && curl https://sh.rustup.rs -sSf | sh -s -- -y \
               && . /usr/local/cargo/env \
               && export PATH="$HOME/.local/share/pnpm:$PATH" \
+              && mkdir -p dist && echo "console.info('dev')" >> dist/install-binary.mjs \
               && pnpm i --frozen-lockfile \
               && pnpm cli:build-bin -r rust -p linux-arm64-musl \
               && pnpm cli:chmod \
@@ -158,6 +160,7 @@ jobs:
               && curl https://sh.rustup.rs -sSf | sh -s -- -y \
               && . /usr/local/cargo/env \
               && export PATH="$HOME/.local/share/pnpm:$PATH" \
+              && mkdir -p dist && echo "console.info('dev')" >> dist/install-binary.mjs \
               && pnpm i --frozen-lockfile \
               && pnpm cli:build-bin -r rust -p linux-x64-musl \
               && pnpm cli:chmod \

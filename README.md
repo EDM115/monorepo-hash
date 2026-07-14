@@ -541,6 +541,7 @@ Here's a quick guide for contributing to `monorepo-hash` :
   ```bash
   git clone https://github.com/USERNAME/monorepo-hash.git
   cd monorepo-hash
+  mkdir -p dist && echo "console.info('dev')" >> dist/install-binary.mjs
   pnpm i --frozen-lockfile
   cd src/go && go mod download && cd ../..
   rustup toolchain install 1.96.0

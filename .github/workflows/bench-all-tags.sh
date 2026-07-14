@@ -115,6 +115,7 @@ for spec in "${REFS[@]}"; do
   pushd "$WT" >/dev/null
 
   # Reuse PNPM store (best effort, still respects each tag's lockfile)
+  mkdir -p dist && echo "console.info('dev')" >> dist/install-binary.mjs
   pnpm i --frozen-lockfile --reporter=silent
 
   if grep -q '"build:node"' package.json; then

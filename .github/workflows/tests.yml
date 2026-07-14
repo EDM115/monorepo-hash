@@ -45,6 +45,7 @@ jobs:
 
       - name: "Install dependencies"
         run: |
+          mkdir -p dist && echo "console.info('dev')" >> dist/install-binary.mjs
           pnpm i --frozen-lockfile
           cd src/go && go mod download
           cd ../rust && cargo fetch --locked
