@@ -53,6 +53,12 @@ type detected struct {
 	globs []string
 }
 
+type packageJSONWorkspace struct {
+	root     string
+	globs    []string
+	manifest map[string]any
+}
+
 type packageManifest struct {
 	Name             string            `json:"name"`
 	Dependencies     map[string]string `json:"dependencies"`
@@ -351,6 +357,144 @@ func detectPNPM(start string) (*detected, error) {
 	return &detected{pm: "pnpm", root: filepath.Dir(wsPath), globs: globs}, nil
 }
 
+func isJSONWhitespace(value byte) bool {
+	return value == ' ' || value == '\t' || value == '\n' || value == '\r'
+}
+
+func normalizeJSONC(input []byte) []byte {
+	withoutComments := make([]byte, 0, len(input))
+	inString := false
+	escaped := false
+
+	for index := 0; index < len(input); {
+		value := input[index]
+
+		if inString {
+			withoutComments = append(withoutComments, value)
+
+			if escaped {
+				escaped = false
+			} else if value == '\\' {
+				escaped = true
+			} else if value == '"' {
+				inString = false
+			}
+
+			index++
+			continue
+		}
+
+		if value == '"' {
+			inString = true
+			withoutComments = append(withoutComments, value)
+			index++
+			continue
+		}
+
+		if value == '/' && index+1 < len(input) && input[index+1] == '/' {
+			withoutComments = append(withoutComments, ' ', ' ')
+			index += 2
+
+			for index < len(input) && input[index] != '\n' && input[index] != '\r' {
+				withoutComments = append(withoutComments, ' ')
+				index++
+			}
+
+			continue
+		}
+
+		if value == '/' && index+1 < len(input) && input[index+1] == '*' {
+			withoutComments = append(withoutComments, ' ', ' ')
+			index += 2
+
+			for index < len(input) {
+				if input[index] == '*' && index+1 < len(input) && input[index+1] == '/' {
+					withoutComments = append(withoutComments, ' ', ' ')
+					index += 2
+					break
+				}
+
+				if input[index] == '\n' || input[index] == '\r' {
+					withoutComments = append(withoutComments, input[index])
+				} else {
+					withoutComments = append(withoutComments, ' ')
+				}
+
+				index++
+			}
+
+			continue
+		}
+
+		withoutComments = append(withoutComments, value)
+		index++
+	}
+
+	normalized := make([]byte, 0, len(withoutComments))
+	inString = false
+	escaped = false
+
+	for index, value := range withoutComments {
+		if inString {
+			normalized = append(normalized, value)
+
+			if escaped {
+				escaped = false
+			} else if value == '\\' {
+				escaped = true
+			} else if value == '"' {
+				inString = false
+			}
+
+			continue
+		}
+
+		if value == '"' {
+			inString = true
+			normalized = append(normalized, value)
+			continue
+		}
+
+		if value == ',' {
+			next := index + 1
+
+			for next < len(withoutComments) && isJSONWhitespace(withoutComments[next]) {
+				next++
+			}
+
+			if next < len(withoutComments) && (withoutComments[next] == ']' || withoutComments[next] == '}') {
+				normalized = append(normalized, ' ')
+				continue
+			}
+		}
+
+		normalized = append(normalized, value)
+	}
+
+	return normalized
+}
+
+func workspaceGlobs(value any, objectKey string) []string {
+	var values []any
+
+	switch typed := value.(type) {
+	case []any:
+		values = typed
+	case map[string]any:
+		values, _ = typed[objectKey].([]any)
+	}
+
+	globs := make([]string, 0, len(values))
+
+	for _, value := range values {
+		if glob, ok := value.(string); ok {
+			globs = append(globs, toPosix(strings.TrimSuffix(glob, "/")))
+		}
+	}
+
+	return globs
+}
+
 func detectDeno(start string) (*detected, error) {
 	denoPath, ok := findUpFile(start, "deno.json")
 	if !ok {
@@ -364,109 +508,183 @@ func detectDeno(start string) (*detected, error) {
 		return nil, err
 	}
 	var config struct {
-		Workspace []string `json:"workspace"`
+		Workspace any `json:"workspace"`
 	}
-	if err := json.Unmarshal(content, &config); err != nil {
+	if err := json.Unmarshal(normalizeJSONC(content), &config); err != nil {
 		return nil, nil
 	}
-	if len(config.Workspace) == 0 {
+	globs := workspaceGlobs(config.Workspace, "members")
+	if len(globs) == 0 {
 		return nil, nil
 	}
-	for i := range config.Workspace {
-		config.Workspace[i] = toPosix(strings.TrimSuffix(config.Workspace[i], "/"))
-	}
-	return &detected{pm: "deno", root: filepath.Dir(denoPath), globs: config.Workspace}, nil
+	return &detected{pm: "deno", root: filepath.Dir(denoPath), globs: globs}, nil
 }
 
-func detectPkgJSON(start string) (*detected, error) {
+func packageManagerFromString(value any) string {
+	field, ok := value.(string)
+	if !ok {
+		return ""
+	}
+
+	name, _, _ := strings.Cut(field, "@")
+	if isPackageManager(name) {
+		return name
+	}
+
+	return ""
+}
+
+func declaredPackageManager(manifest map[string]any) string {
+	if packageManager := packageManagerFromString(manifest["packageManager"]); packageManager != "" {
+		return packageManager
+	}
+
+	devEngines, ok := manifest["devEngines"].(map[string]any)
+	if !ok {
+		return ""
+	}
+
+	field := devEngines["packageManager"]
+	entries, ok := field.([]any)
+	if !ok {
+		entries = []any{field}
+	}
+
+	for _, entry := range entries {
+		if object, ok := entry.(map[string]any); ok {
+			if name, ok := object["name"].(string); ok && isPackageManager(name) {
+				return name
+			}
+		}
+	}
+
+	return ""
+}
+
+func findPackageJSONWorkspace(start string) *packageJSONWorkspace {
 	dir := start
-	var pkgPath string
-	var pkgContent []byte
+
 	for {
 		candidate := filepath.Join(dir, "package.json")
 		content, err := os.ReadFile(candidate)
 		if err == nil {
-			var raw map[string]any
-			if json.Unmarshal(content, &raw) == nil {
-				if _, ok := raw["workspaces"]; ok {
-					pkgPath = candidate
-					pkgContent = content
-					break
+			var manifest map[string]any
+			if json.Unmarshal(content, &manifest) == nil {
+				if workspaces, ok := manifest["workspaces"]; ok {
+					return &packageJSONWorkspace{
+						root:     dir,
+						globs:    workspaceGlobs(workspaces, "packages"),
+						manifest: manifest,
+					}
 				}
 			}
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			return nil, nil
+			return nil
 		}
 		dir = parent
 	}
-	var raw struct {
-		Workspaces any `json:"workspaces"`
+}
+
+func packageManagerFromRoot(workspace *packageJSONWorkspace) string {
+	if packageManager := declaredPackageManager(workspace.manifest); packageManager != "" {
+		return packageManager
 	}
-	if err := json.Unmarshal(pkgContent, &raw); err != nil {
-		return nil, nil
+
+	root := workspace.root
+
+	if fileExists(filepath.Join(root, "pnpm-workspace.yaml")) || fileExists(filepath.Join(root, "pnpm-lock.yaml")) {
+		return "pnpm"
 	}
-	globs := make([]string, 0)
-	switch v := raw.Workspaces.(type) {
-	case []any:
-		for _, item := range v {
-			s, ok := item.(string)
-			if ok && s != "" {
-				globs = append(globs, toPosix(strings.TrimSuffix(s, "/")))
-			}
-		}
-	case map[string]any:
-		if pkgs, ok := v["packages"].([]any); ok {
-			for _, item := range pkgs {
-				s, ok := item.(string)
-				if ok && s != "" {
-					globs = append(globs, toPosix(strings.TrimSuffix(s, "/")))
-				}
-			}
-		}
+	if fileExists(filepath.Join(root, "yarn.lock")) || fileExists(filepath.Join(root, ".yarnrc.yml")) {
+		return "yarn"
 	}
-	if len(globs) == 0 {
-		return nil, nil
+	if fileExists(filepath.Join(root, "package-lock.json")) {
+		return "npm"
 	}
-	root := filepath.Dir(pkgPath)
-	pm := "npm"
 	if fileExists(filepath.Join(root, "bun.lock")) || fileExists(filepath.Join(root, "bun.lockb")) {
-		pm = "bun"
-	} else if fileExists(filepath.Join(root, "deno.lock")) {
-		pm = "deno"
-	} else if fileExists(filepath.Join(root, "yarn.lock")) {
-		pm = "yarn"
+		return "bun"
 	}
-	return &detected{pm: pm, root: root, globs: globs}, nil
+	if fileExists(filepath.Join(root, "deno.lock")) {
+		return "deno"
+	}
+	if fileExists(filepath.Join(root, ".pnpmfile.cjs")) || fileExists(filepath.Join(root, "pnpmfile.cjs")) {
+		return "pnpm"
+	}
+	if fileExists(filepath.Join(root, "bunfig.toml")) {
+		return "bun"
+	}
+	if fileExists(filepath.Join(root, "yarn.config.cjs")) {
+		return "yarn"
+	}
+
+	return "npm"
+}
+
+func packageJSONDetection(workspace *packageJSONWorkspace, packageManager string) *detected {
+	if workspace == nil || len(workspace.globs) == 0 {
+		return nil
+	}
+
+	return &detected{pm: packageManager, root: workspace.root, globs: workspace.globs}
+}
+
+func detectPackageJSONWorkspace(workspace *packageJSONWorkspace) *detected {
+	if workspace == nil {
+		return nil
+	}
+
+	return packageJSONDetection(workspace, packageManagerFromRoot(workspace))
+}
+
+func detectPkgJSON(start string) (*detected, error) {
+	return detectPackageJSONWorkspace(findPackageJSONWorkspace(start)), nil
 }
 
 func autoDetect(start string) (*detected, error) {
+	packageJSONWorkspace := findPackageJSONWorkspace(start)
+	if packageJSONWorkspace != nil {
+		if packageManager := declaredPackageManager(packageJSONWorkspace.manifest); packageManager != "" {
+			if detection := packageJSONDetection(packageJSONWorkspace, packageManager); detection != nil {
+				return detection, nil
+			}
+		}
+	}
+
 	if d, err := detectPNPM(start); err != nil || d != nil {
 		return d, err
 	}
 	if d, err := detectDeno(start); err != nil || d != nil {
 		return d, err
 	}
-	return detectPkgJSON(start)
+
+	return detectPackageJSONWorkspace(packageJSONWorkspace), nil
 }
 
 func detectSpecified(start, pm string) (*detected, error) {
 	switch pm {
 	case "pnpm":
-		return detectPNPM(start)
+		detection, err := detectPNPM(start)
+		if err != nil || detection != nil {
+			return detection, err
+		}
 	case "deno":
-		return detectDeno(start)
-	default:
-		d, err := detectPkgJSON(start)
-		if err != nil || d == nil {
-			return d, err
+		detection, err := detectDeno(start)
+		if err != nil || detection != nil {
+			return detection, err
 		}
-		if d.pm == pm {
-			return d, nil
-		}
-		return nil, nil
 	}
+
+	detection, err := detectPkgJSON(start)
+	if err != nil || detection == nil {
+		return detection, err
+	}
+	if detection.pm == pm {
+		return detection, nil
+	}
+
+	return nil, nil
 }
 
 func fileExists(p string) bool {

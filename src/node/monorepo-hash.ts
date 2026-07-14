@@ -52,6 +52,31 @@ export type PnpmWorkspaceConfig = {
 }
 
 /**
+ * The minimum expected keys in a `deno.json`
+ */
+export type DenoWorkspaceConfig = {
+  workspace?: string[] | { members?: string[] };
+}
+
+/**
+ * The minimum expected keys in a `package.json` workspace manifest
+ */
+export type WorkspacePackageManifest = {
+  devEngines?: unknown;
+  packageManager?: unknown;
+  workspaces?: unknown;
+}
+
+/**
+ * The minimum expected keys in a `package.json` workspace
+ */
+export type PackageJsonWorkspace = {
+  globs: string[];
+  manifest: WorkspacePackageManifest;
+  root: string;
+}
+
+/**
  * The minimum expected keys in a `package.json`
  */
 export interface PackageManifest {
@@ -299,7 +324,7 @@ Object.freeze(NullObj)
  * @param description A human-readable description of the file
  * @returns The parsed JSON value
  */
-async function readJsonFile<T>(filePath: string, description: string): Promise<T> {
+export async function readJsonFile<T>(filePath: string, description: string): Promise<T> {
   const text = await readFile(filePath, "utf8")
 
   try {
@@ -310,6 +335,142 @@ async function readJsonFile<T>(filePath: string, description: string): Promise<T
       ? err.message
       : String(err)}`, { cause: err })
   }
+}
+
+/**
+ * Remove comments and trailing commas from JSONC without changing content inside strings
+ * @param input The JSONC source text
+ * @returns JSON text that can be parsed by `JSON.parse`
+ */
+export function normalizeJsonc(input: string): string {
+  let withoutComments = ""
+  let inString = false
+  let escaped = false
+  let index = 0
+
+  while (index < input.length) {
+    const char = input[index]
+
+    if (inString) {
+      withoutComments += char
+
+      if (escaped) {
+        escaped = false
+      } else if (char === "\\") {
+        escaped = true
+      } else if (char === "\"") {
+        inString = false
+      }
+
+      index++
+
+      continue
+    }
+
+    if (char === "\"") {
+      inString = true
+      withoutComments += char
+      index++
+
+      continue
+    }
+
+    if (char === "/" && input[index + 1] === "/") {
+      withoutComments += "  "
+      index += 2
+
+      while (index < input.length && ![ "\n", "\r" ].includes(input[index] ?? "")) {
+        withoutComments += " "
+        index++
+      }
+
+      continue
+    }
+
+    if (char === "/" && input[index + 1] === "*") {
+      withoutComments += "  "
+      index += 2
+
+      while (index < input.length) {
+        if (input[index] === "*" && input[index + 1] === "/") {
+          withoutComments += "  "
+          index += 2
+
+          break
+        }
+
+        const commentChar = input[index]
+
+        withoutComments += commentChar === "\n" || commentChar === "\r"
+          ? commentChar
+          : " "
+        index++
+      }
+
+      continue
+    }
+
+    withoutComments += char
+    index++
+  }
+
+  let normalized = ""
+
+  inString = false
+  escaped = false
+
+  for (let current = 0; current < withoutComments.length; current++) {
+    const char = withoutComments[current]
+
+    if (inString) {
+      normalized += char
+
+      if (escaped) {
+        escaped = false
+      } else if (char === "\\") {
+        escaped = true
+      } else if (char === "\"") {
+        inString = false
+      }
+
+      continue
+    }
+
+    if (char === "\"") {
+      inString = true
+      normalized += char
+
+      continue
+    }
+
+    if (char === ",") {
+      let next = current + 1
+
+      while (next < withoutComments.length && (/\s/).test(withoutComments[next] ?? "")) {
+        next++
+      }
+
+      if ([ "]", "}" ].includes(withoutComments[next] ?? "")) {
+        normalized += " "
+
+        continue
+      }
+    }
+
+    normalized += char
+  }
+
+  return normalized
+}
+
+/**
+ * Parse a Deno JSONC workspace config
+ * @param input The JSONC source text
+ * @returns The parsed Deno workspace config
+ */
+export function parseDenoWorkspaceConfig(input: string): DenoWorkspaceConfig {
+  // oxlint-disable-next-line no-unsafe-type-assertion
+  return JSON.parse(normalizeJsonc(input)) as DenoWorkspaceConfig
 }
 
 /**
@@ -435,18 +596,17 @@ export async function detectDeno(): Promise<{
   }
 
   const root = dirname(denoPath)
-  let config: { workspace?: string[] }
+  let config: DenoWorkspaceConfig
 
   try {
-    // oxlint-disable-next-line no-unsafe-type-assertion
-    config = JSON.parse(await readFile(denoPath, "utf8")) as { workspace?: string[] }
+    config = parseDenoWorkspaceConfig(await readFile(denoPath, "utf8"))
   } catch {
     return null
   }
 
-  const globs: string[] = Array.isArray(config.workspace)
+  const globs = Array.isArray(config.workspace)
     ? config.workspace
-    : []
+    : config.workspace?.members ?? []
 
   if (globs.length === 0) {
     return null
@@ -458,97 +618,241 @@ export async function detectDeno(): Promise<{
 }
 
 /**
- * Detect workspaces from `package.json` `workspaces` field, supporting Yarn, NPM and Bun
+ * Extracts the workspace globs from a `package.json` workspace manifest
+ * @param value The `workspaces` field value from a `package.json`
+ * @returns The workspace globs, or an empty array if none could be extracted
+ */
+export function packageJsonWorkspaceGlobs(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === "string")
+  }
+
+  if (typeof value !== "object" || value === null) {
+    return []
+  }
+
+  const packages = Object.getOwnPropertyDescriptor(value, "packages")?.value
+
+  return Array.isArray(packages)
+    ? packages.filter((item): item is string => typeof item === "string")
+    : []
+}
+
+/**
+ * Converts a package manager name string to a `PackageManager` enum value
+ * @param value The package manager name string
+ * @returns The `PackageManager` enum value, or `null` if the string is not a valid package manager name
+ */
+export function packageManagerFromString(value: unknown): PackageManager | null {
+  if (typeof value !== "string") {
+    return null
+  }
+
+  const separator = value.indexOf("@")
+  const name = separator > 0
+    ? value.slice(0, separator)
+    : value
+
+  return isPackageManager(name)
+    ? name
+    : null
+}
+
+/**
+ * Extracts the declared package manager from a workspace package manifest
+ * @param manifest The workspace package manifest
+ * @returns The `PackageManager` enum value, or `null` if the manifest does not declare a package manager
+ */
+export function declaredPackageManager(manifest: WorkspacePackageManifest): PackageManager | null {
+  const declared = packageManagerFromString(manifest.packageManager)
+
+  if (declared) {
+    return declared
+  }
+
+  if (typeof manifest.devEngines !== "object" || manifest.devEngines === null) {
+    return null
+  }
+
+  const field = Object.getOwnPropertyDescriptor(manifest.devEngines, "packageManager")?.value
+  const entries: unknown[] = Array.isArray(field)
+    ? field
+    : [field]
+
+  for (const entry of entries) {
+    if (typeof entry !== "object" || entry === null) {
+      continue
+    }
+
+    const name = Object.getOwnPropertyDescriptor(entry, "name")?.value
+
+    if (typeof name === "string" && isPackageManager(name)) {
+      return name
+    }
+  }
+
+  return null
+}
+
+/**
+ * Finds the nearest `package.json` workspace manifest starting from the current working directory
+ * @param start The directory to start searching from
+ * @returns The `PackageJsonWorkspace` object, or `null` if no workspace manifest was found
+ */
+export async function findPackageJsonWorkspace(start: string = cwd()): Promise<PackageJsonWorkspace | null> {
+  let dir = start
+
+  while (true) {
+    const pkgPath = join(dir, "package.json")
+
+    // oxlint-disable-next-line no-await-in-loop
+    if (await exists(pkgPath)) {
+      try {
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion no-await-in-loop
+        const manifest = JSON.parse(await readFile(pkgPath, "utf8")) as WorkspacePackageManifest
+
+        if (manifest.workspaces) {
+          return {
+            globs: packageJsonWorkspaceGlobs(manifest.workspaces),
+            manifest,
+            root: dir,
+          }
+        }
+      } catch {
+        // ignore invalid package.json and keep walking upward
+        void 0
+      }
+    }
+
+    const parent = dirname(dir)
+
+    if (parent === dir) {
+      return null
+    }
+
+    dir = parent
+  }
+}
+
+/**
+ * Determines the package manager from the root directory and workspace package manifest
+ * @param root The root directory of the workspace
+ * @param manifest The workspace package manifest
+ * @returns The `PackageManager` enum value
+ */
+export async function packageManagerFromRoot(root: string, manifest: WorkspacePackageManifest): Promise<PackageManager> {
+  const declared = declaredPackageManager(manifest)
+
+  if (declared) {
+    return declared
+  }
+
+  const [
+    hasPnpmWorkspace,
+    hasPnpmLock,
+    hasYarnLock,
+    hasYarnRc,
+    hasPackageLock,
+    hasBunLock,
+    hasBunLockB,
+    hasDenoLock,
+    hasPnpmFile,
+    hasLegacyPnpmFile,
+    hasBunfig,
+    hasYarnConfig,
+  ] = await Promise.all([
+    exists(join(root, "pnpm-workspace.yaml")),
+    exists(join(root, "pnpm-lock.yaml")),
+    exists(join(root, "yarn.lock")),
+    exists(join(root, ".yarnrc.yml")),
+    exists(join(root, "package-lock.json")),
+    exists(join(root, "bun.lock")),
+    exists(join(root, "bun.lockb")),
+    exists(join(root, "deno.lock")),
+    exists(join(root, ".pnpmfile.cjs")),
+    exists(join(root, "pnpmfile.cjs")),
+    exists(join(root, "bunfig.toml")),
+    exists(join(root, "yarn.config.cjs")),
+  ])
+
+  if (hasPnpmWorkspace || hasPnpmLock) {
+    return "pnpm"
+  }
+
+  if (hasYarnLock || hasYarnRc) {
+    return "yarn"
+  }
+
+  if (hasPackageLock) {
+    return "npm"
+  }
+
+  if (hasBunLock || hasBunLockB) {
+    return "bun"
+  }
+
+  if (hasDenoLock) {
+    return "deno"
+  }
+
+  if (hasPnpmFile || hasLegacyPnpmFile) {
+    return "pnpm"
+  }
+
+  if (hasBunfig) {
+    return "bun"
+  }
+
+  if (hasYarnConfig) {
+    return "yarn"
+  }
+
+  return "npm"
+}
+
+/**
+ * Detects the package manager and workspace globs from a `package.json` workspace manifest
+ * @param workspace The `PackageJsonWorkspace` object
+ * @param pm The package manager to use for detection
+ * @returns An object containing the package manager, root directory, and workspace globs, or `null` if no workspace was detected
+ */
+export function packageJsonDetection(workspace: PackageJsonWorkspace, pm: PackageManager): {
+  pm: PackageManager; root: string; globs: string[];
+} | null {
+  if (workspace.globs.length === 0) {
+    return null
+  }
+
+  return {
+    globs: workspace.globs,
+    pm,
+    root: workspace.root,
+  }
+}
+
+/**
+ * Detects the package manager and workspace globs from a `package.json` workspace manifest
+ * @param workspace The `PackageJsonWorkspace` object
+ * @returns An object containing the package manager, root directory, and workspace globs, or `null` if no workspace was detected
+ */
+export async function detectPackageJsonWorkspace(workspace: PackageJsonWorkspace): Promise<{
+  pm: PackageManager; root: string; globs: string[];
+} | null> {
+  return packageJsonDetection(workspace, await packageManagerFromRoot(workspace.root, workspace.manifest))
+}
+
+/**
+ * Detect workspaces from `package.json` `workspaces` field, supporting all package managers
  * @returns A promise that resolves to an object containing the package manager, root directory, and workspace globs, or null if not detected
  */
 export async function detectPkgJson(): Promise<{
   pm: PackageManager; root: string; globs: string[];
 } | null> {
-  async function findWorkspacePackageJson(start = cwd()): Promise<string | null> {
-    let dir = start
+  const workspace = await findPackageJsonWorkspace()
 
-    while (true) {
-      const pkgPath = join(dir, "package.json")
-
-      // oxlint-disable-next-line no-await-in-loop
-      if (await exists(pkgPath)) {
-        try {
-          // oxlint-disable-next-line typescript/no-unsafe-type-assertion no-await-in-loop
-          const pkg = JSON.parse(await readFile(pkgPath, "utf8")) as { workspaces?: unknown }
-
-          if (pkg.workspaces) {
-            return pkgPath
-          }
-        } catch {
-          // ignore invalid package.json and keep walking upward
-          void 0
-        }
-      }
-
-      const parent = dirname(dir)
-
-      if (parent === dir) {
-        return null
-      }
-
-      dir = parent
-    }
-  }
-
-  const pkgPath = await findWorkspacePackageJson()
-
-  if (!pkgPath) {
-    return null
-  }
-
-  const root = dirname(pkgPath)
-  // oxlint-disable-next-line no-unsafe-type-assertion
-  const pkg = JSON.parse(await readFile(pkgPath, "utf8")) as { workspaces?: string[] | { packages?: string[] } }
-  let globs: string[] = []
-
-  if (Array.isArray(pkg.workspaces)) {
-    globs = pkg.workspaces
-  } else if (pkg.workspaces && Array.isArray((pkg.workspaces).packages)) {
-    globs = (pkg.workspaces).packages ?? []
-  }
-
-  if (globs.length === 0) {
-    return null
-  }
-
-  const [
-    hasBunLock,
-    hasBunLockB,
-    hasDenoLock,
-    hasYarnLock,
-  ] = await Promise.all([
-    exists(join(root, "bun.lock")),
-    exists(join(root, "bun.lockb")),
-    exists(join(root, "deno.lock")),
-    exists(join(root, "yarn.lock")),
-  ])
-
-  if (hasBunLock || hasBunLockB) {
-    return {
-      pm: "bun", root, globs,
-    }
-  }
-
-  if (hasDenoLock) {
-    return {
-      pm: "deno", root, globs,
-    }
-  }
-
-  if (hasYarnLock) {
-    return {
-      pm: "yarn", root, globs,
-    }
-  }
-
-  return {
-    pm: "npm", root, globs,
-  }
+  return workspace
+    ? detectPackageJsonWorkspace(workspace)
+    : null
 }
 
 /**
@@ -558,9 +862,24 @@ export async function detectPkgJson(): Promise<{
 export async function autoDetect(): Promise<{
   pm: PackageManager; root: string; globs: string[];
 } | null> {
+  const packageJsonWorkspace = await findPackageJsonWorkspace()
+  const declared = packageJsonWorkspace
+    ? declaredPackageManager(packageJsonWorkspace.manifest)
+    : null
+
+  if (packageJsonWorkspace && declared) {
+    const detection = packageJsonDetection(packageJsonWorkspace, declared)
+
+    if (detection) {
+      return detection
+    }
+  }
+
   return (await detectPNPM())
     ?? (await detectDeno())
-    ?? (await detectPkgJson())
+    ?? (packageJsonWorkspace
+      ? detectPackageJsonWorkspace(packageJsonWorkspace)
+      : null)
 }
 
 /**
@@ -572,11 +891,19 @@ export async function detectSpecified(pm: PackageManager): Promise<{
   pm: PackageManager; root: string; globs: string[];
 } | null> {
   if (pm === "pnpm") {
-    return detectPNPM()
+    const detectedPnpm = await detectPNPM()
+
+    if (detectedPnpm) {
+      return detectedPnpm
+    }
   }
 
   if (pm === "deno") {
-    return detectDeno()
+    const detectedDeno = await detectDeno()
+
+    if (detectedDeno) {
+      return detectedDeno
+    }
   }
 
   const detectedPm = await detectPkgJson()

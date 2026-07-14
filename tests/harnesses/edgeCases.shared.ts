@@ -1,7 +1,9 @@
 import {
+  mkdtemp,
   readFile,
   writeFile,
 } from "node:fs/promises"
+import { tmpdir } from "node:os"
 import { join } from "node:path"
 import {
   afterAll,
@@ -25,6 +27,21 @@ export function defineEdgeCasesSuite(runCli: RunCli): void {
   beforeAll(() => {
     cwd = globalThis.tmpRoot
   })
+
+  async function setupPackageJsonWorkspace(dir: string, manifest: Record<string, unknown> = {}): Promise<void> {
+    const pkgDir = join(dir, "packages", "pkg-a")
+
+    await mkdirp(pkgDir)
+    await writeJson(join(dir, "package.json"), {
+      workspaces: ["packages/*"],
+      ...manifest,
+    }, { spaces: 2 })
+    await writeJson(join(pkgDir, "package.json"), {
+      name: "pkg-a",
+      version: "1.0.0",
+    }, { spaces: 2 })
+    await writeFile(join(pkgDir, "index.js"), "export const a = 1\n")
+  }
 
   describe("gitignore handling", () => {
     let gitignoreDir: string
@@ -338,6 +355,306 @@ export function defineEdgeCasesSuite(runCli: RunCli): void {
   })
 
   describe("workspace detection robustness", () => {
+    const packageManagerSignalCases: {
+      expected: string;
+      files?: Record<string, string>;
+      manifest?: Record<string, unknown>;
+      slug: string;
+      source: string;
+    }[] = [
+      {
+        expected: "yarn",
+        manifest: { packageManager: "yarn@4.9.2" },
+        slug: "package-manager-field",
+        source: "packageManager",
+      },
+      {
+        expected: "bun",
+        manifest: { devEngines: { packageManager: {
+          name: "bun", version: "^1.2.0",
+        } } },
+        slug: "dev-engines-object",
+        source: "object-form devEngines.packageManager",
+      },
+      {
+        expected: "pnpm",
+        manifest: { devEngines: { packageManager: [
+          { name: "unsupported" }, {
+            name: "pnpm", version: "^11.0.0",
+          },
+        ] } },
+        slug: "dev-engines-array",
+        source: "array-form devEngines.packageManager",
+      },
+      {
+        expected: "pnpm",
+        files: { "pnpm-workspace.yaml": "packages:\n  - \"packages/*\"\n" },
+        slug: "pnpm-workspace",
+        source: "pnpm-workspace.yaml",
+      },
+      {
+        expected: "pnpm",
+        files: { "pnpm-lock.yaml": "" },
+        slug: "pnpm-lock",
+        source: "pnpm-lock.yaml",
+      },
+      {
+        expected: "yarn",
+        files: { "yarn.lock": "" },
+        slug: "yarn-lock",
+        source: "yarn.lock",
+      },
+      {
+        expected: "yarn",
+        files: { ".yarnrc.yml": "" },
+        slug: "yarnrc",
+        source: ".yarnrc.yml",
+      },
+      {
+        expected: "npm",
+        files: { "package-lock.json": "" },
+        slug: "package-lock",
+        source: "package-lock.json",
+      },
+      {
+        expected: "bun",
+        files: { "bun.lock": "" },
+        slug: "bun-lock",
+        source: "bun.lock",
+      },
+      {
+        expected: "bun",
+        files: { "bun.lockb": "" },
+        slug: "bun-lockb",
+        source: "bun.lockb",
+      },
+      {
+        expected: "pnpm",
+        files: { ".pnpmfile.cjs": "" },
+        slug: "pnpmfile",
+        source: ".pnpmfile.cjs",
+      },
+      {
+        expected: "pnpm",
+        files: { "pnpmfile.cjs": "" },
+        slug: "legacy-pnpmfile",
+        source: "pnpmfile.cjs",
+      },
+      {
+        expected: "bun",
+        files: { "bunfig.toml": "" },
+        slug: "bunfig",
+        source: "bunfig.toml",
+      },
+      {
+        expected: "yarn",
+        files: { "yarn.config.cjs": "" },
+        slug: "yarn-config",
+        source: "yarn.config.cjs",
+      },
+    ]
+
+    it.each(packageManagerSignalCases)("detects $expected from $source", async ({
+      expected,
+      files = {},
+      manifest = {},
+      slug,
+    }) => {
+      const dir = await mkdtemp(join(tmpdir(), `monorepo-hash-package-manager-signal-${slug}-`))
+
+      await setupPackageJsonWorkspace(dir, manifest)
+      await Promise.all(Object.entries(files)
+        .map(([ file, content ]) => writeFile(join(dir, file), content)))
+
+      try {
+        const result = await runCli(dir, ["--generate"])
+
+        expect(result.exitCode)
+          .toBe(0)
+        expect(result.stdout)
+          .toContain(`Using ${expected} workspaces from`)
+      } finally {
+        await remove(dir)
+      }
+    })
+
+    const packageManagerPrecedenceCases: {
+      expected: string;
+      files: Record<string, string>;
+      manifest?: Record<string, unknown>;
+      precedence: string;
+      slug: string;
+    }[] = [
+      {
+        expected: "yarn",
+        files: { "pnpm-workspace.yaml": "packages:\n  - \"packages/*\"\n" },
+        manifest: {
+          devEngines: { packageManager: { name: "bun" } },
+          packageManager: "yarn@4.9.2",
+        },
+        precedence: "packageManager over devEngines.packageManager and pnpm-workspace.yaml",
+        slug: "manifest",
+      },
+      {
+        expected: "bun",
+        files: { "pnpm-workspace.yaml": "packages:\n  - \"packages/*\"\n" },
+        manifest: { devEngines: { packageManager: { name: "bun" } } },
+        precedence: "devEngines.packageManager over pnpm-workspace.yaml",
+        slug: "dev-engines",
+      },
+      {
+        expected: "pnpm",
+        files: {
+          "pnpm-workspace.yaml": "packages:\n  - \"packages/*\"\n",
+          "yarn.lock": "",
+        },
+        precedence: "pnpm-workspace.yaml over yarn.lock",
+        slug: "pnpm-workspace",
+      },
+      {
+        expected: "pnpm",
+        files: {
+          "pnpm-lock.yaml": "",
+          "yarn.lock": "",
+        },
+        precedence: "pnpm-lock.yaml over yarn.lock",
+        slug: "pnpm-lock",
+      },
+      {
+        expected: "yarn",
+        files: {
+          "package-lock.json": "",
+          "yarn.lock": "",
+        },
+        precedence: "Yarn indicators over package-lock.json",
+        slug: "yarn",
+      },
+      {
+        expected: "npm",
+        files: {
+          "bun.lock": "",
+          "package-lock.json": "",
+        },
+        precedence: "package-lock.json over Bun locks",
+        slug: "npm",
+      },
+      {
+        expected: "bun",
+        files: {
+          ".pnpmfile.cjs": "",
+          "bun.lock": "",
+        },
+        precedence: "Bun locks over pnpm config files",
+        slug: "bun",
+      },
+      {
+        expected: "pnpm",
+        files: {
+          ".pnpmfile.cjs": "",
+          "bunfig.toml": "",
+        },
+        precedence: "pnpm config files over bunfig.toml",
+        slug: "pnpmfile",
+      },
+      {
+        expected: "bun",
+        files: {
+          "bunfig.toml": "",
+          "yarn.config.cjs": "",
+        },
+        precedence: "bunfig.toml over yarn.config.cjs",
+        slug: "bunfig",
+      },
+    ]
+
+    it.each(packageManagerPrecedenceCases)("prefers $precedence", async ({
+      expected,
+      files,
+      manifest = {},
+      slug,
+    }) => {
+      const dir = await mkdtemp(join(tmpdir(), `monorepo-hash-package-manager-precedence-${slug}-`))
+
+      await setupPackageJsonWorkspace(dir, manifest)
+      await Promise.all(Object.entries(files)
+        .map(([ file, content ]) => writeFile(join(dir, file), content)))
+
+      try {
+        const result = await runCli(dir, ["--generate"])
+
+        expect(result.exitCode)
+          .toBe(0)
+        expect(result.stdout)
+          .toContain(`Using ${expected} workspaces from`)
+      } finally {
+        await remove(dir)
+      }
+    })
+
+    it("detects a commented deno.jsonc with trailing commas", async () => {
+      const dir = await mkdtemp(join(tmpdir(), "monorepo-hash-deno-jsonc-workspace-"))
+      const pkgDir = join(dir, "packages", "pkg-a")
+
+      await mkdirp(pkgDir)
+      await writeFile(join(dir, "deno.jsonc"), `{
+  // Keep comment-like text inside strings intact.
+  "workspace": [
+    "packages/*",
+  ],
+  /* JSONC supports block comments too. */
+  "imports": {
+    "example": "https://example.com/not-a-comment/*still-a-string*/",
+  },
+}
+`)
+      await writeJson(join(pkgDir, "package.json"), {
+        name: "pkg-a",
+        version: "1.0.0",
+      }, { spaces: 2 })
+      await writeFile(join(pkgDir, "index.ts"), "export const a = 1\n")
+
+      try {
+        const result = await runCli(dir, ["--generate"])
+
+        expect(result.exitCode)
+          .toBe(0)
+        expect(result.stdout)
+          .toContain("Using deno workspaces from")
+        expect(await pathExists(join(dir, ".hash")))
+          .toBe(true)
+      } finally {
+        await remove(dir)
+      }
+    })
+
+    it("detects object-form Deno workspace members", async () => {
+      const dir = await mkdtemp(join(tmpdir(), "monorepo-hash-deno-object-workspace-"))
+      const pkgDir = join(dir, "packages", "pkg-a")
+
+      await mkdirp(pkgDir)
+      await writeJson(join(dir, "deno.json"), {
+        workspace: { members: ["packages/*"] },
+      }, { spaces: 2 })
+      await writeJson(join(pkgDir, "package.json"), {
+        name: "pkg-a",
+        version: "1.0.0",
+      }, { spaces: 2 })
+      await writeFile(join(pkgDir, "index.ts"), "export const a = 1\n")
+
+      try {
+        const result = await runCli(dir, ["--generate"])
+
+        expect(result.exitCode)
+          .toBe(0)
+        expect(result.stdout)
+          .toContain("Using deno workspaces from")
+        expect(await pathExists(join(dir, ".hash")))
+          .toBe(true)
+      } finally {
+        await remove(dir)
+      }
+    })
+
     it("falls back from invalid deno.json to package.json workspaces", async () => {
       const dir = join(cwd, "invalid-deno-fallback")
 

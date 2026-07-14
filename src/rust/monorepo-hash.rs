@@ -97,7 +97,7 @@ struct PnpmWorkspace {
 
 #[derive(Deserialize, Debug)]
 struct DenoWorkspace {
-  workspace: Option<Vec<String>>,
+  workspace: Option<Value>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -108,7 +108,18 @@ struct PackageJson {
   dev_dependencies: Option<HashMap<String, String>>,
   #[serde(rename = "peerDependencies")]
   peer_dependencies: Option<HashMap<String, String>>,
+  #[serde(rename = "packageManager")]
+  package_manager: Option<Value>,
+  #[serde(rename = "devEngines")]
+  dev_engines: Option<Value>,
   workspaces: Option<Value>,
+}
+
+#[derive(Debug)]
+struct PackageJsonWorkspace {
+  root: PathBuf,
+  globs: Vec<String>,
+  manifest: PackageJson,
 }
 
 #[derive(Clone, Debug)]
@@ -480,50 +491,59 @@ fn path_relative_to_posix(path: &Path, base: &Path) -> String {
 }
 
 fn strip_json_comments(input: &str) -> String {
-  let mut out = String::with_capacity(input.len());
+  let mut out = Vec::with_capacity(input.len());
   let bytes = input.as_bytes();
   let mut i = 0;
   let mut in_str = false;
   let mut escape = false;
 
   while i < bytes.len() {
-    let c = bytes[i] as char;
+    let c = bytes[i];
     if in_str {
       out.push(c);
       if escape {
         escape = false;
-      } else if c == '\\' {
+      } else if c == b'\\' {
         escape = true;
-      } else if c == '"' {
+      } else if c == b'"' {
         in_str = false;
       }
       i += 1;
       continue;
     }
 
-    if c == '"' {
+    if c == b'"' {
       in_str = true;
       out.push(c);
       i += 1;
       continue;
     }
 
-    if c == '/' && i + 1 < bytes.len() {
-      let n = bytes[i + 1] as char;
-      if n == '/' {
+    if c == b'/' && i + 1 < bytes.len() {
+      let n = bytes[i + 1];
+      if n == b'/' {
+        out.extend_from_slice(b"  ");
         i += 2;
-        while i < bytes.len() && bytes[i] as char != '\n' {
+        while i < bytes.len() && !matches!(bytes[i], b'\n' | b'\r') {
+          out.push(b' ');
           i += 1;
         }
         continue;
       }
-      if n == '*' {
+      if n == b'*' {
+        out.extend_from_slice(b"  ");
         i += 2;
-        while i + 1 < bytes.len() {
-          if bytes[i] as char == '*' && bytes[i + 1] as char == '/' {
+        while i < bytes.len() {
+          if bytes[i] == b'*' && i + 1 < bytes.len() && bytes[i + 1] == b'/' {
+            out.extend_from_slice(b"  ");
             i += 2;
             break;
           }
+          out.push(if matches!(bytes[i], b'\n' | b'\r') {
+            bytes[i]
+          } else {
+            b' '
+          });
           i += 1;
         }
         continue;
@@ -534,10 +554,57 @@ fn strip_json_comments(input: &str) -> String {
     i += 1;
   }
 
-  out
+  String::from_utf8(out).unwrap_or_default()
 }
 
-fn workspaces_from_value(value: &Value) -> Option<Vec<String>> {
+fn is_json_whitespace(value: u8) -> bool {
+  matches!(value, b' ' | b'\t' | b'\n' | b'\r')
+}
+
+fn normalize_jsonc(input: &str) -> String {
+  let without_comments = strip_json_comments(input);
+  let bytes = without_comments.as_bytes();
+  let mut out = Vec::with_capacity(bytes.len());
+  let mut in_str = false;
+  let mut escape = false;
+
+  for (index, value) in bytes.iter().copied().enumerate() {
+    if in_str {
+      out.push(value);
+      if escape {
+        escape = false;
+      } else if value == b'\\' {
+        escape = true;
+      } else if value == b'"' {
+        in_str = false;
+      }
+      continue;
+    }
+
+    if value == b'"' {
+      in_str = true;
+      out.push(value);
+      continue;
+    }
+
+    if value == b',' {
+      let mut next = index + 1;
+      while next < bytes.len() && is_json_whitespace(bytes[next]) {
+        next += 1;
+      }
+      if next < bytes.len() && matches!(bytes[next], b']' | b'}') {
+        out.push(b' ');
+        continue;
+      }
+    }
+
+    out.push(value);
+  }
+
+  String::from_utf8(out).unwrap_or_default()
+}
+
+fn workspace_globs_from_value(value: &Value, object_key: &str) -> Option<Vec<String>> {
   if let Some(arr) = value.as_array() {
     let globs = arr
       .iter()
@@ -549,7 +616,7 @@ fn workspaces_from_value(value: &Value) -> Option<Vec<String>> {
   }
 
   if let Some(obj) = value.as_object()
-    && let Some(packages) = obj.get("packages").and_then(|v| v.as_array())
+    && let Some(packages) = obj.get(object_key).and_then(|v| v.as_array())
   {
     let globs = packages
       .iter()
@@ -563,7 +630,53 @@ fn workspaces_from_value(value: &Value) -> Option<Vec<String>> {
   None
 }
 
-fn find_workspace_package_json(start: &Path) -> Result<Option<PathBuf>, String> {
+fn package_manager_from_string(value: &Value) -> Option<&str> {
+  let value = value.as_str()?;
+  let separator = value.find('@').filter(|index| *index > 0);
+  let name = separator.map_or(value, |index| &value[..index]);
+
+  matches!(name, "npm" | "pnpm" | "yarn" | "bun" | "deno").then_some(name)
+}
+
+fn declared_package_manager(manifest: &PackageJson) -> Option<&str> {
+  if let Some(package_manager) = manifest
+    .package_manager
+    .as_ref()
+    .and_then(package_manager_from_string)
+  {
+    return Some(package_manager);
+  }
+
+  let field = manifest
+    .dev_engines
+    .as_ref()?
+    .as_object()?
+    .get("packageManager")?;
+
+  if let Some(entries) = field.as_array() {
+    for entry in entries {
+      if let Some(name) = entry
+        .as_object()
+        .and_then(|object| object.get("name"))
+        .and_then(Value::as_str)
+        && matches!(name, "npm" | "pnpm" | "yarn" | "bun" | "deno")
+      {
+        return Some(name);
+      }
+    }
+
+    return None;
+  }
+
+  let name = field
+    .as_object()
+    .and_then(|object| object.get("name"))
+    .and_then(Value::as_str)?;
+
+  matches!(name, "npm" | "pnpm" | "yarn" | "bun" | "deno").then_some(name)
+}
+
+fn find_package_json_workspace(start: &Path) -> Result<Option<PackageJsonWorkspace>, String> {
   let mut current = start.to_path_buf();
 
   loop {
@@ -572,13 +685,13 @@ fn find_workspace_package_json(start: &Path) -> Result<Option<PathBuf>, String> 
     if candidate.exists()
       && let Ok(raw) = fs::read_to_string(&candidate)
       && let Ok(parsed) = serde_json::from_str::<PackageJson>(&raw)
-      && parsed
-        .workspaces
-        .as_ref()
-        .and_then(workspaces_from_value)
-        .is_some()
+      && let Some(workspaces) = parsed.workspaces.as_ref()
     {
-      return Ok(Some(candidate));
+      return Ok(Some(PackageJsonWorkspace {
+        root: current,
+        globs: workspace_globs_from_value(workspaces, "packages").unwrap_or_default(),
+        manifest: parsed,
+      }));
     }
 
     if !current.pop() {
@@ -619,9 +732,13 @@ fn detect_deno() -> Result<Option<Detection>, String> {
     return Ok(None);
   };
   let raw = fs::read_to_string(&file).map_err(|e| e.to_string())?;
-  let cleaned = strip_json_comments(&raw);
+  let cleaned = normalize_jsonc(&raw);
   let parsed: DenoWorkspace = serde_json::from_str(&cleaned).map_err(|e| e.to_string())?;
-  let globs = parsed.workspace.unwrap_or_default();
+  let globs = parsed
+    .workspace
+    .as_ref()
+    .and_then(|workspace| workspace_globs_from_value(workspace, "members"))
+    .unwrap_or_default();
 
   if globs.is_empty() {
     return Ok(None);
@@ -634,38 +751,80 @@ fn detect_deno() -> Result<Option<Detection>, String> {
   }))
 }
 
+fn package_manager_from_root(workspace: &PackageJsonWorkspace) -> &str {
+  if let Some(package_manager) = declared_package_manager(&workspace.manifest) {
+    return package_manager;
+  }
+
+  let root = &workspace.root;
+
+  if root.join("pnpm-workspace.yaml").exists() || root.join("pnpm-lock.yaml").exists() {
+    return "pnpm";
+  }
+  if root.join("yarn.lock").exists() || root.join(".yarnrc.yml").exists() {
+    return "yarn";
+  }
+  if root.join("package-lock.json").exists() {
+    return "npm";
+  }
+  if root.join("bun.lock").exists() || root.join("bun.lockb").exists() {
+    return "bun";
+  }
+  if root.join("deno.lock").exists() {
+    return "deno";
+  }
+  if root.join(".pnpmfile.cjs").exists() || root.join("pnpmfile.cjs").exists() {
+    return "pnpm";
+  }
+  if root.join("bunfig.toml").exists() {
+    return "bun";
+  }
+  if root.join("yarn.config.cjs").exists() {
+    return "yarn";
+  }
+
+  "npm"
+}
+
+fn package_json_detection(
+  workspace: &PackageJsonWorkspace,
+  package_manager: &str,
+) -> Option<Detection> {
+  if workspace.globs.is_empty() {
+    return None;
+  }
+
+  Some(Detection {
+    pm: package_manager.to_string(),
+    root: workspace.root.clone(),
+    globs: workspace.globs.clone(),
+  })
+}
+
+fn detect_package_json_workspace(workspace: &PackageJsonWorkspace) -> Option<Detection> {
+  package_json_detection(workspace, package_manager_from_root(workspace))
+}
+
 fn detect_pkg_json() -> Result<Option<Detection>, String> {
   let cwd = env::current_dir().map_err(|e| e.to_string())?;
-  let Some(file) = find_workspace_package_json(&cwd)? else {
-    return Ok(None);
-  };
-  let Some(root) = file.parent() else {
-    return Ok(None);
-  };
-  let raw = fs::read_to_string(&file).map_err(|e| e.to_string())?;
-  let parsed: PackageJson = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
-  let Some(globs) = parsed.workspaces.as_ref().and_then(workspaces_from_value) else {
+  let Some(workspace) = find_package_json_workspace(&cwd)? else {
     return Ok(None);
   };
 
-  let pm = if root.join("bun.lock").exists() || root.join("bun.lockb").exists() {
-    "bun"
-  } else if root.join("deno.lock").exists() {
-    "deno"
-  } else if root.join("yarn.lock").exists() {
-    "yarn"
-  } else {
-    "npm"
-  };
-
-  Ok(Some(Detection {
-    pm: pm.to_string(),
-    root: root.to_path_buf(),
-    globs,
-  }))
+  Ok(detect_package_json_workspace(&workspace))
 }
 
 fn auto_detect() -> Result<Option<Detection>, String> {
+  let cwd = env::current_dir().map_err(|e| e.to_string())?;
+  let package_json_workspace = find_package_json_workspace(&cwd)?;
+
+  if let Some(workspace) = package_json_workspace.as_ref()
+    && let Some(package_manager) = declared_package_manager(&workspace.manifest)
+    && let Some(detection) = package_json_detection(workspace, package_manager)
+  {
+    return Ok(Some(detection));
+  }
+
   if let Some(detection) = detect_pnpm()? {
     return Ok(Some(detection));
   }
@@ -673,20 +832,32 @@ fn auto_detect() -> Result<Option<Detection>, String> {
     return Ok(Some(detection));
   }
 
-  detect_pkg_json()
+  Ok(
+    package_json_workspace
+      .as_ref()
+      .and_then(detect_package_json_workspace),
+  )
 }
 
 fn detect_specified(pm: &str) -> Result<Option<Detection>, String> {
   match pm {
-    "pnpm" => detect_pnpm(),
-    "deno" => detect_deno(),
-    "npm" | "yarn" | "bun" => {
-      let detected = detect_pkg_json()?;
-
-      Ok(detected.filter(|d| d.pm == pm))
+    "pnpm" => {
+      if let Some(detection) = detect_pnpm()? {
+        return Ok(Some(detection));
+      }
     },
-    _ => Ok(None),
+    "deno" => {
+      if let Some(detection) = detect_deno()? {
+        return Ok(Some(detection));
+      }
+    },
+    "npm" | "yarn" | "bun" => {},
+    _ => return Ok(None),
   }
+
+  let detected = detect_pkg_json()?;
+
+  Ok(detected.filter(|d| d.pm == pm))
 }
 
 fn compile_root_ignore(root: &Path) -> io::Result<Option<Gitignore>> {

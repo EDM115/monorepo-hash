@@ -61,7 +61,7 @@ winget install EDM115.monorepo-hash
 
 > [!TIP]  
 > Make sure that your workspace configuration is set up correctly (`pnpm-workspace.yaml`, `package.json` workspaces or `deno.json(c)` workspace) as `monorepo-hash` will use it to find your workspaces. Globs are supported.  
-> Make sure that your lockfiles are present as well since they are used to detect the used package manager. To skip this resolution step, use the `--packagemanager` argument to force one.  
+> The package manager is detected from `package.json#packageManager`, `package.json#devEngines.packageManager`, workspace files, lockfiles, and package-manager config files, in that order. To skip this resolution step, use the `--packagemanager` argument to force one.  
 > To detect internal transitive dependencies, `monorepo-hash` will check the deps of each of the packages included in the workspaces configs. This allows it to work regardless of the package manager's standard (simple version, `workspace:` protocol or direct `file:` links).  
 > Finally, it will generate a single root `.hash` file that you would need to keep in your VCS in order for it to be efficient (ex : to be reused in your CI). This is made to not clutter your filesystem and VCS, especially if you have a lot of packages, however if you prefer to have per-workspace `.hash` files, use the `--workspaces` mode.
 
