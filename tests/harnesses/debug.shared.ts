@@ -103,6 +103,28 @@ export function defineDebugSuite(runCli: RunCli): void {
       }
     })
 
+    it("preserves unrelated root debug entries during targeted generation", async () => {
+      const rootDebug = join(cwd, ".debug-hash")
+      const pkgCIndex = join(cwd, "packages", "pkg-c", "index.js")
+
+      await runCli(cwd, [ "--generate", "--debug" ])
+      // oxlint-disable-next-line no-unsafe-type-assertion
+      const before = JSON.parse(await readFile(rootDebug, "utf8")) as Record<string, Record<string, string>>
+
+      await writeFile(pkgCIndex, "export const msg = \"pkg-c targeted edit\"\n")
+      await runCli(cwd, [ "--generate", "--debug", "--target=packages/pkg-c" ])
+
+      // oxlint-disable-next-line no-unsafe-type-assertion
+      const after = JSON.parse(await readFile(rootDebug, "utf8")) as Record<string, Record<string, string>>
+
+      expect(after["packages/pkg-a"])
+        .toEqual(before["packages/pkg-a"])
+      expect(after["packages/pkg-b"])
+        .toEqual(before["packages/pkg-b"])
+      expect(after["packages/pkg-c"])
+        .not.toEqual(before["packages/pkg-c"])
+    })
+
     it("fails on a malformed root .debug-hash during debug compare", async () => {
       const rootDebug = join(cwd, ".debug-hash")
 

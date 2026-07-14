@@ -89,6 +89,30 @@ console.log(result)`)
       expect(stdout.trim())
         .toBe("false")
     })
+
+    it("reflects same-path filesystem changes within one process", async () => {
+      const harness = join(cwd, "exists-live.mjs")
+      const changingPath = join(cwd, "exists-live.txt")
+
+      created.push(harness, changingPath)
+      await writeFile(harness, `import { writeFile, unlink } from "node:fs/promises"
+import { exists } from "${cliImport}"
+const changingPath = ${JSON.stringify(changingPath)}
+const before = await exists(changingPath)
+await writeFile(changingPath, "created")
+const afterCreate = await exists(changingPath)
+await unlink(changingPath)
+const afterDelete = await exists(changingPath)
+console.log(JSON.stringify({ before, afterCreate, afterDelete }))`)
+      const { stdout } = await x(cli, [harness], { nodeOptions: { cwd } })
+
+      expect(JSON.parse(stdout))
+        .toEqual({
+          before: false,
+          afterCreate: true,
+          afterDelete: false,
+        })
+    })
   })
 
   describe("zeroPad", () => {

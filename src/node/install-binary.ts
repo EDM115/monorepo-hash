@@ -165,16 +165,6 @@ export async function unlinkIfExists(filePath: string): Promise<void> {
 }
 
 /**
- * Derive a variant asset name from the default binary asset name
- * @param assetName The default asset name
- * @param variant The binary variant to derive
- * @returns The variant asset name
- */
-export function getVariantAssetName(assetName: string, variant: "go" | "rust"): string {
-  return assetName.replace("monorepo-hash-", `monorepo-hash-${variant}-`)
-}
-
-/**
  * Download a file from a URL to a destination path
  * @param url The URL to download from
  * @param dest The destination file path
@@ -265,20 +255,6 @@ export async function main(): Promise<void> {
   const url = `${releaseBaseUrl}/${assetName}`
   const destPath = join(__dirname, "monorepo-hash.exe")
 
-  const optionalBinaryTargets = await Promise.all(([
-    [ "go", join(__dirname, "monorepo-hash-go.exe") ],
-    [ "rust", join(__dirname, "monorepo-hash-rust.exe") ],
-  ] as const).map(async ([ variant, variantDestPath ]) => {
-    if (!await exists(variantDestPath)) {
-      return null
-    }
-
-    return {
-      assetName: getVariantAssetName(assetName, variant),
-      destPath: variantDestPath,
-    }
-  }))
-
   await mkdir(__dirname, { recursive: true })
 
   try {
@@ -295,24 +271,6 @@ export async function main(): Promise<void> {
 
     return
   }
-
-  await Promise.all(optionalBinaryTargets.map(async (optionalBinaryTarget) => {
-    if (!optionalBinaryTarget) {
-      return
-    }
-
-    const variantUrl = `${releaseBaseUrl}/${optionalBinaryTarget.assetName}`
-
-    try {
-      await unlinkIfExists(optionalBinaryTarget.destPath)
-      await download(variantUrl, optionalBinaryTarget.destPath)
-      console.log(`monorepo-hash : downloaded ${optionalBinaryTarget.assetName} for v${version}`)
-    } catch (err) {
-      const msg = errorToMsg(err)
-
-      console.warn(`monorepo-hash : failed to download ${optionalBinaryTarget.assetName} (${msg}), skipping optional binary`)
-    }
-  }))
 }
 
 // Only run when invoked directly (postinstall), not when imported

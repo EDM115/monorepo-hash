@@ -60,10 +60,11 @@ type packageJSONWorkspace struct {
 }
 
 type packageManifest struct {
-	Name             string            `json:"name"`
-	Dependencies     map[string]string `json:"dependencies"`
-	DevDependencies  map[string]string `json:"devDependencies"`
-	PeerDependencies map[string]string `json:"peerDependencies"`
+	Name                 string            `json:"name"`
+	Dependencies         map[string]string `json:"dependencies"`
+	DevDependencies      map[string]string `json:"devDependencies"`
+	PeerDependencies     map[string]string `json:"peerDependencies"`
+	OptionalDependencies map[string]string `json:"optionalDependencies"`
 }
 
 type pkgMeta struct {
@@ -144,6 +145,30 @@ func sumHashToRawAndHex(h hash.Hash) ([sha256.Size]byte, string) {
 
 func toPosix(p string) string {
 	return strings.ReplaceAll(p, "\\", "/")
+}
+
+func canonicalizeTarget(target string) string {
+	var normalized strings.Builder
+	normalized.Grow(len(target))
+	previousWasSeparator := false
+	for _, r := range target {
+		if r == '/' || r == '\\' {
+			if !previousWasSeparator {
+				normalized.WriteByte('/')
+			}
+			previousWasSeparator = true
+			continue
+		}
+		normalized.WriteRune(r)
+		previousWasSeparator = false
+	}
+
+	canonical := strings.TrimRight(normalized.String(), "/")
+	if canonical == "." {
+		return ""
+	}
+
+	return canonical
 }
 
 func findFirstSupportedExtglob(pattern string) (int, byte) {
@@ -496,12 +521,25 @@ func workspaceGlobs(value any, objectKey string) []string {
 }
 
 func detectDeno(start string) (*detected, error) {
-	denoPath, ok := findUpFile(start, "deno.json")
-	if !ok {
-		denoPath, ok = findUpFile(start, "deno.jsonc")
-		if !ok {
+	dir := start
+	denoPath := ""
+	for {
+		jsonPath := filepath.Join(dir, "deno.json")
+		jsoncPath := filepath.Join(dir, "deno.jsonc")
+		if st, err := os.Stat(jsonPath); err == nil && !st.IsDir() {
+			denoPath = jsonPath
+			break
+		}
+		if st, err := os.Stat(jsoncPath); err == nil && !st.IsDir() {
+			denoPath = jsoncPath
+			break
+		}
+
+		parent := filepath.Dir(dir)
+		if parent == dir {
 			return nil, nil
 		}
+		dir = parent
 	}
 	content, err := os.ReadFile(denoPath)
 	if err != nil {
@@ -712,7 +750,7 @@ func parseArgs(args []string) (options, int, error) {
 				targets := strings.Split(parts[1], ",")
 				opts.targets = make([]string, len(targets))
 				for i, t := range targets {
-					opts.targets[i] = strings.TrimRight(toPosix(t), "/")
+					opts.targets[i] = canonicalizeTarget(t)
 				}
 			}
 		case arg == "--silent" || arg == "-s":
@@ -932,12 +970,16 @@ func getWorkspaceFileList(pkgDir, relDir string, rootIgnore, pkgIgnore *ignoreMa
 	return files, nil
 }
 
-func computeWorkspaceHashes(dir string, fileList []string) (map[string]string, []byte, error) {
+func computeWorkspaceHashes(dir string, fileList []string, materializePerFileHashes bool) (map[string]string, []byte, error) {
 	if len(fileList) == 0 {
-		return map[string]string{}, emptyOwnHash[:], nil
+		if materializePerFileHashes {
+			return map[string]string{}, emptyOwnHash[:], nil
+		}
+		return nil, emptyOwnHash[:], nil
 	}
 	workers := min(max(runtime.NumCPU(), 2), len(fileList))
 	type result struct {
+		norm string
 		hash string
 		raw  [sha256.Size]byte
 	}
@@ -964,6 +1006,7 @@ func computeWorkspaceHashes(dir string, fileList []string) (map[string]string, [
 				}
 
 				rel := fileList[current]
+				norm := displayPath(rel, false)
 				full := filepath.Join(dir, filepath.FromSlash(rel))
 				content, err := os.ReadFile(full)
 				if err != nil {
@@ -971,15 +1014,21 @@ func computeWorkspaceHashes(dir string, fileList []string) (map[string]string, [
 					return
 				}
 				h := sha256.New()
-				_, _ = io.WriteString(h, rel)
+				_, _ = io.WriteString(h, norm)
+				_, _ = h.Write([]byte{0})
 				_, _ = h.Write(content)
 
 				if cancelled.Load() {
 					return
 				}
 
-				raw, hash := sumHashToRawAndHex(h)
-				results[current] = result{hash: hash, raw: raw}
+				var raw [sha256.Size]byte
+				_ = h.Sum(raw[:0])
+				hashHex := ""
+				if materializePerFileHashes {
+					hashHex = hex.EncodeToString(raw[:])
+				}
+				results[current] = result{norm: norm, hash: hashHex, raw: raw}
 			}
 		})
 	}
@@ -989,10 +1038,16 @@ func computeWorkspaceHashes(dir string, fileList []string) (map[string]string, [
 		return nil, nil, firstErr
 	}
 
-	output := make(map[string]string, len(fileList))
+	sort.Slice(results, func(i, j int) bool { return results[i].norm < results[j].norm })
+	var output map[string]string
+	if materializePerFileHashes {
+		output = make(map[string]string, len(fileList))
+	}
 	ownHasher := sha256.New()
-	for idx, rel := range fileList {
-		output[rel] = results[idx].hash
+	for idx := range results {
+		if materializePerFileHashes {
+			output[results[idx].norm] = results[idx].hash
+		}
 		_, _ = ownHasher.Write(results[idx].raw[:])
 	}
 	return output, ownHasher.Sum(nil), nil
@@ -1567,6 +1622,7 @@ func execute(args []string, stdout, stderr io.Writer) int {
 		addDeps(manifest.Dependencies)
 		addDeps(manifest.DevDependencies)
 		addDeps(manifest.PeerDependencies)
+		addDeps(manifest.OptionalDependencies)
 		deps := make([]string, 0, len(depSet))
 		for dep := range depSet {
 			deps = append(deps, dep)
@@ -1617,7 +1673,10 @@ func execute(args []string, stdout, stderr io.Writer) int {
 	logf(opts, stdout, true, "🔄 Computing hashes (%s/%d)", zeroPad(0, pad), total)
 
 	pkgs := make(map[string]pkgInfo, len(toHash))
-	debugRootOutput := map[string]map[string]string{}
+	var debugRootOutput map[string]map[string]string
+	if opts.debug && opts.mode == "generate" && opts.unified {
+		debugRootOutput = map[string]map[string]string{}
+	}
 	for idx, name := range toHash {
 		m := meta[name]
 		pkgIgnore := &ignoreMatcher{}
@@ -1633,7 +1692,7 @@ func execute(args []string, stdout, stderr io.Writer) int {
 			linef(opts, stderr, "❌ %s\n", err.Error())
 			return 99
 		}
-		perFile, ownHash, err := computeWorkspaceHashes(m.dir, files)
+		perFile, ownHash, err := computeWorkspaceHashes(m.dir, files, opts.debug)
 		if err != nil {
 			linef(opts, stderr, "❌ %s\n", err.Error())
 			return 99
@@ -1642,7 +1701,9 @@ func execute(args []string, stdout, stderr io.Writer) int {
 		logf(opts, stdout, true, "🔄 Computing hashes (%s/%d) • %s", zeroPad(idx+1, pad), total, displayPath(m.relDir, false))
 		if opts.debug && opts.mode == "generate" {
 			if opts.unified {
-				debugRootOutput[m.relDir] = perFile
+				if len(opts.targets) == 0 || slices.Contains(opts.targets, m.relDir) {
+					debugRootOutput[m.relDir] = perFile
+				}
 			} else if err := writeDebugFile(m.dir, perFile); err != nil {
 				linef(opts, stderr, "❌ %s\n", err.Error())
 				return 99
@@ -1650,6 +1711,19 @@ func execute(args []string, stdout, stderr io.Writer) int {
 		}
 	}
 	if opts.mode == "generate" && opts.debug && opts.unified {
+		if len(opts.targets) > 0 {
+			existingDebug, err := loadRootDebugFile(repoRoot)
+			if err != nil {
+				linef(opts, stderr, "❌ %s\n", err.Error())
+				return 99
+			}
+			if existingDebug != nil {
+				for relDir, perFile := range debugRootOutput {
+					existingDebug[relDir] = perFile
+				}
+				debugRootOutput = existingDebug
+			}
+		}
 		if err := writeRootDebugFile(repoRoot, debugRootOutput); err != nil {
 			linef(opts, stderr, "❌ %s\n", err.Error())
 			return 99

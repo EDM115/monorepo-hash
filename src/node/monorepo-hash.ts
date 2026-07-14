@@ -133,7 +133,6 @@ let workspaceGlobs: string[] = []
 let globalRootIgnore: ignore.Ignore = ignore()
 
 const displayPathCache = new Map<string, string>()
-const existsCache = new Map<string, boolean>()
 const needsPathConversion = sep !== "/"
 // #endregion
 
@@ -194,28 +193,32 @@ export function displayPath(p: string, forceDisableCache?: boolean): string {
 }
 
 /**
- * Check if a file or directory exists and cache the result
+ * Check if a file or directory exists
  * @param f The path to check
  * @returns A promise that resolves to true if the path exists, false otherwise
  */
 export async function exists(f: PathLike): Promise<boolean> {
-  const key = String(f)
-  const cached = existsCache.get(key)
-
-  if (cached !== undefined) {
-    return cached
-  }
-
   try {
     await access(f)
-    existsCache.set(key, true)
 
     return true
   } catch {
-    existsCache.set(key, false)
-
     return false
   }
+}
+
+/**
+ * Normalize a CLI target to the platform-specific form used by workspace relative paths
+ * @param target The target supplied by the user
+ * @returns The canonical workspace relative path
+ */
+function canonicalizeTarget(target: string): string {
+  const normalized = target.replace(/[\\/]+/g, sep)
+    .replace(/[\\/]+$/, "")
+
+  return normalized === "."
+    ? ""
+    : normalized
 }
 
 /**
@@ -585,14 +588,34 @@ export async function detectPNPM(): Promise<{
 export async function detectDeno(): Promise<{
   pm: PackageManager; root: string; globs: string[];
 } | null> {
-  let denoPath = findUpFile("deno.json")
+  let dir = cwd()
+  let denoPath = ""
 
-  if (!denoPath) {
-    denoPath = findUpFile("deno.jsonc")
+  while (true) {
+    const jsonPath = join(dir, "deno.json")
+    const jsoncPath = join(dir, "deno.jsonc")
 
-    if (!denoPath) {
+    // oxlint-disable-next-line no-await-in-loop
+    if (await exists(jsonPath)) {
+      denoPath = jsonPath
+
+      break
+    }
+
+    // oxlint-disable-next-line no-await-in-loop
+    if (await exists(jsoncPath)) {
+      denoPath = jsoncPath
+
+      break
+    }
+
+    const parent = dirname(dir)
+
+    if (parent === dir) {
       return null
     }
+
+    dir = parent
   }
 
   const root = dirname(denoPath)
@@ -1051,7 +1074,74 @@ export async function generateDebug(
 
 // #region hash compute
 /**
- * For a given `dir` and list of relative file paths (`fileList`), compute per-file SHA-256 on (normalizedPath + rawContent)  
+ * Compute raw per-file digests from an unambiguous normalized-path/content byte sequence
+ * @param dir The absolute path to the directory containing the files
+ * @param fileList An array of relative file paths within the directory
+ * @returns A promise that resolves to normalized relative paths and raw SHA-256 digests
+ */
+async function computeRawFileDigests(
+  dir: string,
+  fileList: string[],
+): Promise<Array<readonly [string, Buffer]>> {
+  const CONCURRENCY = 100
+
+  return mapLimit(fileList, CONCURRENCY, async (rel) => {
+    const norm = displayPath(rel)
+    const fullPath = join(dir, rel)
+    const content = await readFile(fullPath)
+    const fileHash = createHash("sha256")
+      .update(norm, "utf8")
+      .update("\0", "utf8")
+      .update(content)
+      .digest()
+
+    return [ norm, fileHash ] as const
+  })
+}
+
+/**
+ * Compute an aggregate workspace hash, optionally materializing its per-file debug map
+ * @param dir The absolute path to the directory containing the files
+ * @param fileList An array of relative file paths within the directory
+ * @param materializePerFileHashes Whether to return per-file hexadecimal hashes for debug output
+ * @returns The aggregate hash and optional per-file debug map
+ */
+async function computeWorkspaceHashes(
+  dir: string,
+  fileList: string[],
+  materializePerFileHashes: boolean,
+): Promise<{
+  ownHash: Buffer;
+  perFileHashes: Record<string, string>;
+}> {
+  const entries = await computeRawFileDigests(dir, fileList)
+
+  // oxlint-disable-next-line no-array-sort
+  entries.sort((a, b) => (a[0] === b[0]
+    ? 0
+    : a[0] < b[0]
+      ? -1
+      : 1))
+
+  const ownHash = createHash("sha256")
+  const perFileHashes: Record<string, string> = new NullObj<string>()
+
+  for (const [ norm, fileHash ] of entries) {
+    ownHash.update(fileHash)
+
+    if (materializePerFileHashes) {
+      perFileHashes[norm] = fileHash.toString("hex")
+    }
+  }
+
+  return {
+    ownHash: ownHash.digest(),
+    perFileHashes,
+  }
+}
+
+/**
+ * For a given `dir` and list of relative file paths (`fileList`), compute per-file SHA-256 on (normalizedPath + NUL + rawContent)  
  * Always returns a map : { "posix/rel/path": "hex" }
  * @param dir The absolute path to the directory containing the files
  * @param fileList An array of relative file paths within the directory
@@ -1067,22 +1157,10 @@ export async function computePerFileHashes(
     return result
   }
 
-  const CONCURRENCY = 100
-
-  const entries = await mapLimit(fileList, CONCURRENCY, async (rel) => {
-    const norm = displayPath(rel)
-    const fullPath = join(dir, rel)
-    const content = await readFile(fullPath)
-    const fileHash = createHash("sha256")
-      .update(norm)
-      .update(content)
-      .digest("hex")
-
-    return [ norm, fileHash ] as const
-  })
+  const entries = await computeRawFileDigests(dir, fileList)
 
   for (const [ norm, partialHash ] of entries) {
-    result[norm] = partialHash
+    result[norm] = partialHash.toString("hex")
   }
 
   return result
@@ -1641,7 +1719,7 @@ export async function hash(): Promise<Awaited<ReturnType<typeof generateHashes>>
   // Resolve internal deps for all packages
   for (const info of meta.values()) {
     const {
-      dependencies, devDependencies, peerDependencies,
+      dependencies, devDependencies, peerDependencies, optionalDependencies,
     } = info.manifest
 
     // Collect dep keys without creating intermediate merged object
@@ -1665,6 +1743,14 @@ export async function hash(): Promise<Awaited<ReturnType<typeof generateHashes>>
 
     if (peerDependencies) {
       for (const d of Object.keys(peerDependencies)) {
+        if (meta.has(d) && !depKeys.includes(d)) {
+          depKeys.push(d)
+        }
+      }
+    }
+
+    if (optionalDependencies) {
+      for (const d of Object.keys(optionalDependencies)) {
         if (meta.has(d) && !depKeys.includes(d)) {
           depKeys.push(d)
         }
@@ -1742,19 +1828,20 @@ export async function hash(): Promise<Awaited<ReturnType<typeof generateHashes>>
       // Get file list after ignores
       const fileList = await getWorkspaceFileList(dir, relDir, globalRootIgnore)
 
-      // Compute per-file hashes & ownHash
-      const perFileMap = await computePerFileHashes(dir, fileList)
-      const sortedKeys = Object.keys(perFileMap)
-        // oxlint-disable-next-line no-array-sort
-        .sort()
-      const ownBuffer = computeOwnHashFromPerFile(perFileMap, sortedKeys)
+      // Compute ownHash directly from raw digests, materializing per-file hex only for debug mode
+      const {
+        ownHash: ownBuffer,
+        perFileHashes: perFileMap,
+      } = await computeWorkspaceHashes(dir, fileList, debug)
 
       count++
       log(`\r🔄 Computing hashes (${zeroPad(count, pad)}/${total}) • ${displayPath(relDir)}`, true)
 
       if (debug && mode === "generate") {
         if (unified) {
-          debugOutput[displayPath(relDir)] = perFileMap
+          if (!targets || targets.includes(relDir)) {
+            debugOutput[displayPath(relDir)] = perFileMap
+          }
         } else {
           await writeDebugFile(dir, perFileMap)
         }
@@ -1775,7 +1862,21 @@ export async function hash(): Promise<Awaited<ReturnType<typeof generateHashes>>
   )
 
   if (mode === "generate" && debug && unified) {
-    await writeRootDebugFile(repoRoot, debugOutput)
+    if (targets) {
+      const existingDebug = await loadRootDebugFile(repoRoot)
+
+      if (existingDebug) {
+        for (const [ relDir, perFileHashes ] of Object.entries(debugOutput)) {
+          existingDebug[relDir] = perFileHashes
+        }
+
+        await writeRootDebugFile(repoRoot, existingDebug)
+      } else {
+        await writeRootDebugFile(repoRoot, debugOutput)
+      }
+    } else {
+      await writeRootDebugFile(repoRoot, debugOutput)
+    }
   }
 
   const pkgs = Object.fromEntries(pkgInfos)
@@ -1819,8 +1920,7 @@ export async function runCli(customArgv?: string[]): Promise<Awaited<ReturnType<
   let helpRequested = false
   let versionRequested = false
 
-  // Clear caches for fresh runs
-  existsCache.clear()
+  // Clear the optional display cache for fresh runs
   displayPathCache.clear()
 
   const args = customArgv ?? argv.slice(2)
@@ -1846,7 +1946,7 @@ export async function runCli(customArgv?: string[]): Promise<Awaited<ReturnType<
       const val = rawVal ?? ""
 
       targets = val.split(",")
-        .map((p) => p.replace(/\/+$/, ""))
+        .map(canonicalizeTarget)
     } else if (arg === "--silent" || arg === "-s") {
       silent = true
     } else if (arg === "--debug" || arg === "-d") {
@@ -1880,6 +1980,8 @@ export async function runCli(customArgv?: string[]): Promise<Awaited<ReturnType<
   if (versionRequested) {
     log(`monorepo-hash v${CLI_VERSION}`)
     safeExit(0)
+
+    return undefined
   }
 
   if (!mode || helpRequested) {
@@ -1901,14 +2003,9 @@ Arguments :
   --help            (-h)  Show this help message
 `)
     safeExit(0)
-  } else {
-    // Normalize targets from forward-slash to platform-specific separators
-    if (targets && needsPathConversion) {
-      targets = targets.map((t) => t.replace(/\/+$/, "")
-        .split("/")
-        .join(sep))
-    }
 
+    return undefined
+  } else {
     if (mode === "generate") {
       if (targets) {
         log(`ℹ️  Generating hashes for specified targets... (${displayPath(targets.join(", "))})\n`)

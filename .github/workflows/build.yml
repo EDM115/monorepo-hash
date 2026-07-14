@@ -4,17 +4,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-all:
-    runs-on: ubuntu-slim
-    env:
-      GH_TOKEN: ${{ github.token }}
-    permissions:
-      actions: write
-    steps:
-      - name: "Checkout"
-        uses: actions/checkout@v6
+  build-go:
+    uses: ./.github/workflows/build-go.yml
 
-      - name: "Fire up all the builds"
-        run: |
-          gh workflow run build-go.yml
-          gh workflow run build-rust.yml
+  build-rust:
+    uses: ./.github/workflows/build-rust.yml

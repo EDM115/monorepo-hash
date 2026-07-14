@@ -344,6 +344,17 @@ export function defineEdgeCasesSuite(runCli: RunCli): void {
         .toHaveLength(0)
     })
 
+    it("normalizes backslashes and trailing separators in targets", async () => {
+      await remove(join(targetDir, ".hash"))
+      await runCli(targetDir, [ "--generate", "--target=packages\\pkg-2\\" ])
+      const hashPath = join(targetDir, ".hash")
+      // oxlint-disable-next-line no-unsafe-type-assertion
+      const content = JSON.parse(await readFile(hashPath, "utf8")) as Record<string, string>
+
+      expect(Object.keys(content))
+        .toEqual(["packages/pkg-2"])
+    })
+
     it("compares only specified target", async () => {
       await runCli(targetDir, ["--generate"])
       await writeFile(join(targetDir, "packages", "pkg-1", "index.js"), "export const pkg_1 = false\n")
@@ -351,6 +362,77 @@ export function defineEdgeCasesSuite(runCli: RunCli): void {
 
       expect(result.exitCode)
         .toBe(0)
+    })
+  })
+
+  describe("hash correctness", () => {
+    it("tracks optional workspace dependencies", async () => {
+      const dir = await mkdtemp(join(tmpdir(), "monorepo-hash-optional-dependency-"))
+      const appDir = join(dir, "packages", "app")
+      const libDir = join(dir, "packages", "optional-lib")
+
+      await mkdirp(appDir)
+      await mkdirp(libDir)
+      await writeFile(join(dir, "pnpm-workspace.yaml"), "packages:\n  - \"packages/*\"\n")
+      await writeJson(join(appDir, "package.json"), {
+        name: "app",
+        version: "1.0.0",
+        optionalDependencies: { "optional-lib": "workspace:*" },
+      }, { spaces: 2 })
+      await writeFile(join(appDir, "index.js"), "export const app = true\n")
+      await writeJson(join(libDir, "package.json"), {
+        name: "optional-lib",
+        version: "1.0.0",
+      }, { spaces: 2 })
+      await writeFile(join(libDir, "index.js"), "export const value = 1\n")
+
+      try {
+        await runCli(dir, ["--generate"])
+        await writeFile(join(libDir, "index.js"), "export const value = 2\n")
+
+        const result = await runCli(dir, [ "--compare", "--target=packages/app" ])
+
+        expect(result.exitCode)
+          .toBe(1)
+        expect(result.stdout)
+          .toContain("packages/optional-lib")
+      } finally {
+        await remove(dir)
+      }
+    })
+
+    it("separates file paths from file contents in hash inputs", async () => {
+      const firstDir = await mkdtemp(join(tmpdir(), "monorepo-hash-boundary-a-"))
+      const secondDir = await mkdtemp(join(tmpdir(), "monorepo-hash-boundary-b-"))
+
+      const setup = async (dir: string, filename: string, content: string): Promise<void> => {
+        const pkgDir = join(dir, "packages", "pkg")
+
+        await mkdirp(pkgDir)
+        await writeFile(join(dir, "pnpm-workspace.yaml"), "packages:\n  - \"packages/*\"\n")
+        await writeJson(join(pkgDir, "package.json"), {
+          name: "pkg",
+          version: "1.0.0",
+        }, { spaces: 2 })
+        await writeFile(join(pkgDir, filename), content)
+      }
+
+      try {
+        await setup(firstDir, "a", "bc")
+        await setup(secondDir, "ab", "c")
+        await runCli(firstDir, ["--generate"])
+        await runCli(secondDir, ["--generate"])
+
+        // oxlint-disable-next-line no-unsafe-type-assertion
+        const firstHashes = JSON.parse(await readFile(join(firstDir, ".hash"), "utf8")) as Record<string, string>
+        // oxlint-disable-next-line no-unsafe-type-assertion
+        const secondHashes = JSON.parse(await readFile(join(secondDir, ".hash"), "utf8")) as Record<string, string>
+
+        expect(firstHashes["packages/pkg"])
+          .not.toBe(secondHashes["packages/pkg"])
+      } finally {
+        await Promise.all([ remove(firstDir), remove(secondDir) ])
+      }
     })
   })
 
@@ -655,13 +737,47 @@ export function defineEdgeCasesSuite(runCli: RunCli): void {
       }
     })
 
+    it("uses the nearest Deno config regardless of extension", async () => {
+      const parentDir = await mkdtemp(join(tmpdir(), "monorepo-hash-deno-nearest-"))
+      const childDir = join(parentDir, "nested")
+      const parentPkgDir = join(parentDir, "parent-packages", "parent-pkg")
+      const childPkgDir = join(childDir, "packages", "child-pkg")
+
+      await mkdirp(parentPkgDir)
+      await mkdirp(childPkgDir)
+      await writeJson(join(parentDir, "deno.json"), { workspace: ["parent-packages/*"] }, { spaces: 2 })
+      await writeJson(join(parentPkgDir, "package.json"), {
+        name: "parent-pkg",
+        version: "1.0.0",
+      }, { spaces: 2 })
+      await writeFile(join(parentPkgDir, "index.ts"), "export const parent = true\n")
+      await writeFile(join(childDir, "deno.jsonc"), "{\n  // The nearer config must win.\n  \"workspace\": [\"packages/*\"],\n}\n")
+      await writeJson(join(childPkgDir, "package.json"), {
+        name: "child-pkg",
+        version: "1.0.0",
+      }, { spaces: 2 })
+      await writeFile(join(childPkgDir, "index.ts"), "export const child = true\n")
+
+      try {
+        const result = await runCli(childDir, ["--generate"])
+
+        expect(result.exitCode)
+          .toBe(0)
+        expect(await pathExists(join(childDir, ".hash")))
+          .toBe(true)
+        expect(await pathExists(join(parentDir, ".hash")))
+          .toBe(false)
+      } finally {
+        await remove(parentDir)
+      }
+    })
+
     it("falls back from invalid deno.json to package.json workspaces", async () => {
-      const dir = join(cwd, "invalid-deno-fallback")
+      const dir = await mkdtemp(join(tmpdir(), "monorepo-hash-invalid-deno-fallback-"))
 
       await mkdirp(join(dir, "packages", "pkg-a"))
       await writeFile(join(dir, "deno.json"), "{ invalid json }")
       await writeJson(join(dir, "package.json"), { workspaces: ["packages/*"] }, { spaces: 2 })
-      await writeFile(join(dir, "package-lock.json"), "")
       await writeJson(join(dir, "packages", "pkg-a", "package.json"), {
         name: "pkg-a",
         version: "1.0.0",
@@ -673,6 +789,8 @@ export function defineEdgeCasesSuite(runCli: RunCli): void {
 
         expect(result.exitCode)
           .toBe(0)
+        expect(result.stdout)
+          .toContain("Using npm workspaces from")
       } finally {
         await remove(dir)
       }

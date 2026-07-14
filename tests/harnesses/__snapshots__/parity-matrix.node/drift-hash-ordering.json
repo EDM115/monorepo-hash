@@ -10,6 +10,6 @@
   "stderr": "",
   "stdoutNorm": "",
   "files": {
-    ".hash": "{\n  \"packages/a\": \"11d2c9bfc9beab67209489aa66da7582d58abdf992aeb74a6f485fcf230fc134\",\n  \"packages/b\": \"222\",\n  \"zzz/legacy\": \"111\"\n}"
+    ".hash": "{\n  \"packages/a\": \"bd8d5983df18bdc20460f9fafbffd293b52913d222a7d349102716948666b6a5\",\n  \"packages/b\": \"222\",\n  \"zzz/legacy\": \"111\"\n}"
   }
 }

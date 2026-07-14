@@ -1,6 +1,7 @@
 name: Builds the Rust binaries on all platforms
 
 on:
+  workflow_call:
   workflow_dispatch:
 
 permissions:

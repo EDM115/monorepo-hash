@@ -108,6 +108,8 @@ struct PackageJson {
   dev_dependencies: Option<HashMap<String, String>>,
   #[serde(rename = "peerDependencies")]
   peer_dependencies: Option<HashMap<String, String>>,
+  #[serde(rename = "optionalDependencies")]
+  optional_dependencies: Option<HashMap<String, String>>,
   #[serde(rename = "packageManager")]
   package_manager: Option<Value>,
   #[serde(rename = "devEngines")]
@@ -286,6 +288,8 @@ fn run(args: &[String]) -> Result<(), String> {
   compute_package_hashes(
     &mut packages,
     &packages_to_hash,
+    &selected_names,
+    opts.targets.is_some(),
     &detection.root,
     root_ignore.as_ref(),
     opts.debug,
@@ -362,7 +366,7 @@ fn parse_args(args: &[String]) -> Result<Option<CliOptions>, CliError> {
     {
       let parsed = value
         .split(',')
-        .map(|s| to_posix_path(s.trim_end_matches('/')))
+        .map(canonicalize_target)
         .collect::<Vec<_>>();
       targets = Some(parsed);
     } else if arg == "--silent" || arg == "-s" {
@@ -484,6 +488,32 @@ fn to_posix_path(value: &str) -> String {
 
     transformed
   })
+}
+
+fn canonicalize_target(target: &str) -> String {
+  let mut normalized = String::with_capacity(target.len());
+  let mut previous_was_separator = false;
+
+  for character in target.chars() {
+    if matches!(character, '/' | '\\') {
+      if !previous_was_separator {
+        normalized.push('/');
+      }
+      previous_was_separator = true;
+    } else {
+      normalized.push(character);
+      previous_was_separator = false;
+    }
+  }
+
+  let trimmed_len = normalized.trim_end_matches('/').len();
+  normalized.truncate(trimmed_len);
+
+  if normalized == "." {
+    String::new()
+  } else {
+    normalized
+  }
 }
 
 fn path_relative_to_posix(path: &Path, base: &Path) -> String {
@@ -733,7 +763,10 @@ fn detect_deno() -> Result<Option<Detection>, String> {
   };
   let raw = fs::read_to_string(&file).map_err(|e| e.to_string())?;
   let cleaned = normalize_jsonc(&raw);
-  let parsed: DenoWorkspace = serde_json::from_str(&cleaned).map_err(|e| e.to_string())?;
+  let parsed: DenoWorkspace = match serde_json::from_str(&cleaned) {
+    Ok(parsed) => parsed,
+    Err(_) => return Ok(None),
+  };
   let globs = parsed
     .workspace
     .as_ref()
@@ -1317,6 +1350,13 @@ fn load_packages(detection: &Detection) -> io::Result<HashMap<String, PackageInf
         }
       }
     }
+    if let Some(map) = loaded_pkg.manifest.optional_dependencies.as_ref() {
+      for dep in map.keys() {
+        if package_names.contains(dep) {
+          deps.insert(dep.clone());
+        }
+      }
+    }
 
     let mut deps = deps.into_iter().collect::<Vec<_>>();
     deps.sort();
@@ -1507,6 +1547,7 @@ fn collect_workspace_files(
 fn sha256_bytes_for_file(path: &Path, rel_posix: &str) -> io::Result<[u8; 32]> {
   let mut hasher = Sha256::new();
   hasher.update(rel_posix.as_bytes());
+  hasher.update([0]);
   let content = fs::read(path)?;
   hasher.update(&content);
   let digest = hasher.finalize();
@@ -1616,7 +1657,9 @@ fn per_file_hashes_to_hex_map(per_file: &HashMap<String, DigestBytes>) -> BTreeM
 #[allow(clippy::too_many_arguments)]
 fn compute_package_hashes(
   packages: &mut HashMap<String, PackageInfo>,
-  selected: &[String],
+  to_hash: &[String],
+  debug_selected: &[String],
+  targeted: bool,
   repo_root: &Path,
   root_ignore: Option<&Gitignore>,
   debug: bool,
@@ -1624,8 +1667,17 @@ fn compute_package_hashes(
   mode: Mode,
   silent: bool,
 ) -> io::Result<()> {
-  let mut root_debug = BTreeMap::<String, BTreeMap<String, String>>::new();
-  let total = selected.len();
+  let root_debug_path = repo_root.join(".debug-hash");
+  let mut root_debug = if debug && unified && mode == Mode::Generate && targeted {
+    read_json_file::<BTreeMap<String, BTreeMap<String, String>>>(
+      &root_debug_path,
+      "root .debug-hash file",
+    )?
+    .unwrap_or_default()
+  } else {
+    BTreeMap::new()
+  };
+  let total = to_hash.len();
   let pad = if total >= 100 {
     3
   } else if total >= 10 {
@@ -1640,7 +1692,7 @@ fn compute_package_hashes(
   );
 
   let workspace_results: io::Result<Vec<HashedWorkspace>> = if total <= 1 {
-    selected
+    to_hash
       .iter()
       .enumerate()
       .map(|(idx, name)| {
@@ -1670,7 +1722,7 @@ fn compute_package_hashes(
   } else {
     let completed = AtomicUsize::new(0);
 
-    selected
+    to_hash
       .par_iter()
       .map(|name| {
         let pkg = packages
@@ -1709,7 +1761,7 @@ fn compute_package_hashes(
   }
 
   if debug && mode == Mode::Generate {
-    for name in selected {
+    for name in debug_selected {
       let pkg = packages
         .get(name)
         .ok_or_else(|| io::Error::other("Package missing metadata"))?;
@@ -1733,7 +1785,7 @@ fn compute_package_hashes(
 
   if debug && unified && mode == Mode::Generate {
     let content = serde_json::to_string_pretty(&root_debug).unwrap_or("{}".to_string());
-    fs::write(repo_root.join(".debug-hash"), content)?;
+    fs::write(root_debug_path, content)?;
   }
 
   progressln(silent, format!("✅ Computed all hashes ({})", total));

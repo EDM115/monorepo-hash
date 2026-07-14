@@ -9,6 +9,6 @@
   "stderr": "",
   "stdoutNorm": "",
   "files": {
-    ".hash": "{\n  \"packages/a\": \"11d2c9bfc9beab67209489aa66da7582d58abdf992aeb74a6f485fcf230fc134\",\n  \"packages/b\": \"df780d82cec68d99b68ba54367b735d6050f8e98093efc4ea07a4bcff683dc77\"\n}"
+    ".hash": "{\n  \"packages/a\": \"bd8d5983df18bdc20460f9fafbffd293b52913d222a7d349102716948666b6a5\",\n  \"packages/b\": \"f5c08f6662c7450a8c0c09d2a74f9358c9d55bffea88ec25e237f0552f3dbdcc\"\n}"
   }
 }

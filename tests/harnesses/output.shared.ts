@@ -75,6 +75,15 @@ export function defineOutputSuite(runCli: RunCli): void {
 
         expect(compareResult.exitCode)
           .toBe(1)
+
+        await remove(rootHashPath)
+        await runCli(rootWorkspaceDir, [ "--generate", "--target=." ])
+
+        // oxlint-disable-next-line no-unsafe-type-assertion
+        const dotTargetContent = JSON.parse(await readFile(rootHashPath, "utf8")) as Record<string, string>
+
+        expect(Object.keys(dotTargetContent))
+          .toEqual([""])
       } finally {
         if (await pathExists(rootWorkspaceDir)) {
           await remove(rootWorkspaceDir)
